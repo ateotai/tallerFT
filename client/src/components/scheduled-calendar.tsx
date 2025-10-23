@@ -1,0 +1,108 @@
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Calendar, Clock } from "lucide-react";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+
+interface ScheduledService {
+  id: string;
+  date: string;
+  time: string;
+  vehiclePlate: string;
+  serviceType: string;
+  status: "upcoming" | "today" | "overdue";
+}
+
+interface ScheduledCalendarProps {
+  services: ScheduledService[];
+}
+
+const statusConfig = {
+  upcoming: { label: "Próximo", className: "border-blue-600 text-blue-600" },
+  today: { label: "Hoy", className: "border-green-600 text-green-600" },
+  overdue: { label: "Atrasado", className: "border-red-600 text-red-600" },
+};
+
+export function ScheduledCalendar({ services }: ScheduledCalendarProps) {
+  const [view, setView] = useState<"list" | "calendar">("list");
+
+  // Group services by date
+  const groupedServices = services.reduce((acc, service) => {
+    if (!acc[service.date]) {
+      acc[service.date] = [];
+    }
+    acc[service.date].push(service);
+    return acc;
+  }, {} as Record<string, ScheduledService[]>);
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
+        <CardTitle className="text-xl">Mantenimientos Programados</CardTitle>
+        <div className="flex gap-2">
+          <Button
+            variant={view === "list" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setView("list")}
+            data-testid="button-view-list"
+          >
+            Lista
+          </Button>
+          <Button
+            variant={view === "calendar" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setView("calendar")}
+            data-testid="button-view-calendar"
+          >
+            Calendario
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {view === "list" ? (
+          Object.entries(groupedServices).map(([date, dateServices]) => (
+            <div key={date} className="space-y-3">
+              <div className="flex items-center gap-2 text-sm font-medium">
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+                <span>{date}</span>
+              </div>
+              <div className="space-y-2 pl-6">
+                {dateServices.map((service) => (
+                  <div
+                    key={service.id}
+                    className="flex items-center justify-between gap-4 p-3 rounded-md border hover-elevate"
+                    data-testid={`service-${service.id}`}
+                  >
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">{service.serviceType}</span>
+                        <Badge
+                          variant="outline"
+                          className={statusConfig[service.status].className}
+                        >
+                          {statusConfig[service.status].label}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          {service.time}
+                        </span>
+                        <span className="font-mono">{service.vehiclePlate}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))
+        ) : (
+          <div className="text-center py-12 text-muted-foreground">
+            <Calendar className="h-12 w-12 mx-auto mb-3 opacity-50" />
+            <p>Vista de calendario próximamente</p>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
