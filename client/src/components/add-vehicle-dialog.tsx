@@ -33,6 +33,7 @@ import { Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { insertVehicleSchema, type InsertVehicle, type VehicleType } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { ClientSearchCombobox } from "@/components/client-search-combobox";
 
 export function AddVehicleDialog() {
   const [open, setOpen] = useState(false);
@@ -54,6 +55,7 @@ export function AddVehicleDialog() {
       mileage: 0,
       fuelType: "gasoline",
       status: "active",
+      assignedArea: "",
       clientId: null,
       vehicleTypeId: null,
       imageUrl: null,
@@ -104,6 +106,23 @@ export function AddVehicleDialog() {
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="clientId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Cliente</FormLabel>
+                  <FormControl>
+                    <ClientSearchCombobox
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      placeholder="Buscar cliente..."
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -276,6 +295,19 @@ export function AddVehicleDialog() {
                         <SelectItem value="inactive">Inactivo</SelectItem>
                       </SelectContent>
                     </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="assignedArea"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Área Asignada</FormLabel>
+                    <FormControl>
+                      <Input {...field} value={field.value || ""} placeholder="Ej: Operaciones, Ventas" data-testid="input-assigned-area" />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
