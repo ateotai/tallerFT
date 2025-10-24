@@ -1,75 +1,27 @@
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { InventoryTable } from "@/components/inventory-table";
-import { Button } from "@/components/ui/button";
+import { AddInventoryDialog } from "@/components/add-inventory-dialog";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Search, Plus, Package, AlertTriangle, TrendingDown } from "lucide-react";
-import { useState } from "react";
+import { Search, Package, AlertTriangle, TrendingDown } from "lucide-react";
+import type { Inventory } from "@shared/schema";
 
 export default function InventoryPage() {
   const [searchQuery, setSearchQuery] = useState("");
 
-  //todo: remove mock functionality
-  const items = [
-    {
-      id: "1",
-      partNumber: "FLT-001",
-      name: "Filtro de Aceite",
-      category: "Filtros",
-      stock: 45,
-      minStock: 20,
-      price: 125.50,
-      location: "Almacén A-12",
-    },
-    {
-      id: "2",
-      partNumber: "BRK-205",
-      name: "Pastillas de Freno",
-      category: "Frenos",
-      stock: 8,
-      minStock: 15,
-      price: 850.00,
-      location: "Almacén B-05",
-    },
-    {
-      id: "3",
-      partNumber: "SPK-103",
-      name: "Bujías NGK",
-      category: "Motor",
-      stock: 120,
-      minStock: 30,
-      price: 85.00,
-      location: "Almacén A-08",
-    },
-    {
-      id: "4",
-      partNumber: "OIL-500",
-      name: "Aceite Motor 10W-40",
-      category: "Lubricantes",
-      stock: 65,
-      minStock: 40,
-      price: 185.00,
-      location: "Almacén C-01",
-    },
-    {
-      id: "5",
-      partNumber: "TIR-001",
-      name: "Neumático 205/55R16",
-      category: "Neumáticos",
-      stock: 12,
-      minStock: 16,
-      price: 1250.00,
-      location: "Almacén D-10",
-    },
-  ];
+  const { data: items = [], isLoading } = useQuery<Inventory[]>({
+    queryKey: ["/api/inventory"],
+  });
 
-  const lowStockCount = items.filter((item) => item.stock <= item.minStock).length;
-  const totalValue = items.reduce((sum, item) => sum + item.stock * item.price, 0);
-  const totalItems = items.reduce((sum, item) => sum + item.stock, 0);
+  const lowStockCount = items.filter((item) => item.quantity <= item.minQuantity).length;
+  const totalValue = items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
+  const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
 
   const filteredItems = items.filter(
     (item) =>
       item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.partNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (item.partNumber && item.partNumber.toLowerCase().includes(searchQuery.toLowerCase())) ||
       item.category.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
@@ -123,7 +75,7 @@ export default function InventoryPage() {
             <AlertTriangle className="h-5 w-5 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-4xl font-bold text-red-600" data-testid="stat-low-stock">
+            <div className="text-4xl font-bold text-red-600 dark:text-red-400" data-testid="stat-low-stock">
               {lowStockCount}
             </div>
             <p className="text-xs text-muted-foreground mt-2">Items bajo stock mínimo</p>
@@ -142,13 +94,16 @@ export default function InventoryPage() {
             data-testid="input-search-inventory"
           />
         </div>
-        <Button data-testid="button-add-item">
-          <Plus className="h-4 w-4 mr-2" />
-          Agregar Refacción
-        </Button>
+        <AddInventoryDialog />
       </div>
 
-      <InventoryTable items={filteredItems} />
+      {isLoading ? (
+        <div className="text-center py-12 text-muted-foreground">
+          Cargando inventario...
+        </div>
+      ) : (
+        <InventoryTable items={filteredItems} />
+      )}
     </div>
   );
 }
