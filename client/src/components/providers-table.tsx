@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Table,
   TableBody,
@@ -34,6 +34,12 @@ export function ProvidersTable({ providers }: ProvidersTableProps) {
   const [editingProvider, setEditingProvider] = useState<Provider | null>(null);
   const [deletingProvider, setDeletingProvider] = useState<Provider | null>(null);
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (editingProvider && !providers.find(p => p.id === editingProvider.id)) {
+      setEditingProvider(null);
+    }
+  }, [providers, editingProvider]);
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
