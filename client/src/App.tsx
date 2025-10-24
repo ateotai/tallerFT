@@ -8,6 +8,7 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
 import NotFound from "@/pages/not-found";
+import DashboardPage from "@/pages/dashboard";
 import VehiclesPage from "@/pages/vehicles";
 import ServicesPage from "@/pages/services";
 import ScheduledPage from "@/pages/scheduled";
@@ -21,7 +22,8 @@ import UsersPage from "@/pages/users";
 function Router() {
   return (
     <Switch>
-      <Route path="/" component={VehiclesPage} />
+      <Route path="/" component={DashboardPage} />
+      <Route path="/vehiculos" component={VehiclesPage} />
       <Route path="/servicios" component={ServicesPage} />
       <Route path="/programados" component={ScheduledPage} />
       <Route path="/categorias" component={CategoriesPage} />

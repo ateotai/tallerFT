@@ -8,6 +8,7 @@ import {
   Shield,
   Tag,
   UserCircle,
+  LayoutDashboard,
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import {
@@ -24,8 +25,13 @@ import {
 
 const menuItems = [
   {
-    title: "Vehículos",
+    title: "Dashboard",
     url: "/",
+    icon: LayoutDashboard,
+  },
+  {
+    title: "Vehículos",
+    url: "/vehiculos",
     icon: Car,
   },
   {
