@@ -57,6 +57,14 @@ Material Design-inspired with a focus on productivity tools, using Inter (primar
 - **Vehicle Types Management**: Full CRUD operations for vehicle types via a dedicated administrative subsection with responsive dialogs.
 - **Dashboard**: Main landing page displaying real-time metrics across all system APIs, including recent services and interactive navigation cards.
 - **Service Categories and Subcategories Module**: Hierarchical management system for service categories and subcategories with full CRUD functionality and a tabbed UI.
+- **Providers Module**: Complete CRUD functionality for managing service providers and workshops. Features include:
+  - ProvidersTable with columns for name, type, phone, email, rating, status, and actions
+  - AddProviderDialog and EditProviderDialog for creating and updating providers
+  - Delete confirmation with AlertDialog
+  - State cleanup with useEffect to prevent stale data in edit dialog
+  - All components include proper data-testid attributes for testing
+  - Forms use React Hook Form with Zod validation
+  - Provider fields: name, type, phone, email, address, rating (nullable), status
 
 ### API Validation
 
