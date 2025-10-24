@@ -1,20 +1,27 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DashboardStats } from "@/components/dashboard-stats";
 import { VehicleCard } from "@/components/vehicle-card";
 import { VehicleTable } from "@/components/vehicle-table";
 import { AddVehicleDialog } from "@/components/add-vehicle-dialog";
+import { VehicleTypesTable } from "@/components/vehicle-types-table";
+import { AddVehicleTypeDialog } from "@/components/add-vehicle-type-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search, Grid, List } from "lucide-react";
-import type { Vehicle } from "@shared/schema";
+import type { Vehicle, VehicleType } from "@shared/schema";
 
 export default function VehiclesPage() {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [searchQuery, setSearchQuery] = useState("");
 
-  const { data: vehicles = [], isLoading } = useQuery<Vehicle[]>({
+  const { data: vehicles = [], isLoading: isLoadingVehicles } = useQuery<Vehicle[]>({
     queryKey: ["/api/vehicles"],
+  });
+
+  const { data: vehicleTypes = [], isLoading: isLoadingTypes } = useQuery<VehicleType[]>({
+    queryKey: ["/api/vehicle-types"],
   });
 
   const filteredVehicles = vehicles.filter(
@@ -33,59 +40,88 @@ export default function VehiclesPage() {
         </p>
       </div>
 
-      <DashboardStats />
+      <Tabs defaultValue="vehicles" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="vehicles" data-testid="tab-vehicles">Vehículos</TabsTrigger>
+          <TabsTrigger value="types" data-testid="tab-vehicle-types">Tipos de Vehículos</TabsTrigger>
+        </TabsList>
 
-      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar vehículos..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
-            data-testid="input-search-vehicles"
-          />
-        </div>
-        <div className="flex gap-2">
-          <div className="flex border rounded-md">
-            <Button
-              variant={viewMode === "grid" ? "secondary" : "ghost"}
-              size="sm"
-              onClick={() => setViewMode("grid")}
-              data-testid="button-view-grid"
-            >
-              <Grid className="h-4 w-4" />
-            </Button>
-            <Button
-              variant={viewMode === "list" ? "secondary" : "ghost"}
-              size="sm"
-              onClick={() => setViewMode("list")}
-              data-testid="button-view-list"
-            >
-              <List className="h-4 w-4" />
-            </Button>
+        <TabsContent value="vehicles" className="space-y-6">
+          <DashboardStats />
+
+          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar vehículos..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+                data-testid="input-search-vehicles"
+              />
+            </div>
+            <div className="flex gap-2">
+              <div className="flex border rounded-md">
+                <Button
+                  variant={viewMode === "grid" ? "secondary" : "ghost"}
+                  size="sm"
+                  onClick={() => setViewMode("grid")}
+                  data-testid="button-view-grid"
+                >
+                  <Grid className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant={viewMode === "list" ? "secondary" : "ghost"}
+                  size="sm"
+                  onClick={() => setViewMode("list")}
+                  data-testid="button-view-list"
+                >
+                  <List className="h-4 w-4" />
+                </Button>
+              </div>
+              <AddVehicleDialog />
+            </div>
           </div>
-          <AddVehicleDialog />
-        </div>
-      </div>
 
-      {isLoading ? (
-        <div className="text-center py-12 text-muted-foreground">
-          Cargando vehículos...
-        </div>
-      ) : filteredVehicles.length === 0 ? (
-        <div className="text-center py-12 text-muted-foreground">
-          {searchQuery ? "No se encontraron vehículos" : "No hay vehículos registrados"}
-        </div>
-      ) : viewMode === "grid" ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {filteredVehicles.map((vehicle) => (
-            <VehicleCard key={vehicle.id} vehicle={vehicle} />
-          ))}
-        </div>
-      ) : (
-        <VehicleTable vehicles={filteredVehicles} />
-      )}
+          {isLoadingVehicles ? (
+            <div className="text-center py-12 text-muted-foreground">
+              Cargando vehículos...
+            </div>
+          ) : filteredVehicles.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              {searchQuery ? "No se encontraron vehículos" : "No hay vehículos registrados"}
+            </div>
+          ) : viewMode === "grid" ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {filteredVehicles.map((vehicle) => (
+                <VehicleCard key={vehicle.id} vehicle={vehicle} />
+              ))}
+            </div>
+          ) : (
+            <VehicleTable vehicles={filteredVehicles} />
+          )}
+        </TabsContent>
+
+        <TabsContent value="types" className="space-y-6">
+          <div className="flex justify-between items-center">
+            <div>
+              <h2 className="text-2xl font-semibold">Tipos de Vehículos</h2>
+              <p className="text-muted-foreground mt-1">
+                Administra los tipos de carrocería disponibles
+              </p>
+            </div>
+            <AddVehicleTypeDialog />
+          </div>
+
+          {isLoadingTypes ? (
+            <div className="text-center py-12 text-muted-foreground">
+              Cargando tipos de vehículos...
+            </div>
+          ) : (
+            <VehicleTypesTable vehicleTypes={vehicleTypes} />
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
