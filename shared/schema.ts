@@ -65,6 +65,7 @@ export const vehicles = sqliteTable("vehicles", {
   mileage: integer("mileage").notNull().default(0),
   fuelType: text("fuel_type").notNull(),
   status: text("status").notNull().default("active"),
+  assignedArea: text("assigned_area"),
   imageUrl: text("image_url"),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
 });
