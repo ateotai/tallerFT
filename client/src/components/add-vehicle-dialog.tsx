@@ -56,6 +56,7 @@ export function AddVehicleDialog() {
       fuelType: "gasoline",
       status: "active",
       assignedArea: "",
+      economicNumber: "",
       clientId: null,
       vehicleTypeId: null,
       imageUrl: null,
@@ -97,7 +98,7 @@ export function AddVehicleDialog() {
           Agregar Vehículo
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Agregar Nuevo Vehículo</DialogTitle>
           <DialogDescription>
@@ -123,7 +124,7 @@ export function AddVehicleDialog() {
                 </FormItem>
               )}
             />
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="brand"
@@ -177,6 +178,19 @@ export function AddVehicleDialog() {
                     <FormLabel>Placa</FormLabel>
                     <FormControl>
                       <Input {...field} placeholder="ABC-1234" data-testid="input-plate" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="economicNumber"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Número Económico</FormLabel>
+                    <FormControl>
+                      <Input {...field} value={field.value || ""} placeholder="ECO-001" data-testid="input-economic-number" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
