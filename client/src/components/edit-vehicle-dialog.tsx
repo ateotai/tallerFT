@@ -52,7 +52,10 @@ export function EditVehicleDialog({ vehicle, open, onOpenChange }: EditVehicleDi
       mileage: vehicle.mileage,
       fuelType: vehicle.fuelType,
       status: vehicle.status,
+      assignedArea: vehicle.assignedArea || "",
+      economicNumber: vehicle.economicNumber || "",
       clientId: vehicle.clientId,
+      vehicleTypeId: vehicle.vehicleTypeId,
       imageUrl: vehicle.imageUrl,
     },
   });
@@ -69,7 +72,10 @@ export function EditVehicleDialog({ vehicle, open, onOpenChange }: EditVehicleDi
         mileage: vehicle.mileage,
         fuelType: vehicle.fuelType,
         status: vehicle.status,
+        assignedArea: vehicle.assignedArea || "",
+        economicNumber: vehicle.economicNumber || "",
         clientId: vehicle.clientId,
+        vehicleTypeId: vehicle.vehicleTypeId,
         imageUrl: vehicle.imageUrl,
       });
     }
@@ -103,7 +109,7 @@ export function EditVehicleDialog({ vehicle, open, onOpenChange }: EditVehicleDi
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Editar Vehículo</DialogTitle>
           <DialogDescription>
@@ -112,7 +118,7 @@ export function EditVehicleDialog({ vehicle, open, onOpenChange }: EditVehicleDi
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="brand"
@@ -166,6 +172,19 @@ export function EditVehicleDialog({ vehicle, open, onOpenChange }: EditVehicleDi
                     <FormLabel>Placa</FormLabel>
                     <FormControl>
                       <Input {...field} placeholder="ABC-1234" data-testid="input-edit-plate" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="economicNumber"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Número Económico</FormLabel>
+                    <FormControl>
+                      <Input {...field} value={field.value || ""} placeholder="ECO-001" data-testid="input-edit-economic-number" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -257,6 +276,19 @@ export function EditVehicleDialog({ vehicle, open, onOpenChange }: EditVehicleDi
                         <SelectItem value="inactive">Inactivo</SelectItem>
                       </SelectContent>
                     </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="assignedArea"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Área Asignada</FormLabel>
+                    <FormControl>
+                      <Input {...field} value={field.value || ""} placeholder="Ej: Operaciones, Ventas" data-testid="input-edit-assigned-area" />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
