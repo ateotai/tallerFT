@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
@@ -10,10 +10,8 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -29,72 +27,87 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { insertVehicleSchema, type InsertVehicle } from "@shared/schema";
+import { insertVehicleSchema, type InsertVehicle, type Vehicle } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 
-export function AddVehicleDialog() {
-  const [open, setOpen] = useState(false);
+interface EditVehicleDialogProps {
+  vehicle: Vehicle;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+export function EditVehicleDialog({ vehicle, open, onOpenChange }: EditVehicleDialogProps) {
   const { toast } = useToast();
 
   const form = useForm<InsertVehicle>({
     resolver: zodResolver(insertVehicleSchema),
     defaultValues: {
-      brand: "",
-      model: "",
-      year: new Date().getFullYear(),
-      plate: "",
-      vin: "",
-      color: "",
-      mileage: 0,
-      fuelType: "gasoline",
-      status: "active",
-      clientId: null,
-      imageUrl: null,
+      brand: vehicle.brand,
+      model: vehicle.model,
+      year: vehicle.year,
+      plate: vehicle.plate,
+      vin: vehicle.vin || "",
+      color: vehicle.color || "",
+      mileage: vehicle.mileage,
+      fuelType: vehicle.fuelType,
+      status: vehicle.status,
+      clientId: vehicle.clientId,
+      imageUrl: vehicle.imageUrl,
     },
   });
 
-  const createMutation = useMutation({
-    mutationFn: async (data: InsertVehicle) => {
-      const res = await apiRequest("POST", "/api/vehicles", data);
+  useEffect(() => {
+    if (open) {
+      form.reset({
+        brand: vehicle.brand,
+        model: vehicle.model,
+        year: vehicle.year,
+        plate: vehicle.plate,
+        vin: vehicle.vin || "",
+        color: vehicle.color || "",
+        mileage: vehicle.mileage,
+        fuelType: vehicle.fuelType,
+        status: vehicle.status,
+        clientId: vehicle.clientId,
+        imageUrl: vehicle.imageUrl,
+      });
+    }
+  }, [vehicle, open, form]);
+
+  const updateMutation = useMutation({
+    mutationFn: async (data: Partial<InsertVehicle>) => {
+      const res = await apiRequest("PUT", `/api/vehicles/${vehicle.id}`, data);
       return await res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/vehicles"] });
       toast({
-        title: "Vehículo agregado",
-        description: "El vehículo ha sido agregado exitosamente.",
+        title: "Vehículo actualizado",
+        description: "Los cambios se guardaron exitosamente.",
       });
-      setOpen(false);
-      form.reset();
+      onOpenChange(false);
     },
     onError: (error: Error) => {
       toast({
         title: "Error",
-        description: error.message || "No se pudo agregar el vehículo",
+        description: error.message || "No se pudo actualizar el vehículo",
         variant: "destructive",
       });
     },
   });
 
   const onSubmit = (data: InsertVehicle) => {
-    createMutation.mutate(data);
+    updateMutation.mutate(data);
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button data-testid="button-add-vehicle">
-          <Plus className="h-4 w-4 mr-2" />
-          Agregar Vehículo
-        </Button>
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Agregar Nuevo Vehículo</DialogTitle>
+          <DialogTitle>Editar Vehículo</DialogTitle>
           <DialogDescription>
-            Ingresa los datos del vehículo para agregarlo a la flotilla.
+            Modifica los datos del vehículo.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -107,7 +120,7 @@ export function AddVehicleDialog() {
                   <FormItem>
                     <FormLabel>Marca</FormLabel>
                     <FormControl>
-                      <Input {...field} placeholder="Toyota" data-testid="input-make" />
+                      <Input {...field} placeholder="Toyota" data-testid="input-edit-brand" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -120,7 +133,7 @@ export function AddVehicleDialog() {
                   <FormItem>
                     <FormLabel>Modelo</FormLabel>
                     <FormControl>
-                      <Input {...field} placeholder="Hilux" data-testid="input-model" />
+                      <Input {...field} placeholder="Hilux" data-testid="input-edit-model" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -138,7 +151,7 @@ export function AddVehicleDialog() {
                         type="number"
                         onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
                         placeholder="2024"
-                        data-testid="input-year"
+                        data-testid="input-edit-year"
                       />
                     </FormControl>
                     <FormMessage />
@@ -152,7 +165,7 @@ export function AddVehicleDialog() {
                   <FormItem>
                     <FormLabel>Placa</FormLabel>
                     <FormControl>
-                      <Input {...field} placeholder="ABC-1234" data-testid="input-plate" />
+                      <Input {...field} placeholder="ABC-1234" data-testid="input-edit-plate" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -165,7 +178,7 @@ export function AddVehicleDialog() {
                   <FormItem>
                     <FormLabel>VIN</FormLabel>
                     <FormControl>
-                      <Input {...field} value={field.value || ""} placeholder="1HGBH41JXMN109186" data-testid="input-vin" />
+                      <Input {...field} value={field.value || ""} placeholder="1HGBH41JXMN109186" data-testid="input-edit-vin" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -178,7 +191,7 @@ export function AddVehicleDialog() {
                   <FormItem>
                     <FormLabel>Color</FormLabel>
                     <FormControl>
-                      <Input {...field} value={field.value || ""} placeholder="Blanco" data-testid="input-color" />
+                      <Input {...field} value={field.value || ""} placeholder="Blanco" data-testid="input-edit-color" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -196,7 +209,7 @@ export function AddVehicleDialog() {
                         type="number"
                         onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
                         placeholder="50000"
-                        data-testid="input-mileage"
+                        data-testid="input-edit-mileage"
                       />
                     </FormControl>
                     <FormMessage />
@@ -209,9 +222,9 @@ export function AddVehicleDialog() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Tipo de Combustible</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
-                        <SelectTrigger data-testid="select-fuel">
+                        <SelectTrigger data-testid="select-edit-fuel">
                           <SelectValue placeholder="Seleccionar" />
                         </SelectTrigger>
                       </FormControl>
@@ -232,9 +245,9 @@ export function AddVehicleDialog() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Estado</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
-                        <SelectTrigger data-testid="select-status">
+                        <SelectTrigger data-testid="select-edit-status">
                           <SelectValue placeholder="Seleccionar" />
                         </SelectTrigger>
                       </FormControl>
@@ -250,11 +263,11 @@ export function AddVehicleDialog() {
               />
             </div>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                 Cancelar
               </Button>
-              <Button type="submit" disabled={createMutation.isPending} data-testid="button-submit-vehicle">
-                {createMutation.isPending ? "Guardando..." : "Guardar Vehículo"}
+              <Button type="submit" disabled={updateMutation.isPending} data-testid="button-submit-edit-vehicle">
+                {updateMutation.isPending ? "Guardando..." : "Guardar Cambios"}
               </Button>
             </DialogFooter>
           </form>
