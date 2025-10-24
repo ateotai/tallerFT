@@ -1,6 +1,6 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -29,7 +29,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { insertProviderSchema, type InsertProvider, type Provider } from "@shared/schema";
+import { insertProviderSchema, type InsertProvider, type Provider, type ProviderType } from "@shared/schema";
 
 interface EditProviderDialogProps {
   provider: Provider;
@@ -39,6 +39,10 @@ interface EditProviderDialogProps {
 
 export function EditProviderDialog({ provider, open, onOpenChange }: EditProviderDialogProps) {
   const { toast } = useToast();
+
+  const { data: providerTypes = [] } = useQuery<ProviderType[]>({
+    queryKey: ["/api/provider-types"],
+  });
 
   const form = useForm<InsertProvider>({
     resolver: zodResolver(insertProviderSchema),
@@ -109,7 +113,7 @@ export function EditProviderDialog({ provider, open, onOpenChange }: EditProvide
                 name="type"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Tipo de Servicio</FormLabel>
+                    <FormLabel>Tipo de Proveedor</FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
                         <SelectTrigger data-testid="select-type">
@@ -117,14 +121,11 @@ export function EditProviderDialog({ provider, open, onOpenChange }: EditProvide
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="Taller Mecánico">Taller Mecánico</SelectItem>
-                        <SelectItem value="Taller Eléctrico">Taller Eléctrico</SelectItem>
-                        <SelectItem value="Hojalatería y Pintura">Hojalatería y Pintura</SelectItem>
-                        <SelectItem value="Llantas y Alineación">Llantas y Alineación</SelectItem>
-                        <SelectItem value="Transmisiones">Transmisiones</SelectItem>
-                        <SelectItem value="Suspensión y Frenos">Suspensión y Frenos</SelectItem>
-                        <SelectItem value="Especialista Diesel">Especialista Diesel</SelectItem>
-                        <SelectItem value="Servicio Integral">Servicio Integral</SelectItem>
+                        {providerTypes.map((type) => (
+                          <SelectItem key={type.id} value={type.name}>
+                            {type.name}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                     <FormMessage />
