@@ -139,6 +139,21 @@ User authentication structure is present in the schema (users table with passwor
 
 ## Recent Changes
 
+### Dashboard Implementation (October 24, 2025)
+- Created comprehensive dashboard as the main landing page (route "/")
+- Dashboard displays real-time statistics from all system APIs:
+  - Vehicle metrics: total count, active vehicles, in-service vehicles
+  - Client metrics: total count, active clients
+  - Service metrics: total count, completed and pending services
+  - Scheduled maintenance: total count, pending items
+  - Inventory metrics: total items, low stock alerts, estimated total value
+- Recent services section showing the 5 most recent service records
+- Interactive cards with navigation to module pages
+- Proper cache handling: uses array spread operator to avoid mutating TanStack Query cache
+- Moved Vehicles page from "/" to "/vehiculos"
+- Added Dashboard link to sidebar navigation
+- Tests: E2E verification passed, architect approved implementation
+
 ### Database Migration to SQLite (October 2025)
 - Migrated from PostgreSQL to SQLite for simplified deployment and portability
 - Implemented complete database schema with 9 tables using Drizzle ORM
