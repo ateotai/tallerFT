@@ -1,5 +1,7 @@
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { ClientCard } from "@/components/client-card";
-import { Button } from "@/components/ui/button";
+import { AddClientDialog } from "@/components/add-client-dialog";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -8,80 +10,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Search, Plus, Filter } from "lucide-react";
-import { useState } from "react";
+import { Search, Filter } from "lucide-react";
+import type { Client } from "@shared/schema";
 
 export default function ClientsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
-  //todo: remove mock functionality
-  const clients = [
-    {
-      id: "1",
-      name: "Roberto Sánchez",
-      company: "Transportes del Norte S.A.",
-      phone: "+52 55 1234 5678",
-      email: "roberto.sanchez@transportes.com",
-      address: "Av. Reforma 456, Ciudad de México",
-      vehicleCount: 12,
-      totalSpent: 145230,
-      status: "active" as const,
-    },
-    {
-      id: "2",
-      name: "Laura Fernández",
-      company: "Distribuidora Express",
-      phone: "+52 55 9876 5432",
-      email: "laura.fernandez@express.com",
-      address: "Blvd. Insurgentes 789, CDMX",
-      vehicleCount: 8,
-      totalSpent: 98750,
-      status: "active" as const,
-    },
-    {
-      id: "3",
-      name: "Miguel Ángel Torres",
-      phone: "+52 55 5555 1234",
-      email: "miguel.torres@email.com",
-      address: "Calle Principal 123, Guadalajara",
-      vehicleCount: 3,
-      totalSpent: 34560,
-      status: "active" as const,
-    },
-    {
-      id: "4",
-      name: "Patricia Ramírez",
-      company: "Logística Global",
-      phone: "+52 55 3333 7890",
-      email: "patricia@logisticaglobal.mx",
-      address: "Zona Industrial 456, Monterrey",
-      vehicleCount: 15,
-      totalSpent: 287450,
-      status: "active" as const,
-    },
-    {
-      id: "5",
-      name: "Jorge Mendoza",
-      phone: "+52 55 2222 4567",
-      email: "jorge.mendoza@email.com",
-      address: "Av. Central 234, Puebla",
-      vehicleCount: 2,
-      totalSpent: 18900,
-      status: "inactive" as const,
-    },
-    {
-      id: "6",
-      name: "Carmen Ruiz",
-      company: "Mensajería Rápida",
-      phone: "+52 55 8888 9999",
-      email: "carmen@mensajeria.com",
-      address: "Calle Comercio 567, Querétaro",
-      vehicleCount: 6,
-      totalSpent: 67340,
-      status: "active" as const,
-    },
-  ];
+  const { data: clients = [], isLoading } = useQuery<Client[]>({
+    queryKey: ["/api/clients"],
+  });
 
   const filteredClients = clients.filter((c) => {
     const matchesSearch =
@@ -94,7 +32,6 @@ export default function ClientsPage() {
 
   const totalClients = clients.length;
   const activeClients = clients.filter((c) => c.status === "active").length;
-  const totalVehicles = clients.reduce((sum, c) => sum + c.vehicleCount, 0);
 
   return (
     <div className="space-y-8">
@@ -105,7 +42,7 @@ export default function ClientsPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="p-6 border rounded-md">
           <p className="text-sm text-muted-foreground mb-1">Total Clientes</p>
           <p className="text-3xl font-bold" data-testid="stat-total-clients">{totalClients}</p>
@@ -115,10 +52,6 @@ export default function ClientsPage() {
           <p className="text-3xl font-bold text-green-600" data-testid="stat-active-clients">
             {activeClients}
           </p>
-        </div>
-        <div className="p-6 border rounded-md">
-          <p className="text-sm text-muted-foreground mb-1">Vehículos Totales</p>
-          <p className="text-3xl font-bold" data-testid="stat-total-vehicles">{totalVehicles}</p>
         </div>
       </div>
 
@@ -145,18 +78,25 @@ export default function ClientsPage() {
               <SelectItem value="inactive">Inactivos</SelectItem>
             </SelectContent>
           </Select>
-          <Button data-testid="button-add-client">
-            <Plus className="h-4 w-4 mr-2" />
-            Agregar Cliente
-          </Button>
+          <AddClientDialog />
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredClients.map((client) => (
-          <ClientCard key={client.id} {...client} />
-        ))}
-      </div>
+      {isLoading ? (
+        <div className="text-center py-12 text-muted-foreground">
+          Cargando clientes...
+        </div>
+      ) : filteredClients.length === 0 ? (
+        <div className="text-center py-12 text-muted-foreground">
+          {searchQuery ? "No se encontraron clientes" : "No hay clientes registrados"}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredClients.map((client) => (
+            <ClientCard key={client.id} client={client} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
