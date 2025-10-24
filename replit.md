@@ -68,7 +68,7 @@ The database schema includes the following core entities:
 1. **Users** - System users with role-based access (id, username, password, email, fullName, role)
 2. **Clients** - Vehicle owners/companies (id, name, company, phone, email, address, status)
 3. **VehicleTypes** - Body type classifications (id, name, description) - 10 pre-seeded types: Sedán, SUV, Pickup, Van, Hatchback, Coupé, Convertible, Camioneta, Minivan, Crossover
-4. **Vehicles** - Fleet vehicles (id, clientId, vehicleTypeId, brand, model, year, plate, vin, color, mileage, status)
+4. **Vehicles** - Fleet vehicles (id, clientId, vehicleTypeId, brand, model, year, plate, vin, color, mileage, status, assignedArea)
 5. **Services** - Maintenance service records (linked to vehicles, providers, categories)
 6. **ScheduledMaintenance** - Planned maintenance items (linked to vehicles)
 7. **ServiceCategories** - Service type classifications (preventive, corrective, oil change, etc.)
@@ -139,6 +139,21 @@ User authentication structure is present in the schema (users table with passwor
 - **Wouter**: Lightweight routing for React
 
 ## Recent Changes
+
+### Client Search and Assigned Area Feature (October 24, 2025)
+- Added `assigned_area` field to vehicles table (TEXT, nullable) for tracking vehicle department assignments
+- Database migration executed using better-sqlite3 script with safe no-op on reruns
+- Created `ClientSearchCombobox` component for real-time client search functionality
+  - Searches by name, company (apellido/razón social), or client ID
+  - Uses Popover + Command pattern from Shadcn/ui
+  - Provides clean UX with clear client information display (name, company, ID)
+  - Integrated with React Hook Form for proper validation and state management
+- Updated `AddVehicleDialog` to include:
+  - Client search combobox at the top of the form
+  - Assigned area input field (e.g., "Operaciones", "Ventas")
+- E2E test verification: Successfully created vehicle with clientId and assignedArea populated
+- Architect review: Approved implementation with suggestions for error handling enhancement
+- Form properly handles null values for both clientId and assignedArea fields
 
 ### Vehicle Types Feature (October 24, 2025)
 - Added `vehicle_types` table with 10 pre-seeded body type classifications
