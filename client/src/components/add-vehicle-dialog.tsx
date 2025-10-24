@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -31,12 +31,16 @@ import {
 } from "@/components/ui/form";
 import { Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { insertVehicleSchema, type InsertVehicle } from "@shared/schema";
+import { insertVehicleSchema, type InsertVehicle, type VehicleType } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 
 export function AddVehicleDialog() {
   const [open, setOpen] = useState(false);
   const { toast } = useToast();
+
+  const { data: vehicleTypes = [] } = useQuery<VehicleType[]>({
+    queryKey: ["/api/vehicle-types"],
+  });
 
   const form = useForm<InsertVehicle>({
     resolver: zodResolver(insertVehicleSchema),
@@ -51,6 +55,7 @@ export function AddVehicleDialog() {
       fuelType: "gasoline",
       status: "active",
       clientId: null,
+      vehicleTypeId: null,
       imageUrl: null,
     },
   });
@@ -199,6 +204,33 @@ export function AddVehicleDialog() {
                         data-testid="input-mileage"
                       />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="vehicleTypeId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Tipo de Carrocería</FormLabel>
+                    <Select 
+                      onValueChange={(value) => field.onChange(value ? parseInt(value) : null)} 
+                      value={field.value?.toString() || ""}
+                    >
+                      <FormControl>
+                        <SelectTrigger data-testid="select-vehicle-type">
+                          <SelectValue placeholder="Seleccionar tipo" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {vehicleTypes.map((type) => (
+                          <SelectItem key={type.id} value={type.id.toString()}>
+                            {type.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}
