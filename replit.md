@@ -67,13 +67,14 @@ The database schema includes the following core entities:
 
 1. **Users** - System users with role-based access (id, username, password, email, fullName, role)
 2. **Clients** - Vehicle owners/companies (id, name, company, phone, email, address, status)
-3. **Vehicles** - Fleet vehicles (id, clientId, brand, model, year, plate, vin, color, mileage, status)
-4. **Services** - Maintenance service records (linked to vehicles, providers, categories)
-5. **ScheduledMaintenance** - Planned maintenance items (linked to vehicles)
-6. **ServiceCategories** - Service type classifications (preventive, corrective, oil change, etc.)
-7. **Providers** - External service providers/mechanics
-8. **Inventory** - Parts and supplies tracking (partNumber, name, category, stock levels, pricing)
-9. **InventoryMovements** - Stock movement history
+3. **VehicleTypes** - Body type classifications (id, name, description) - 10 pre-seeded types: Sedán, SUV, Pickup, Van, Hatchback, Coupé, Convertible, Camioneta, Minivan, Crossover
+4. **Vehicles** - Fleet vehicles (id, clientId, vehicleTypeId, brand, model, year, plate, vin, color, mileage, status)
+5. **Services** - Maintenance service records (linked to vehicles, providers, categories)
+6. **ScheduledMaintenance** - Planned maintenance items (linked to vehicles)
+7. **ServiceCategories** - Service type classifications (preventive, corrective, oil change, etc.)
+8. **Providers** - External service providers/mechanics
+9. **Inventory** - Parts and supplies tracking (partNumber, name, category, stock levels, pricing)
+10. **InventoryMovements** - Stock movement history
 
 All tables use auto-incrementing integer primary keys and include timestamp fields for audit trails. Foreign key relationships link vehicles to clients, services to vehicles/providers/categories, and scheduled maintenance to vehicles.
 
@@ -139,6 +140,17 @@ User authentication structure is present in the schema (users table with passwor
 
 ## Recent Changes
 
+### Vehicle Types Feature (October 24, 2025)
+- Added `vehicle_types` table with 10 pre-seeded body type classifications
+- Updated vehicles schema to include `vehicleTypeId` foreign key relationship
+- Implemented API routes: `/api/vehicle-types` (GET list) and `/api/vehicle-types/:id` (GET by id)
+- Enhanced vehicle creation form with body type selector using React Hook Form
+- Vehicle types loaded dynamically from API and displayed in dropdown
+- E2E test verification: Successfully created vehicle with vehicleTypeId=1
+- Storage interface updated with `getVehicleTypes()` and `getVehicleType(id)` methods
+- Architect review: Approved implementation with suggestions for loading states and default selection
+- Seed data: 10 vehicle types based on common body styles (Sedán, SUV, Pickup, Van, Hatchback, Coupé, Convertible, Camioneta, Minivan, Crossover)
+
 ### Dashboard Implementation (October 24, 2025)
 - Created comprehensive dashboard as the main landing page (route "/")
 - Dashboard displays real-time statistics from all system APIs:
@@ -170,6 +182,7 @@ User authentication structure is present in the schema (users table with passwor
 
 All endpoints follow RESTful conventions with proper HTTP status codes:
 
+**Vehicle Types**: `/api/vehicle-types`, `/api/vehicle-types/:id`
 **Vehicles**: `/api/vehicles`, `/api/vehicles/:id`
 **Services**: `/api/services`, `/api/services/:id` (supports `?vehicleId=` filter)
 **Scheduled Maintenance**: `/api/scheduled-maintenance`, `/api/scheduled-maintenance/:id` (supports `?vehicleId=` filter)
