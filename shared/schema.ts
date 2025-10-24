@@ -38,9 +38,24 @@ export const insertClientSchema = createInsertSchema(clients).omit({
 export type InsertClient = z.infer<typeof insertClientSchema>;
 export type Client = typeof clients.$inferSelect;
 
+export const vehicleTypes = sqliteTable("vehicle_types", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull().unique(),
+  description: text("description").notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+});
+
+export const insertVehicleTypeSchema = createInsertSchema(vehicleTypes).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertVehicleType = z.infer<typeof insertVehicleTypeSchema>;
+export type VehicleType = typeof vehicleTypes.$inferSelect;
+
 export const vehicles = sqliteTable("vehicles", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   clientId: integer("client_id").references(() => clients.id),
+  vehicleTypeId: integer("vehicle_type_id").references(() => vehicleTypes.id),
   brand: text("brand").notNull(),
   model: text("model").notNull(),
   year: integer("year").notNull(),
