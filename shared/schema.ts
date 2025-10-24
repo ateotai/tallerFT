@@ -81,8 +81,8 @@ export type Vehicle = typeof vehicles.$inferSelect;
 export const serviceCategories = sqliteTable("service_categories", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   name: text("name").notNull().unique(),
-  description: text("description").notNull(),
-  color: text("color").notNull(),
+  description: text("description"),
+  active: integer("active", { mode: "boolean" }).notNull().default(true),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
 });
 
@@ -92,6 +92,22 @@ export const insertServiceCategorySchema = createInsertSchema(serviceCategories)
 });
 export type InsertServiceCategory = z.infer<typeof insertServiceCategorySchema>;
 export type ServiceCategory = typeof serviceCategories.$inferSelect;
+
+export const serviceSubcategories = sqliteTable("service_subcategories", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  categoryId: integer("category_id").notNull().references(() => serviceCategories.id),
+  name: text("name").notNull(),
+  description: text("description"),
+  active: integer("active", { mode: "boolean" }).notNull().default(true),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+});
+
+export const insertServiceSubcategorySchema = createInsertSchema(serviceSubcategories).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertServiceSubcategory = z.infer<typeof insertServiceSubcategorySchema>;
+export type ServiceSubcategory = typeof serviceSubcategories.$inferSelect;
 
 export const providers = sqliteTable("providers", {
   id: integer("id").primaryKey({ autoIncrement: true }),
