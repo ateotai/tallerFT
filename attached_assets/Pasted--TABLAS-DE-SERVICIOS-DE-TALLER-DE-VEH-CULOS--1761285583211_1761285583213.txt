@@ -1,0 +1,174 @@
+-- ======================================
+-- TABLAS DE SERVICIOS DE TALLER DE VEHÍCULOS
+-- ======================================
+
+CREATE TABLE categoria_servicio (
+    id_categoria INT AUTO_INCREMENT PRIMARY KEY,
+    nombre VARCHAR(100) NOT NULL,
+    descripcion VARCHAR(255) DEFAULT NULL,
+    activo TINYINT(1) DEFAULT 1
+);
+
+CREATE TABLE subcategoria_servicio (
+    id_subcategoria INT AUTO_INCREMENT PRIMARY KEY,
+    id_categoria INT NOT NULL,
+    nombre VARCHAR(100) NOT NULL,
+    descripcion VARCHAR(255) DEFAULT NULL,
+    activo TINYINT(1) DEFAULT 1,
+    FOREIGN KEY (id_categoria) REFERENCES categoria_servicio(id_categoria)
+);
+
+-- ======================================
+-- CATEGORÍAS PRINCIPALES
+-- ======================================
+
+INSERT INTO categoria_servicio (nombre, descripcion) VALUES
+('Mantenimiento Preventivo', 'Servicios de revisión y prevención de fallas'),
+('Mantenimiento Correctivo', 'Reparaciones y sustituciones por fallas detectadas'),
+('Sistema Eléctrico y Electrónico', 'Diagnóstico y reparación de sistemas eléctricos'),
+('Sistema de Frenos', 'Mantenimiento y reparación de frenos'),
+('Motor y Transmisión', 'Servicios relacionados con el motor y caja de velocidades'),
+('Sistema de Enfriamiento y Calefacción', 'Revisión de radiador, bomba y termostato'),
+('Llantas, Rines y Suspensión', 'Servicios de alineación, balanceo y amortiguación'),
+('Estética y Detallado Automotriz', 'Limpieza, pulido y restauración visual'),
+('Hojalatería y Pintura', 'Reparaciones estéticas de carrocería y pintura'),
+('Diagnóstico y Escaneo Computarizado', 'Lectura de códigos OBD2 y diagnóstico técnico'),
+('Sistema de Combustible y Escape', 'Mantenimiento del sistema de combustible y escape'),
+('Seguridad y Accesorios', 'Instalación y revisión de sistemas de seguridad'),
+('Carrocería y Chasis', 'Enderezado y revisión estructural'),
+('Sistema de Dirección', 'Mantenimiento de dirección hidráulica o eléctrica'),
+('Sistema de Escape y Emisiones', 'Revisión y prueba de emisiones contaminantes'),
+('Inspección y Verificación Vehicular', 'Revisión técnica y preparación para verificación'),
+('Servicios Especiales', 'Servicios adicionales y personalizados'),
+('Instalación de Accesorios', 'Colocación de equipos y componentes adicionales');
+
+-- ======================================
+-- SUBCATEGORÍAS
+-- ======================================
+
+INSERT INTO subcategoria_servicio (id_categoria, nombre) VALUES
+-- 1. Mantenimiento Preventivo
+(1, 'Cambio de aceite y filtro'),
+(1, 'Revisión general de niveles'),
+(1, 'Reemplazo de filtros'),
+(1, 'Mantenimiento programado por kilometraje'),
+(1, 'Revisión de correas y mangueras'),
+(1, 'Revisión de frenos y suspensión'),
+(1, 'Rotación de llantas y balanceo'),
+
+-- 2. Mantenimiento Correctivo
+(2, 'Reparación de motor'),
+(2, 'Reparación de transmisión'),
+(2, 'Sustitución de clutch'),
+(2, 'Reparación de frenos'),
+(2, 'Reparación de suspensión'),
+(2, 'Sustitución de componentes eléctricos'),
+
+-- 3. Sistema Eléctrico y Electrónico
+(3, 'Diagnóstico computarizado'),
+(3, 'Reparación de alternador'),
+(3, 'Revisión de batería y sistema de carga'),
+(3, 'Luces interiores y exteriores'),
+(3, 'Reparación de sensores y actuadores'),
+(3, 'Cableado eléctrico general'),
+
+-- 4. Sistema de Frenos
+(4, 'Reemplazo de pastillas y zapatas'),
+(4, 'Rectificación de discos y tambores'),
+(4, 'Purgado de frenos'),
+(4, 'Revisión de ABS'),
+(4, 'Cambio de líquido de frenos'),
+
+-- 5. Motor y Transmisión
+(5, 'Ajuste de motor'),
+(5, 'Cambio de empaques o sellos'),
+(5, 'Sustitución de junta de cabeza'),
+(5, 'Servicio de inyectores'),
+(5, 'Cambio de aceite de transmisión'),
+(5, 'Revisión de caja de velocidades'),
+
+-- 6. Sistema de Enfriamiento y Calefacción
+(6, 'Limpieza de radiador'),
+(6, 'Sustitución de bomba de agua'),
+(6, 'Cambio de termostato'),
+(6, 'Revisión de ventiladores'),
+(6, 'Carga y revisión de A/C'),
+
+-- 7. Llantas, Rines y Suspensión
+(7, 'Alineación y balanceo'),
+(7, 'Montaje y desmontaje de llantas'),
+(7, 'Reparación de ponchaduras'),
+(7, 'Revisión de amortiguadores'),
+(7, 'Sustitución de rótulas y bujes'),
+
+-- 8. Estética y Detallado Automotriz
+(8, 'Lavado exterior e interior'),
+(8, 'Pulido y encerado'),
+(8, 'Detallado de motor'),
+(8, 'Lavado de tapicería'),
+(8, 'Sanitización del vehículo'),
+(8, 'Restauración de faros'),
+
+-- 9. Hojalatería y Pintura
+(9, 'Reparación de golpes y abolladuras'),
+(9, 'Pintura general o parcial'),
+(9, 'Pulido y acabado'),
+(9, 'Enmascarado y preparación de superficie'),
+(9, 'Reparación de paragolpes'),
+
+-- 10. Diagnóstico y Escaneo Computarizado
+(10, 'Lectura de códigos OBD2'),
+(10, 'Diagnóstico de sensores'),
+(10, 'Revisión del sistema de inyección'),
+(10, 'Actualización de software del vehículo'),
+
+-- 11. Sistema de Combustible y Escape
+(11, 'Limpieza de inyectores'),
+(11, 'Sustitución de bomba de combustible'),
+(11, 'Limpieza de tanque'),
+(11, 'Revisión de catalizador'),
+(11, 'Reparación de fugas de escape'),
+
+-- 12. Seguridad y Accesorios
+(12, 'Instalación de alarmas y GPS'),
+(12, 'Revisión de cinturones de seguridad'),
+(12, 'Reparación de bolsas de aire'),
+(12, 'Instalación de cámaras y sensores'),
+
+-- 13. Carrocería y Chasis
+(13, 'Revisión estructural'),
+(13, 'Enderezado de chasis'),
+(13, 'Sustitución de partes metálicas'),
+(13, 'Reparación por colisión'),
+
+-- 14. Sistema de Dirección
+(14, 'Revisión de dirección hidráulica o eléctrica'),
+(14, 'Sustitución de bomba de dirección'),
+(14, 'Alineación del sistema de dirección'),
+(14, 'Reparación de cremallera o caja de dirección'),
+
+-- 15. Sistema de Escape y Emisiones
+(15, 'Revisión de catalizador'),
+(15, 'Medición de gases contaminantes'),
+(15, 'Sustitución de silenciadores'),
+(15, 'Prueba de emisiones'),
+
+-- 16. Inspección y Verificación Vehicular
+(16, 'Verificación de gases'),
+(16, 'Inspección mecánica general'),
+(16, 'Diagnóstico previo a verificación'),
+(16, 'Certificación de mantenimiento'),
+
+-- 17. Servicios Especiales
+(17, 'Remolque y asistencia vial'),
+(17, 'Lavado de motor'),
+(17, 'Servicio a domicilio'),
+(17, 'Personalización de interiores'),
+(17, 'Preparación para venta del vehículo'),
+
+-- 18. Instalación de Accesorios
+(18, 'Estéreos y multimedia'),
+(18, 'Películas polarizadas'),
+(18, 'Sensores de reversa y cámaras'),
+(18, 'Luces LED o neón'),
+(18, 'Portaequipajes y defensas');
