@@ -1,5 +1,7 @@
+import { useQuery } from "@tanstack/react-query";
 import { Car, Wrench, DollarSign, AlertTriangle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import type { Vehicle, Service, Inventory } from "@shared/schema";
 
 interface StatCardProps {
   title: string;
@@ -43,29 +45,53 @@ function StatCard({ title, value, icon, trend }: StatCardProps) {
 }
 
 export function DashboardStats() {
-  //todo: remove mock functionality
+  const { data: vehicles = [] } = useQuery<Vehicle[]>({
+    queryKey: ["/api/vehicles"],
+  });
+
+  const { data: services = [] } = useQuery<Service[]>({
+    queryKey: ["/api/services"],
+  });
+
+  const { data: inventory = [] } = useQuery<Inventory[]>({
+    queryKey: ["/api/inventory"],
+  });
+
+  const pendingServices = services.filter(s => s.status === "pending").length;
+  const lowStockItems = inventory.filter(i => i.quantity < i.minQuantity).length;
+
+  const now = new Date();
+  const currentMonth = now.getMonth();
+  const currentYear = now.getFullYear();
+
+  const monthlyExpenses = services
+    .filter(service => {
+      const serviceDate = service.completedDate || service.scheduledDate;
+      if (!serviceDate) return false;
+      const date = new Date(serviceDate);
+      return date.getMonth() === currentMonth && date.getFullYear() === currentYear;
+    })
+    .reduce((sum, service) => sum + service.cost, 0);
+
   const stats = [
     {
       title: "Total Vehículos",
-      value: 47,
+      value: vehicles.length,
       icon: <Car className="h-5 w-5" />,
-      trend: { value: 8, isPositive: true },
     },
     {
       title: "Servicios Pendientes",
-      value: 12,
+      value: pendingServices,
       icon: <Wrench className="h-5 w-5" />,
-      trend: { value: 3, isPositive: false },
     },
     {
       title: "Gastos del Mes",
-      value: "$28,450",
+      value: `$${monthlyExpenses.toLocaleString('es-MX', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`,
       icon: <DollarSign className="h-5 w-5" />,
-      trend: { value: 12, isPositive: false },
     },
     {
       title: "Alertas de Stock",
-      value: 8,
+      value: lowStockItems,
       icon: <AlertTriangle className="h-5 w-5" />,
     },
   ];
