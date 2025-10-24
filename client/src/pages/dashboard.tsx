@@ -43,7 +43,7 @@ export default function DashboardPage() {
   const pendingMaintenance = scheduledMaintenance.filter(m => m.status === "pending").length;
   const lowStockItems = inventory.filter(i => i.quantity < i.minQuantity).length;
 
-  const recentServices = services
+  const recentServices = [...services]
     .sort((a, b) => {
       const dateA = a.completedDate || a.scheduledDate || a.createdAt;
       const dateB = b.completedDate || b.scheduledDate || b.createdAt;
