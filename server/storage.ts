@@ -14,6 +14,8 @@ import type {
   InsertScheduledMaintenance,
   ServiceCategory,
   InsertServiceCategory,
+  ServiceSubcategory,
+  InsertServiceSubcategory,
   Provider,
   InsertProvider,
   Client,
@@ -60,6 +62,13 @@ export interface IStorage {
   createServiceCategory(category: InsertServiceCategory): Promise<ServiceCategory>;
   updateServiceCategory(id: number, category: Partial<InsertServiceCategory>): Promise<ServiceCategory | undefined>;
   deleteServiceCategory(id: number): Promise<boolean>;
+  
+  getServiceSubcategories(): Promise<ServiceSubcategory[]>;
+  getServiceSubcategory(id: number): Promise<ServiceSubcategory | undefined>;
+  getServiceSubcategoriesByCategory(categoryId: number): Promise<ServiceSubcategory[]>;
+  createServiceSubcategory(subcategory: InsertServiceSubcategory): Promise<ServiceSubcategory>;
+  updateServiceSubcategory(id: number, subcategory: Partial<InsertServiceSubcategory>): Promise<ServiceSubcategory | undefined>;
+  deleteServiceSubcategory(id: number): Promise<boolean>;
   
   getProviders(): Promise<Provider[]>;
   getProvider(id: number): Promise<Provider | undefined>;
@@ -225,6 +234,34 @@ export class DbStorage implements IStorage {
 
   async deleteServiceCategory(id: number): Promise<boolean> {
     const result = await db.delete(schema.serviceCategories).where(eq(schema.serviceCategories.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async getServiceSubcategories(): Promise<ServiceSubcategory[]> {
+    return await db.select().from(schema.serviceSubcategories);
+  }
+
+  async getServiceSubcategory(id: number): Promise<ServiceSubcategory | undefined> {
+    const result = await db.select().from(schema.serviceSubcategories).where(eq(schema.serviceSubcategories.id, id)).limit(1);
+    return result[0];
+  }
+
+  async getServiceSubcategoriesByCategory(categoryId: number): Promise<ServiceSubcategory[]> {
+    return await db.select().from(schema.serviceSubcategories).where(eq(schema.serviceSubcategories.categoryId, categoryId));
+  }
+
+  async createServiceSubcategory(subcategory: InsertServiceSubcategory): Promise<ServiceSubcategory> {
+    const result = await db.insert(schema.serviceSubcategories).values(subcategory).returning();
+    return result[0];
+  }
+
+  async updateServiceSubcategory(id: number, subcategory: Partial<InsertServiceSubcategory>): Promise<ServiceSubcategory | undefined> {
+    const result = await db.update(schema.serviceSubcategories).set(subcategory).where(eq(schema.serviceSubcategories.id, id)).returning();
+    return result[0];
+  }
+
+  async deleteServiceSubcategory(id: number): Promise<boolean> {
+    const result = await db.delete(schema.serviceSubcategories).where(eq(schema.serviceSubcategories.id, id)).returning();
     return result.length > 0;
   }
 
