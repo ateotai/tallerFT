@@ -18,6 +18,8 @@ import type {
   InsertServiceSubcategory,
   Provider,
   InsertProvider,
+  ProviderType,
+  InsertProviderType,
   Client,
   InsertClient,
   Inventory,
@@ -75,6 +77,12 @@ export interface IStorage {
   createProvider(provider: InsertProvider): Promise<Provider>;
   updateProvider(id: number, provider: Partial<InsertProvider>): Promise<Provider | undefined>;
   deleteProvider(id: number): Promise<boolean>;
+  
+  getProviderTypes(): Promise<ProviderType[]>;
+  getProviderType(id: number): Promise<ProviderType | undefined>;
+  createProviderType(providerType: InsertProviderType): Promise<ProviderType>;
+  updateProviderType(id: number, providerType: Partial<InsertProviderType>): Promise<ProviderType | undefined>;
+  deleteProviderType(id: number): Promise<boolean>;
   
   getClients(): Promise<Client[]>;
   getClient(id: number): Promise<Client | undefined>;
@@ -286,6 +294,30 @@ export class DbStorage implements IStorage {
 
   async deleteProvider(id: number): Promise<boolean> {
     const result = await db.delete(schema.providers).where(eq(schema.providers.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async getProviderTypes(): Promise<ProviderType[]> {
+    return await db.select().from(schema.providerTypes);
+  }
+
+  async getProviderType(id: number): Promise<ProviderType | undefined> {
+    const result = await db.select().from(schema.providerTypes).where(eq(schema.providerTypes.id, id)).limit(1);
+    return result[0];
+  }
+
+  async createProviderType(providerType: InsertProviderType): Promise<ProviderType> {
+    const result = await db.insert(schema.providerTypes).values(providerType).returning();
+    return result[0];
+  }
+
+  async updateProviderType(id: number, providerType: Partial<InsertProviderType>): Promise<ProviderType | undefined> {
+    const result = await db.update(schema.providerTypes).set(providerType).where(eq(schema.providerTypes.id, id)).returning();
+    return result[0];
+  }
+
+  async deleteProviderType(id: number): Promise<boolean> {
+    const result = await db.delete(schema.providerTypes).where(eq(schema.providerTypes.id, id)).returning();
     return result.length > 0;
   }
 

@@ -128,6 +128,20 @@ export const insertProviderSchema = createInsertSchema(providers).omit({
 export type InsertProvider = z.infer<typeof insertProviderSchema>;
 export type Provider = typeof providers.$inferSelect;
 
+export const providerTypes = sqliteTable("provider_types", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull().unique(),
+  description: text("description").notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+});
+
+export const insertProviderTypeSchema = createInsertSchema(providerTypes).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertProviderType = z.infer<typeof insertProviderTypeSchema>;
+export type ProviderType = typeof providerTypes.$inferSelect;
+
 export const services = sqliteTable("services", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   vehicleId: integer("vehicle_id").notNull().references(() => vehicles.id),

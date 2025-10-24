@@ -10,6 +10,7 @@ import {
   insertServiceCategorySchema,
   insertServiceSubcategorySchema,
   insertProviderSchema,
+  insertProviderTypeSchema,
   insertClientSchema,
   insertInventorySchema,
   insertInventoryMovementSchema,
@@ -593,6 +594,85 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting provider:", error);
       res.status(500).json({ error: "Error al eliminar proveedor" });
+    }
+  });
+
+  app.get("/api/provider-types", async (req, res) => {
+    try {
+      const providerTypes = await storage.getProviderTypes();
+      res.json(providerTypes);
+    } catch (error) {
+      console.error("Error fetching provider types:", error);
+      res.status(500).json({ error: "Error al obtener tipos de proveedores" });
+    }
+  });
+
+  app.get("/api/provider-types/:id", async (req, res) => {
+    try {
+      const id = validateId(req.params.id);
+      if (id === null) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      const providerType = await storage.getProviderType(id);
+      if (!providerType) {
+        return res.status(404).json({ error: "Tipo de proveedor no encontrado" });
+      }
+      res.json(providerType);
+    } catch (error) {
+      console.error("Error fetching provider type:", error);
+      res.status(500).json({ error: "Error al obtener tipo de proveedor" });
+    }
+  });
+
+  app.post("/api/provider-types", async (req, res) => {
+    try {
+      const validatedData = insertProviderTypeSchema.parse(req.body);
+      const providerType = await storage.createProviderType(validatedData);
+      res.status(201).json(providerType);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ error: "Datos inválidos", details: error.errors });
+      }
+      console.error("Error creating provider type:", error);
+      res.status(500).json({ error: "Error al crear tipo de proveedor" });
+    }
+  });
+
+  app.put("/api/provider-types/:id", async (req, res) => {
+    try {
+      const id = validateId(req.params.id);
+      if (id === null) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      const validatedData = insertProviderTypeSchema.partial().parse(req.body);
+      const providerType = await storage.updateProviderType(id, validatedData);
+      if (!providerType) {
+        return res.status(404).json({ error: "Tipo de proveedor no encontrado" });
+      }
+      res.json(providerType);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ error: "Datos inválidos", details: error.errors });
+      }
+      console.error("Error updating provider type:", error);
+      res.status(500).json({ error: "Error al actualizar tipo de proveedor" });
+    }
+  });
+
+  app.delete("/api/provider-types/:id", async (req, res) => {
+    try {
+      const id = validateId(req.params.id);
+      if (id === null) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      const deleted = await storage.deleteProviderType(id);
+      if (!deleted) {
+        return res.status(404).json({ error: "Tipo de proveedor no encontrado" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting provider type:", error);
+      res.status(500).json({ error: "Error al eliminar tipo de proveedor" });
     }
   });
 
