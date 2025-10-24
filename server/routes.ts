@@ -4,6 +4,7 @@ import { storage } from "./storage";
 import { ZodError } from "zod";
 import {
   insertVehicleSchema,
+  insertVehicleTypeSchema,
   insertServiceSchema,
   insertScheduledMaintenanceSchema,
   insertServiceCategorySchema,
@@ -47,6 +48,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching vehicle type:", error);
       res.status(500).json({ error: "Error al obtener tipo de vehículo" });
+    }
+  });
+
+  app.post("/api/vehicle-types", async (req, res) => {
+    try {
+      const validatedData = insertVehicleTypeSchema.parse(req.body);
+      const vehicleType = await storage.createVehicleType(validatedData);
+      res.status(201).json(vehicleType);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ error: "Datos inválidos", details: error.errors });
+      }
+      console.error("Error creating vehicle type:", error);
+      res.status(500).json({ error: "Error al crear tipo de vehículo" });
+    }
+  });
+
+  app.put("/api/vehicle-types/:id", async (req, res) => {
+    try {
+      const id = validateId(req.params.id);
+      if (id === null) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      const validatedData = insertVehicleTypeSchema.partial().parse(req.body);
+      const vehicleType = await storage.updateVehicleType(id, validatedData);
+      if (!vehicleType) {
+        return res.status(404).json({ error: "Tipo de vehículo no encontrado" });
+      }
+      res.json(vehicleType);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ error: "Datos inválidos", details: error.errors });
+      }
+      console.error("Error updating vehicle type:", error);
+      res.status(500).json({ error: "Error al actualizar tipo de vehículo" });
+    }
+  });
+
+  app.delete("/api/vehicle-types/:id", async (req, res) => {
+    try {
+      const id = validateId(req.params.id);
+      if (id === null) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      const deleted = await storage.deleteVehicleType(id);
+      if (!deleted) {
+        return res.status(404).json({ error: "Tipo de vehículo no encontrado" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting vehicle type:", error);
+      res.status(500).json({ error: "Error al eliminar tipo de vehículo" });
     }
   });
 

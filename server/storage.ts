@@ -31,6 +31,9 @@ export interface IStorage {
   
   getVehicleTypes(): Promise<VehicleType[]>;
   getVehicleType(id: number): Promise<VehicleType | undefined>;
+  createVehicleType(vehicleType: InsertVehicleType): Promise<VehicleType>;
+  updateVehicleType(id: number, vehicleType: Partial<InsertVehicleType>): Promise<VehicleType | undefined>;
+  deleteVehicleType(id: number): Promise<boolean>;
   
   getVehicles(): Promise<Vehicle[]>;
   getVehicle(id: number): Promise<Vehicle | undefined>;
@@ -104,6 +107,21 @@ export class DbStorage implements IStorage {
   async getVehicleType(id: number): Promise<VehicleType | undefined> {
     const result = await db.select().from(schema.vehicleTypes).where(eq(schema.vehicleTypes.id, id)).limit(1);
     return result[0];
+  }
+
+  async createVehicleType(vehicleType: InsertVehicleType): Promise<VehicleType> {
+    const result = await db.insert(schema.vehicleTypes).values(vehicleType).returning();
+    return result[0];
+  }
+
+  async updateVehicleType(id: number, vehicleType: Partial<InsertVehicleType>): Promise<VehicleType | undefined> {
+    const result = await db.update(schema.vehicleTypes).set(vehicleType).where(eq(schema.vehicleTypes.id, id)).returning();
+    return result[0];
+  }
+
+  async deleteVehicleType(id: number): Promise<boolean> {
+    const result = await db.delete(schema.vehicleTypes).where(eq(schema.vehicleTypes.id, id)).returning();
+    return result.length > 0;
   }
 
   async getVehicles(): Promise<Vehicle[]> {
