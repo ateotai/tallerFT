@@ -195,8 +195,10 @@ export function EditProviderDialog({ provider, open, onOpenChange }: EditProvide
                         min="0"
                         max="5"
                         placeholder="4.5"
-                        {...field}
+                        value={field.value ?? ""}
                         onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                        onBlur={field.onBlur}
+                        name={field.name}
                         data-testid="input-rating"
                       />
                     </FormControl>
