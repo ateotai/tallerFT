@@ -171,16 +171,37 @@ User authentication structure is present in the schema (users table with passwor
 - Architect review: Approved implementation with suggestions for error handling enhancement
 - Form properly handles null values for both clientId and assignedArea fields
 
-### Vehicle Types Feature (October 24, 2025)
-- Added `vehicle_types` table with 10 pre-seeded body type classifications
-- Updated vehicles schema to include `vehicleTypeId` foreign key relationship
-- Implemented API routes: `/api/vehicle-types` (GET list) and `/api/vehicle-types/:id` (GET by id)
-- Enhanced vehicle creation form with body type selector using React Hook Form
-- Vehicle types loaded dynamically from API and displayed in dropdown
-- E2E test verification: Successfully created vehicle with vehicleTypeId=1
-- Storage interface updated with `getVehicleTypes()` and `getVehicleType(id)` methods
-- Architect review: Approved implementation with suggestions for loading states and default selection
-- Seed data: 10 vehicle types based on common body styles (Sedán, SUV, Pickup, Van, Hatchback, Coupé, Convertible, Camioneta, Minivan, Crossover)
+### Vehicle Types Management Subsection (October 24, 2025)
+- Implemented complete administrative subsection for vehicle types using Shadcn/ui Tabs
+- **UI Structure**:
+  - Added tabs to Vehicles page: "Vehículos" and "Tipos de Vehículos"
+  - Clean separation between vehicle management and type administration
+  - Responsive table layout with ID, Name, Description, and Actions columns
+- **Components Created**:
+  - `VehicleTypesTable`: Displays all vehicle types with edit/delete actions
+  - `AddVehicleTypeDialog`: Modal for creating new vehicle types (name + description)
+  - `EditVehicleTypeDialog`: Modal for updating existing vehicle types
+  - All components include proper data-testid attributes for automated testing
+- **API Routes** (Full CRUD):
+  - POST `/api/vehicle-types` - Create new type (returns 201)
+  - PUT `/api/vehicle-types/:id` - Update existing type (returns 200)
+  - DELETE `/api/vehicle-types/:id` - Delete type (returns 204)
+- **Storage Methods**:
+  - `createVehicleType(vehicleType: InsertVehicleType): Promise<VehicleType>`
+  - `updateVehicleType(id: number, vehicleType: Partial<InsertVehicleType>): Promise<VehicleType | undefined>`
+  - `deleteVehicleType(id: number): Promise<boolean>`
+- **Features**:
+  - Real-time validation with Zod schemas
+  - TanStack Query for optimistic updates and cache invalidation
+  - Delete confirmation AlertDialog to prevent accidental deletions
+  - Success/error toast notifications for all operations
+  - Loading states during mutations (isPending)
+- **Testing**:
+  - E2E test verification: Successfully created, edited, and deleted vehicle type
+  - All interactive controls have data-testid attributes for testing
+  - Test confirmed POST 201, PUT 200, DELETE 204 responses
+- **Architect Review**: Approved after adding missing data-testids to cancel buttons
+- Pre-seeded data: 10 vehicle types based on common body styles (Sedán, SUV, Pickup, Van, Hatchback, Coupé, Convertible, Camioneta, Minivan, Crossover)
 
 ### Dashboard Implementation (October 24, 2025)
 - Created comprehensive dashboard as the main landing page (route "/")

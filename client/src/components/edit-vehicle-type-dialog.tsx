@@ -120,7 +120,7 @@ export function EditVehicleTypeDialog({ vehicleType, open, onOpenChange }: EditV
               )}
             />
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)} data-testid="button-cancel-edit-type">
                 Cancelar
               </Button>
               <Button type="submit" disabled={updateMutation.isPending} data-testid="button-submit-edit-type">

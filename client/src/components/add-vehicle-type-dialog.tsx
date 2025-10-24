@@ -115,7 +115,7 @@ export function AddVehicleTypeDialog() {
               )}
             />
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+              <Button type="button" variant="outline" onClick={() => setOpen(false)} data-testid="button-cancel-add-type">
                 Cancelar
               </Button>
               <Button type="submit" disabled={createMutation.isPending} data-testid="button-submit-type">
