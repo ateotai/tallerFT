@@ -68,7 +68,7 @@ The database schema includes the following core entities:
 1. **Users** - System users with role-based access (id, username, password, email, fullName, role)
 2. **Clients** - Vehicle owners/companies (id, name, company, phone, email, address, status)
 3. **VehicleTypes** - Body type classifications (id, name, description) - 10 pre-seeded types: Sedán, SUV, Pickup, Van, Hatchback, Coupé, Convertible, Camioneta, Minivan, Crossover
-4. **Vehicles** - Fleet vehicles (id, clientId, vehicleTypeId, brand, model, year, plate, vin, color, mileage, status, assignedArea)
+4. **Vehicles** - Fleet vehicles (id, clientId, vehicleTypeId, brand, model, year, plate, vin, color, mileage, status, assignedArea, economicNumber)
 5. **Services** - Maintenance service records (linked to vehicles, providers, categories)
 6. **ScheduledMaintenance** - Planned maintenance items (linked to vehicles)
 7. **ServiceCategories** - Service type classifications (preventive, corrective, oil change, etc.)
@@ -139,6 +139,22 @@ User authentication structure is present in the schema (users table with passwor
 - **Wouter**: Lightweight routing for React
 
 ## Recent Changes
+
+### Economic Number and Responsive Dialog Design (October 24, 2025)
+- Added `economic_number` field to vehicles table (TEXT, nullable) for internal fleet identification
+- Database migration executed using better-sqlite3 script with safe no-op on reruns
+- Updated both `AddVehicleDialog` and `EditVehicleDialog` to include economic number field
+  - Label: "Número Económico"
+  - Placeholder: "ECO-001"
+  - Optional text field for custom numbering schemes
+- **Responsive Design Implementation**:
+  - Both vehicle dialogs now fully responsive
+  - Mobile (<768px): Single-column stacked layout for all form fields
+  - Desktop (≥768px): Two-column grid layout for efficient space usage
+  - Dialog content with `max-h-[90vh]` and `overflow-y-auto` for better scrolling on all devices
+- E2E test verification: Successfully created vehicle with economicNumber on both desktop and mobile viewports
+- Architect review: Approved implementation with recommendations for migration in non-local environments
+- Form properly handles null/empty values for economicNumber field
 
 ### Client Search and Assigned Area Feature (October 24, 2025)
 - Added `assigned_area` field to vehicles table (TEXT, nullable) for tracking vehicle department assignments
