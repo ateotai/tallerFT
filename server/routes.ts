@@ -23,6 +23,33 @@ function validateId(id: string): number | null {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  app.get("/api/vehicle-types", async (req, res) => {
+    try {
+      const vehicleTypes = await storage.getVehicleTypes();
+      res.json(vehicleTypes);
+    } catch (error) {
+      console.error("Error fetching vehicle types:", error);
+      res.status(500).json({ error: "Error al obtener tipos de vehículos" });
+    }
+  });
+
+  app.get("/api/vehicle-types/:id", async (req, res) => {
+    try {
+      const id = validateId(req.params.id);
+      if (id === null) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      const vehicleType = await storage.getVehicleType(id);
+      if (!vehicleType) {
+        return res.status(404).json({ error: "Tipo de vehículo no encontrado" });
+      }
+      res.json(vehicleType);
+    } catch (error) {
+      console.error("Error fetching vehicle type:", error);
+      res.status(500).json({ error: "Error al obtener tipo de vehículo" });
+    }
+  });
+
   app.get("/api/vehicles", async (req, res) => {
     try {
       const vehicles = await storage.getVehicles();

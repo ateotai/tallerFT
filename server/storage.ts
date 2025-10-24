@@ -6,6 +6,8 @@ import type {
   InsertUser,
   Vehicle,
   InsertVehicle,
+  VehicleType,
+  InsertVehicleType,
   Service,
   InsertService,
   ScheduledMaintenance,
@@ -26,6 +28,9 @@ export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  
+  getVehicleTypes(): Promise<VehicleType[]>;
+  getVehicleType(id: number): Promise<VehicleType | undefined>;
   
   getVehicles(): Promise<Vehicle[]>;
   getVehicle(id: number): Promise<Vehicle | undefined>;
@@ -89,6 +94,15 @@ export class DbStorage implements IStorage {
 
   async createUser(user: InsertUser): Promise<User> {
     const result = await db.insert(schema.users).values(user).returning();
+    return result[0];
+  }
+
+  async getVehicleTypes(): Promise<VehicleType[]> {
+    return await db.select().from(schema.vehicleTypes);
+  }
+
+  async getVehicleType(id: number): Promise<VehicleType | undefined> {
+    const result = await db.select().from(schema.vehicleTypes).where(eq(schema.vehicleTypes.id, id)).limit(1);
     return result[0];
   }
 
