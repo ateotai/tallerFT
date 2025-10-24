@@ -6,6 +6,8 @@ import {
   Package,
   BarChart3,
   Shield,
+  Tag,
+  UserCircle,
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import {
@@ -37,9 +39,19 @@ const menuItems = [
     icon: Calendar,
   },
   {
+    title: "Categorías",
+    url: "/categorias",
+    icon: Tag,
+  },
+  {
     title: "Proveedores",
     url: "/proveedores",
     icon: Users,
+  },
+  {
+    title: "Clientes",
+    url: "/clientes",
+    icon: UserCircle,
   },
   {
     title: "Inventario",

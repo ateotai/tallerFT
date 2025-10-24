@@ -11,7 +11,9 @@ import NotFound from "@/pages/not-found";
 import VehiclesPage from "@/pages/vehicles";
 import ServicesPage from "@/pages/services";
 import ScheduledPage from "@/pages/scheduled";
+import CategoriesPage from "@/pages/categories";
 import ProvidersPage from "@/pages/providers";
+import ClientsPage from "@/pages/clients";
 import InventoryPage from "@/pages/inventory";
 import ReportsPage from "@/pages/reports";
 import UsersPage from "@/pages/users";
@@ -22,7 +24,9 @@ function Router() {
       <Route path="/" component={VehiclesPage} />
       <Route path="/servicios" component={ServicesPage} />
       <Route path="/programados" component={ScheduledPage} />
+      <Route path="/categorias" component={CategoriesPage} />
       <Route path="/proveedores" component={ProvidersPage} />
+      <Route path="/clientes" component={ClientsPage} />
       <Route path="/inventario" component={InventoryPage} />
       <Route path="/reportes" component={ReportsPage} />
       <Route path="/usuarios" component={UsersPage} />
