@@ -8,6 +8,7 @@ import {
   insertServiceSchema,
   insertScheduledMaintenanceSchema,
   insertServiceCategorySchema,
+  insertServiceSubcategorySchema,
   insertProviderSchema,
   insertClientSchema,
   insertInventorySchema,
@@ -428,6 +429,91 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting service category:", error);
       res.status(500).json({ error: "Error al eliminar categoría" });
+    }
+  });
+
+  app.get("/api/service-subcategories", async (req, res) => {
+    try {
+      const categoryId = req.query.categoryId ? validateId(req.query.categoryId as string) : null;
+      if (req.query.categoryId && categoryId === null) {
+        return res.status(400).json({ error: "categoryId inválido" });
+      }
+      const subcategories = categoryId !== null
+        ? await storage.getServiceSubcategoriesByCategory(categoryId)
+        : await storage.getServiceSubcategories();
+      res.json(subcategories);
+    } catch (error) {
+      console.error("Error fetching service subcategories:", error);
+      res.status(500).json({ error: "Error al obtener subcategorías de servicio" });
+    }
+  });
+
+  app.get("/api/service-subcategories/:id", async (req, res) => {
+    try {
+      const id = validateId(req.params.id);
+      if (id === null) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      const subcategory = await storage.getServiceSubcategory(id);
+      if (!subcategory) {
+        return res.status(404).json({ error: "Subcategoría no encontrada" });
+      }
+      res.json(subcategory);
+    } catch (error) {
+      console.error("Error fetching service subcategory:", error);
+      res.status(500).json({ error: "Error al obtener subcategoría" });
+    }
+  });
+
+  app.post("/api/service-subcategories", async (req, res) => {
+    try {
+      const validatedData = insertServiceSubcategorySchema.parse(req.body);
+      const subcategory = await storage.createServiceSubcategory(validatedData);
+      res.status(201).json(subcategory);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ error: "Datos inválidos", details: error.errors });
+      }
+      console.error("Error creating service subcategory:", error);
+      res.status(500).json({ error: "Error al crear subcategoría" });
+    }
+  });
+
+  app.put("/api/service-subcategories/:id", async (req, res) => {
+    try {
+      const id = validateId(req.params.id);
+      if (id === null) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      const validatedData = insertServiceSubcategorySchema.partial().parse(req.body);
+      const subcategory = await storage.updateServiceSubcategory(id, validatedData);
+      if (!subcategory) {
+        return res.status(404).json({ error: "Subcategoría no encontrada" });
+      }
+      res.json(subcategory);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ error: "Datos inválidos", details: error.errors });
+      }
+      console.error("Error updating service subcategory:", error);
+      res.status(500).json({ error: "Error al actualizar subcategoría" });
+    }
+  });
+
+  app.delete("/api/service-subcategories/:id", async (req, res) => {
+    try {
+      const id = validateId(req.params.id);
+      if (id === null) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      const deleted = await storage.deleteServiceSubcategory(id);
+      if (!deleted) {
+        return res.status(404).json({ error: "Subcategoría no encontrada" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting service subcategory:", error);
+      res.status(500).json({ error: "Error al eliminar subcategoría" });
     }
   });
 
