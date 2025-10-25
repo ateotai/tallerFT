@@ -12,8 +12,11 @@ import {
   FileText,
   Briefcase,
   Stethoscope,
+  ClipboardList,
+  ChevronDown,
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
+import { useState } from "react";
 import {
   Sidebar,
   SidebarContent,
@@ -23,10 +26,14 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubItem,
+  SidebarMenuSubButton,
   SidebarHeader,
 } from "@/components/ui/sidebar";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
-const menuItems = [
+const mainMenuItems = [
   {
     title: "Dashboard",
     url: "/",
@@ -77,11 +84,22 @@ const menuItems = [
     url: "/reportes-fallas",
     icon: FileText,
   },
+];
+
+const maintenanceMenuItems = [
   {
     title: "Evaluación y Diagnóstico",
     url: "/diagnosticos",
     icon: Stethoscope,
   },
+  {
+    title: "Órdenes de Trabajo",
+    url: "/ordenes-trabajo",
+    icon: ClipboardList,
+  },
+];
+
+const adminMenuItems = [
   {
     title: "Empleados",
     url: "/empleados",
@@ -96,6 +114,9 @@ const menuItems = [
 
 export function AppSidebar() {
   const [location] = useLocation();
+  const [maintenanceOpen, setMaintenanceOpen] = useState(true);
+
+  const isMaintenanceActive = maintenanceMenuItems.some(item => location === item.url);
 
   return (
     <Sidebar>
@@ -112,10 +133,76 @@ export function AppSidebar() {
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Módulos</SidebarGroupLabel>
+          <SidebarGroupLabel>Módulos Principales</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {menuItems.map((item) => (
+              {mainMenuItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={location === item.url}
+                    data-testid={`link-${item.title.toLowerCase()}`}
+                  >
+                    <Link href={item.url}>
+                      <item.icon className="h-5 w-5" />
+                      <span>{item.title}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel>Servicio y Mantenimiento</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <Collapsible
+                open={maintenanceOpen}
+                onOpenChange={setMaintenanceOpen}
+                className="group/collapsible"
+              >
+                <SidebarMenuItem>
+                  <CollapsibleTrigger asChild>
+                    <SidebarMenuButton
+                      data-testid="button-maintenance-toggle"
+                      isActive={isMaintenanceActive}
+                    >
+                      <Wrench className="h-5 w-5" />
+                      <span>Gestión de Servicio</span>
+                      <ChevronDown className="ml-auto h-4 w-4 transition-transform group-data-[state=open]/collapsible:rotate-180" />
+                    </SidebarMenuButton>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <SidebarMenuSub>
+                      {maintenanceMenuItems.map((item) => (
+                        <SidebarMenuSubItem key={item.title}>
+                          <SidebarMenuSubButton
+                            asChild
+                            isActive={location === item.url}
+                            data-testid={`link-${item.title.toLowerCase()}`}
+                          >
+                            <Link href={item.url}>
+                              <item.icon className="h-4 w-4" />
+                              <span>{item.title}</span>
+                            </Link>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                      ))}
+                    </SidebarMenuSub>
+                  </CollapsibleContent>
+                </SidebarMenuItem>
+              </Collapsible>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel>Administración</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {adminMenuItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton
                     asChild

@@ -21,6 +21,7 @@ import IssueReportsPage from "@/pages/issue-reports";
 import UsersPage from "@/pages/users";
 import EmployeesPage from "@/pages/employees";
 import DiagnosticsPage from "@/pages/diagnostics";
+import WorkOrdersPage from "@/pages/work-orders";
 
 function Router() {
   return (
@@ -36,6 +37,7 @@ function Router() {
       <Route path="/reportes" component={ReportsPage} />
       <Route path="/reportes-fallas" component={IssueReportsPage} />
       <Route path="/diagnosticos" component={DiagnosticsPage} />
+      <Route path="/ordenes-trabajo" component={WorkOrdersPage} />
       <Route path="/empleados" component={EmployeesPage} />
       <Route path="/usuarios" component={UsersPage} />
       <Route component={NotFound} />
