@@ -21,11 +21,13 @@ The system follows a Material Design-inspired aesthetic, optimized for productiv
 
 ### Core Features
 - **Vehicle Management**: Comprehensive tracking including economic number and assigned area.
+- **Tareas Programadas**: Calendar view of scheduled services with automatic alerts.
 - **Client, Provider, and Employee Management**: Full CRUD operations with search and type management functionalities.
 - **Service & Inventory Categories**: Hierarchical management with full CRUD operations for efficient organization.
 - **Issue Reports (Reportes de Fallas)**: System for tracking vehicle defects with image and audio attachments, status management, and integration with vehicles and users.
 - **Diagnostics (Evaluación y Diagnóstico)**: Professional diagnostic evaluation system with a workflow for approval and work order creation, including detailed assessment fields.
 - **Work Orders (Órdenes de Trabajo)**: Complete management system for repair and maintenance tasks, allowing manual creation or automatic generation from approved diagnostics.
+- **Notifications System**: Real-time notification system with dropdown in header, polling every 30 seconds, and automatic creation when reports, diagnostics, and work orders are created.
 - **Dashboard**: Real-time metrics and navigation cards for quick overview.
 - **Authentication**: Includes a `users` table for authentication and supports role-based access control (though role checking has a known security limitation in diagnostics approval).
 

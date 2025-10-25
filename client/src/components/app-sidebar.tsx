@@ -45,12 +45,7 @@ const mainMenuItems = [
     icon: Car,
   },
   {
-    title: "Servicios",
-    url: "/servicios",
-    icon: Wrench,
-  },
-  {
-    title: "Programados",
+    title: "Tareas Programadas",
     url: "/programados",
     icon: Calendar,
   },

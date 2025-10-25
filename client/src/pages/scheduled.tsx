@@ -59,7 +59,7 @@ export default function ScheduledPage() {
     <div className="space-y-8">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold mb-2">Mantenimientos Programados</h1>
+          <h1 className="text-3xl font-bold mb-2">Tareas Programadas</h1>
           <p className="text-muted-foreground">
             Calendario de servicios y alertas automáticas
           </p>
