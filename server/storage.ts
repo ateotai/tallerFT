@@ -34,6 +34,8 @@ import type {
   InsertEmployeeType,
   Employee,
   InsertEmployee,
+  Diagnostic,
+  InsertDiagnostic,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -127,6 +129,23 @@ export interface IStorage {
   createEmployee(employee: InsertEmployee): Promise<Employee>;
   updateEmployee(id: number, employee: Partial<InsertEmployee>): Promise<Employee | undefined>;
   deleteEmployee(id: number): Promise<boolean>;
+  
+  getInventoryCategories(): Promise<InventoryCategory[]>;
+  getInventoryCategory(id: number): Promise<InventoryCategory | undefined>;
+  createInventoryCategory(category: InsertInventoryCategory): Promise<InventoryCategory>;
+  updateInventoryCategory(id: number, category: Partial<InsertInventoryCategory>): Promise<InventoryCategory | undefined>;
+  deleteInventoryCategory(id: number): Promise<boolean>;
+  
+  getDiagnostics(): Promise<Diagnostic[]>;
+  getDiagnostic(id: number): Promise<Diagnostic | undefined>;
+  getDiagnosticsByReport(reportId: number): Promise<Diagnostic[]>;
+  getDiagnosticsByEmployee(employeeId: number): Promise<Diagnostic[]>;
+  createDiagnostic(diagnostic: InsertDiagnostic): Promise<Diagnostic>;
+  updateDiagnostic(id: number, diagnostic: Partial<InsertDiagnostic>): Promise<Diagnostic | undefined>;
+  deleteDiagnostic(id: number): Promise<boolean>;
+  
+  assignReportToEmployee(reportId: number, employeeId: number): Promise<{ report: Report; diagnostic: Diagnostic }>;
+  getUsers(): Promise<User[]>;
 }
 
 export class DbStorage implements IStorage {
@@ -512,6 +531,66 @@ export class DbStorage implements IStorage {
   async deleteEmployee(id: number): Promise<boolean> {
     const result = await db.delete(schema.employees).where(eq(schema.employees.id, id)).returning();
     return result.length > 0;
+  }
+
+  async getDiagnostics(): Promise<Diagnostic[]> {
+    return await db.select().from(schema.diagnostics);
+  }
+
+  async getDiagnostic(id: number): Promise<Diagnostic | undefined> {
+    const result = await db.select().from(schema.diagnostics).where(eq(schema.diagnostics.id, id)).limit(1);
+    return result[0];
+  }
+
+  async getDiagnosticsByReport(reportId: number): Promise<Diagnostic[]> {
+    return await db.select().from(schema.diagnostics).where(eq(schema.diagnostics.reportId, reportId));
+  }
+
+  async getDiagnosticsByEmployee(employeeId: number): Promise<Diagnostic[]> {
+    return await db.select().from(schema.diagnostics).where(eq(schema.diagnostics.employeeId, employeeId));
+  }
+
+  async createDiagnostic(diagnostic: InsertDiagnostic): Promise<Diagnostic> {
+    const result = await db.insert(schema.diagnostics).values(diagnostic).returning();
+    return result[0];
+  }
+
+  async updateDiagnostic(id: number, diagnostic: Partial<InsertDiagnostic>): Promise<Diagnostic | undefined> {
+    const result = await db.update(schema.diagnostics).set({ ...diagnostic, updatedAt: new Date() }).where(eq(schema.diagnostics.id, id)).returning();
+    return result[0];
+  }
+
+  async deleteDiagnostic(id: number): Promise<boolean> {
+    const result = await db.delete(schema.diagnostics).where(eq(schema.diagnostics.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async assignReportToEmployee(reportId: number, employeeId: number): Promise<{ report: Report; diagnostic: Diagnostic }> {
+    const assignedAt = new Date();
+    
+    const updatedReport = await db.update(schema.reports)
+      .set({
+        assignedToEmployeeId: employeeId,
+        assignedAt: assignedAt,
+        status: "diagnostico"
+      })
+      .where(eq(schema.reports.id, reportId))
+      .returning();
+
+    const diagnostic = await db.insert(schema.diagnostics)
+      .values({
+        reportId: reportId,
+        employeeId: employeeId,
+        diagnosis: "",
+        recommendations: "",
+      })
+      .returning();
+
+    return { report: updatedReport[0], diagnostic: diagnostic[0] };
+  }
+
+  async getUsers(): Promise<User[]> {
+    return await db.select().from(schema.users);
   }
 }
 

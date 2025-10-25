@@ -18,6 +18,7 @@ import {
   insertReportSchema,
   insertEmployeeTypeSchema,
   insertEmployeeSchema,
+  insertDiagnosticSchema,
 } from "@shared/schema";
 
 function validateId(id: string): number | null {
@@ -1202,6 +1203,130 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting employee:", error);
       res.status(500).json({ error: "Error al eliminar empleado" });
+    }
+  });
+
+  app.get("/api/users", async (req, res) => {
+    try {
+      const users = await storage.getUsers();
+      res.json(users);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      res.status(500).json({ error: "Error al obtener usuarios" });
+    }
+  });
+
+  app.post("/api/reports/:id/assign", async (req, res) => {
+    try {
+      const id = validateId(req.params.id);
+      if (id === null) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      const { employeeId } = req.body;
+      if (!employeeId || typeof employeeId !== 'number') {
+        return res.status(400).json({ error: "Se requiere employeeId válido" });
+      }
+      const result = await storage.assignReportToEmployee(id, employeeId);
+      res.json(result);
+    } catch (error) {
+      console.error("Error assigning report:", error);
+      res.status(500).json({ error: "Error al asignar reporte" });
+    }
+  });
+
+  app.get("/api/diagnostics", async (req, res) => {
+    try {
+      const reportId = req.query.reportId ? validateId(req.query.reportId as string) : null;
+      const employeeId = req.query.employeeId ? validateId(req.query.employeeId as string) : null;
+      
+      if (req.query.reportId && reportId === null) {
+        return res.status(400).json({ error: "reportId inválido" });
+      }
+      if (req.query.employeeId && employeeId === null) {
+        return res.status(400).json({ error: "employeeId inválido" });
+      }
+      
+      let diagnostics;
+      if (reportId) {
+        diagnostics = await storage.getDiagnosticsByReport(reportId);
+      } else if (employeeId) {
+        diagnostics = await storage.getDiagnosticsByEmployee(employeeId);
+      } else {
+        diagnostics = await storage.getDiagnostics();
+      }
+      res.json(diagnostics);
+    } catch (error) {
+      console.error("Error fetching diagnostics:", error);
+      res.status(500).json({ error: "Error al obtener diagnósticos" });
+    }
+  });
+
+  app.get("/api/diagnostics/:id", async (req, res) => {
+    try {
+      const id = validateId(req.params.id);
+      if (id === null) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      const diagnostic = await storage.getDiagnostic(id);
+      if (!diagnostic) {
+        return res.status(404).json({ error: "Diagnóstico no encontrado" });
+      }
+      res.json(diagnostic);
+    } catch (error) {
+      console.error("Error fetching diagnostic:", error);
+      res.status(500).json({ error: "Error al obtener diagnóstico" });
+    }
+  });
+
+  app.post("/api/diagnostics", async (req, res) => {
+    try {
+      const validatedData = insertDiagnosticSchema.parse(req.body);
+      const diagnostic = await storage.createDiagnostic(validatedData);
+      res.status(201).json(diagnostic);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ error: "Datos inválidos", details: error.errors });
+      }
+      console.error("Error creating diagnostic:", error);
+      res.status(500).json({ error: "Error al crear diagnóstico" });
+    }
+  });
+
+  app.put("/api/diagnostics/:id", async (req, res) => {
+    try {
+      const id = validateId(req.params.id);
+      if (id === null) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      const validatedData = insertDiagnosticSchema.partial().parse(req.body);
+      const diagnostic = await storage.updateDiagnostic(id, validatedData);
+      if (!diagnostic) {
+        return res.status(404).json({ error: "Diagnóstico no encontrado" });
+      }
+      res.json(diagnostic);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ error: "Datos inválidos", details: error.errors });
+      }
+      console.error("Error updating diagnostic:", error);
+      res.status(500).json({ error: "Error al actualizar diagnóstico" });
+    }
+  });
+
+  app.delete("/api/diagnostics/:id", async (req, res) => {
+    try {
+      const id = validateId(req.params.id);
+      if (id === null) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      const deleted = await storage.deleteDiagnostic(id);
+      if (!deleted) {
+        return res.status(404).json({ error: "Diagnóstico no encontrado" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting diagnostic:", error);
+      res.status(500).json({ error: "Error al eliminar diagnóstico" });
     }
   });
 
