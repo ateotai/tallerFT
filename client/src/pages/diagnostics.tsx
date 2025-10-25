@@ -17,7 +17,7 @@ export default function DiagnosticsPage() {
   });
 
   const filteredDiagnostics = diagnostics.filter((diagnostic) =>
-    diagnostic.diagnosis.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (diagnostic.diagnosis || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
     (diagnostic.recommendations && diagnostic.recommendations.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 

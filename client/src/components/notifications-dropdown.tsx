@@ -33,8 +33,14 @@ export function NotificationsDropdown() {
     mutationFn: async (id: number) => {
       return await apiRequest("PATCH", `/api/notifications/${id}/read`, {});
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
+    onSuccess: async (_, id) => {
+      // Optimistically update the cache
+      queryClient.setQueryData<Notification[]>(["/api/notifications"], (old) => {
+        if (!old) return old;
+        return old.map((notification) =>
+          notification.id === id ? { ...notification, read: true } : notification
+        );
+      });
     },
     onError: (error: Error) => {
       toast({
@@ -49,8 +55,12 @@ export function NotificationsDropdown() {
     mutationFn: async () => {
       return await apiRequest("PATCH", "/api/notifications/read-all", {});
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
+    onSuccess: async () => {
+      // Optimistically update the cache to mark all as read
+      queryClient.setQueryData<Notification[]>(["/api/notifications"], (old) => {
+        if (!old) return old;
+        return old.map((notification) => ({ ...notification, read: true }));
+      });
       toast({
         title: "Notificaciones marcadas",
         description: "Todas las notificaciones han sido marcadas como leídas",
@@ -69,8 +79,12 @@ export function NotificationsDropdown() {
     mutationFn: async (id: number) => {
       return await apiRequest("DELETE", `/api/notifications/${id}`, {});
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
+    onSuccess: async (_, id) => {
+      // Optimistically remove from cache
+      queryClient.setQueryData<Notification[]>(["/api/notifications"], (old) => {
+        if (!old) return old;
+        return old.filter((notification) => notification.id !== id);
+      });
     },
     onError: (error: Error) => {
       toast({
