@@ -20,6 +20,9 @@ import {
   insertEmployeeSchema,
   insertDiagnosticSchema,
   insertWorkOrderSchema,
+  insertWorkOrderTaskSchema,
+  insertWorkOrderMaterialSchema,
+  insertWorkOrderEvidenceSchema,
   insertNotificationSchema,
 } from "@shared/schema";
 
@@ -1479,6 +1482,256 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting work order:", error);
       res.status(500).json({ error: "Error al eliminar orden de trabajo" });
+    }
+  });
+
+  app.post("/api/work-orders/:id/approve", async (req, res) => {
+    try {
+      const id = validateId(req.params.id);
+      if (id === null) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      
+      if (!req.user) {
+        return res.status(401).json({ error: "No autenticado" });
+      }
+      
+      const workOrder = await storage.approveWorkOrder(id, req.user.id);
+      if (!workOrder) {
+        return res.status(404).json({ error: "Orden de trabajo no encontrada" });
+      }
+      
+      await storage.createNotification({
+        title: "Orden de trabajo aprobada",
+        message: `La orden de trabajo #${id} ha sido aprobada`,
+        type: "work_order",
+        relatedId: id,
+      });
+      
+      res.json(workOrder);
+    } catch (error) {
+      console.error("Error approving work order:", error);
+      res.status(500).json({ error: "Error al aprobar orden de trabajo" });
+    }
+  });
+
+  app.get("/api/work-orders/:workOrderId/tasks", async (req, res) => {
+    try {
+      const workOrderId = validateId(req.params.workOrderId);
+      if (workOrderId === null) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      const tasks = await storage.getWorkOrderTasks(workOrderId);
+      res.json(tasks);
+    } catch (error) {
+      console.error("Error fetching work order tasks:", error);
+      res.status(500).json({ error: "Error al obtener tareas" });
+    }
+  });
+
+  app.post("/api/work-orders/:workOrderId/tasks", async (req, res) => {
+    try {
+      const workOrderId = validateId(req.params.workOrderId);
+      if (workOrderId === null) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      const validatedData = insertWorkOrderTaskSchema.parse({
+        ...req.body,
+        workOrderId,
+      });
+      const task = await storage.createWorkOrderTask(validatedData);
+      res.status(201).json(task);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ error: "Datos inválidos", details: error.errors });
+      }
+      console.error("Error creating work order task:", error);
+      res.status(500).json({ error: "Error al crear tarea" });
+    }
+  });
+
+  app.put("/api/work-orders/tasks/:id", async (req, res) => {
+    try {
+      const id = validateId(req.params.id);
+      if (id === null) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      const validatedData = insertWorkOrderTaskSchema.partial().parse(req.body);
+      const task = await storage.updateWorkOrderTask(id, validatedData);
+      if (!task) {
+        return res.status(404).json({ error: "Tarea no encontrada" });
+      }
+      res.json(task);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ error: "Datos inválidos", details: error.errors });
+      }
+      console.error("Error updating work order task:", error);
+      res.status(500).json({ error: "Error al actualizar tarea" });
+    }
+  });
+
+  app.delete("/api/work-orders/tasks/:id", async (req, res) => {
+    try {
+      const id = validateId(req.params.id);
+      if (id === null) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      const deleted = await storage.deleteWorkOrderTask(id);
+      if (!deleted) {
+        return res.status(404).json({ error: "Tarea no encontrada" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting work order task:", error);
+      res.status(500).json({ error: "Error al eliminar tarea" });
+    }
+  });
+
+  app.get("/api/work-orders/:workOrderId/materials", async (req, res) => {
+    try {
+      const workOrderId = validateId(req.params.workOrderId);
+      if (workOrderId === null) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      const materials = await storage.getWorkOrderMaterials(workOrderId);
+      res.json(materials);
+    } catch (error) {
+      console.error("Error fetching work order materials:", error);
+      res.status(500).json({ error: "Error al obtener materiales" });
+    }
+  });
+
+  app.post("/api/work-orders/:workOrderId/materials", async (req, res) => {
+    try {
+      const workOrderId = validateId(req.params.workOrderId);
+      if (workOrderId === null) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      const validatedData = insertWorkOrderMaterialSchema.parse({
+        ...req.body,
+        workOrderId,
+      });
+      const material = await storage.createWorkOrderMaterial(validatedData);
+      res.status(201).json(material);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ error: "Datos inválidos", details: error.errors });
+      }
+      console.error("Error creating work order material:", error);
+      res.status(500).json({ error: "Error al crear material" });
+    }
+  });
+
+  app.put("/api/work-orders/materials/:id", async (req, res) => {
+    try {
+      const id = validateId(req.params.id);
+      if (id === null) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      const validatedData = insertWorkOrderMaterialSchema.partial().parse(req.body);
+      const material = await storage.updateWorkOrderMaterial(id, validatedData);
+      if (!material) {
+        return res.status(404).json({ error: "Material no encontrado" });
+      }
+      res.json(material);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ error: "Datos inválidos", details: error.errors });
+      }
+      console.error("Error updating work order material:", error);
+      res.status(500).json({ error: "Error al actualizar material" });
+    }
+  });
+
+  app.delete("/api/work-orders/materials/:id", async (req, res) => {
+    try {
+      const id = validateId(req.params.id);
+      if (id === null) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      const deleted = await storage.deleteWorkOrderMaterial(id);
+      if (!deleted) {
+        return res.status(404).json({ error: "Material no encontrado" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting work order material:", error);
+      res.status(500).json({ error: "Error al eliminar material" });
+    }
+  });
+
+  app.post("/api/work-orders/materials/:id/approve", async (req, res) => {
+    try {
+      const id = validateId(req.params.id);
+      if (id === null) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      
+      if (!req.user) {
+        return res.status(401).json({ error: "No autenticado" });
+      }
+      
+      const material = await storage.approveMaterial(id, req.user.id);
+      if (!material) {
+        return res.status(404).json({ error: "Material no encontrado" });
+      }
+      res.json(material);
+    } catch (error) {
+      console.error("Error approving material:", error);
+      res.status(500).json({ error: "Error al aprobar material" });
+    }
+  });
+
+  app.get("/api/work-orders/:workOrderId/evidence", async (req, res) => {
+    try {
+      const workOrderId = validateId(req.params.workOrderId);
+      if (workOrderId === null) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      const evidence = await storage.getWorkOrderEvidence(workOrderId);
+      res.json(evidence);
+    } catch (error) {
+      console.error("Error fetching work order evidence:", error);
+      res.status(500).json({ error: "Error al obtener evidencia" });
+    }
+  });
+
+  app.post("/api/work-orders/:workOrderId/evidence", async (req, res) => {
+    try {
+      const workOrderId = validateId(req.params.workOrderId);
+      if (workOrderId === null) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      const validatedData = insertWorkOrderEvidenceSchema.parse({
+        ...req.body,
+        workOrderId,
+      });
+      const evidence = await storage.createWorkOrderEvidence(validatedData);
+      res.status(201).json(evidence);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ error: "Datos inválidos", details: error.errors });
+      }
+      console.error("Error creating work order evidence:", error);
+      res.status(500).json({ error: "Error al crear evidencia" });
+    }
+  });
+
+  app.delete("/api/work-orders/evidence/:id", async (req, res) => {
+    try {
+      const id = validateId(req.params.id);
+      if (id === null) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      const deleted = await storage.deleteWorkOrderEvidence(id);
+      if (!deleted) {
+        return res.status(404).json({ error: "Evidencia no encontrada" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting work order evidence:", error);
+      res.status(500).json({ error: "Error al eliminar evidencia" });
     }
   });
 
