@@ -9,8 +9,9 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Edit, Trash2, Image as ImageIcon, Mic, Eye } from "lucide-react";
+import { Edit, Trash2, Image as ImageIcon, Mic, UserPlus } from "lucide-react";
 import { EditIssueReportDialog } from "./edit-issue-report-dialog";
+import { AssignReportDialog } from "./assign-report-dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,18 +36,23 @@ interface IssueReportsTableProps {
 const statusColors = {
   pending: "bg-orange-500/10 text-orange-700 dark:text-orange-400",
   in_progress: "bg-blue-500/10 text-blue-700 dark:text-blue-400",
+  diagnostico: "bg-purple-500/10 text-purple-700 dark:text-purple-400",
   resolved: "bg-green-500/10 text-green-700 dark:text-green-400",
 };
 
 const statusLabels = {
   pending: "Pendiente",
   in_progress: "En Proceso",
+  diagnostico: "En Diagnóstico",
   resolved: "Resuelto",
 };
 
 export function IssueReportsTable({ reports }: IssueReportsTableProps) {
   const [reportToEdit, setReportToEdit] = useState<Report | null>(null);
+  const [reportToAssign, setReportToAssign] = useState<Report | null>(null);
   const { toast } = useToast();
+  
+  const currentUserRole = "admin";
 
   const { data: vehicles = [] } = useQuery<Vehicle[]>({
     queryKey: ["/api/vehicles"],
@@ -147,44 +153,58 @@ export function IssueReportsTable({ reports }: IssueReportsTableProps) {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setReportToEdit(report)}
-                        data-testid={`button-edit-${report.id}`}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
+                      {(currentUserRole === "admin" || currentUserRole === "supervisor") && report.status === "pending" && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setReportToAssign(report)}
+                          data-testid={`button-assign-${report.id}`}
+                        >
+                          <UserPlus className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {(currentUserRole === "admin" || currentUserRole === "supervisor") && (
+                        <>
                           <Button
                             variant="ghost"
                             size="icon"
-                            data-testid={`button-delete-${report.id}`}
+                            onClick={() => setReportToEdit(report)}
+                            data-testid={`button-edit-${report.id}`}
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <Edit className="h-4 w-4" />
                           </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>¿Eliminar reporte?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Esta acción no se puede deshacer. Se eliminará el reporte permanentemente.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel data-testid="button-cancel-delete">
-                              Cancelar
-                            </AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={() => deleteMutation.mutate(report.id)}
-                              data-testid="button-confirm-delete"
-                            >
-                              Eliminar
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                data-testid={`button-delete-${report.id}`}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>¿Eliminar reporte?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Esta acción no se puede deshacer. Se eliminará el reporte permanentemente.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel data-testid="button-cancel-delete">
+                                  Cancelar
+                                </AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => deleteMutation.mutate(report.id)}
+                                  data-testid="button-confirm-delete"
+                                >
+                                  Eliminar
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>
@@ -199,6 +219,14 @@ export function IssueReportsTable({ reports }: IssueReportsTableProps) {
           report={reportToEdit}
           open={!!reportToEdit}
           onOpenChange={(open: boolean) => !open && setReportToEdit(null)}
+        />
+      )}
+      
+      {reportToAssign && (
+        <AssignReportDialog
+          report={reportToAssign}
+          open={!!reportToAssign}
+          onOpenChange={(open: boolean) => !open && setReportToAssign(null)}
         />
       )}
     </>

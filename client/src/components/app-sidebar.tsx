@@ -11,6 +11,7 @@ import {
   LayoutDashboard,
   FileText,
   Briefcase,
+  Stethoscope,
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import {
@@ -75,6 +76,11 @@ const menuItems = [
     title: "Reportes de Fallas",
     url: "/reportes-fallas",
     icon: FileText,
+  },
+  {
+    title: "Evaluación y Diagnóstico",
+    url: "/diagnosticos",
+    icon: Stethoscope,
   },
   {
     title: "Empleados",
