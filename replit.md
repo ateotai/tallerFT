@@ -14,7 +14,7 @@ Preferred communication style: Simple, everyday language.
 
 **Frontend**: React 18 with TypeScript, Shadcn/ui (Radix UI), Tailwind CSS, Wouter for routing, TanStack Query for server state, React Hook Form with Zod for forms.
 **Backend**: Express.js with TypeScript, Node.js (ESM), Vite (dev), esbuild (build).
-**Database**: SQLite with better-sqlite3, Drizzle ORM.
+**Database**: PostgreSQL with Neon serverless (neon-http driver), Drizzle ORM.
 **Shared**: `shared/schema.ts` for type sharing.
 
 ### Application Architecture
@@ -31,7 +31,7 @@ Preferred communication style: Simple, everyday language.
 
 ### Data Model
 
-Core entities include: Users, Clients, VehicleTypes (pre-seeded), Vehicles, Services, ScheduledMaintenance, ServiceCategories (hierarchical with subcategories and pre-seeded), Providers, InventoryCategories (pre-seeded), Inventory (with categoryId FK and maxQuantity field), and InventoryMovements. All tables use auto-incrementing integer primary keys, timestamps, and foreign key relationships.
+Core entities include: Users, Clients, VehicleTypes (pre-seeded), Vehicles, Services, ScheduledMaintenance, ServiceCategories (hierarchical with subcategories and pre-seeded), Providers, InventoryCategories (pre-seeded), Inventory (with categoryId FK and maxQuantity field), InventoryMovements, and Reports (for issue/defect tracking). All tables use serial primary keys (PostgreSQL auto-increment), timestamps, and foreign key relationships.
 
 ### State Management Approach
 
@@ -82,6 +82,16 @@ Material Design-inspired with a focus on productivity tools, using Inter (primar
   - Provider field (providerId) is fully integrated with providers table via Select component
   - Provider field is optional (nullable) with "Sin proveedor" option
   - Pre-seeded with 5 sample providers for testing
+- **Issue Reports Module (Reportes de Fallas)**: Complete CRUD system for tracking vehicle defects and service requests. Features include:
+  - Reports table with fields: vehicleId, userId, imageUrl, audioUrl, description, notes, status
+  - Three status states: pending, in_progress, resolved
+  - VehicleSearchCombobox for searching vehicles by economic number, plate, or model
+  - IssueReportsPage displays real-time statistics (total, pending, in-progress, resolved reports)
+  - AddIssueReportDialog and EditIssueReportDialog with support for mobile camera capture (image) and microphone (audio)
+  - File uploads stored as base64 data URLs (temporary implementation before object storage integration)
+  - Full integration with vehicles and users tables via foreign keys
+  - All components include data-testid attributes for E2E testing
+  - Accessible at /reportes-fallas route
 
 ### API Validation
 
@@ -99,9 +109,8 @@ Enhanced ID validation using regex. Zod validation errors return 400, server err
 - Recharts: Charting library for reports.
 
 ### Backend Infrastructure
-- better-sqlite3: Synchronous SQLite driver.
-- Drizzle ORM: TypeScript ORM for SQLite.
-- Neon Database Serverless: PostgreSQL connector (configured, not actively used).
+- Neon Database Serverless: PostgreSQL connector using neon-http driver (HTTP-based, no WebSocket required).
+- Drizzle ORM: TypeScript ORM for PostgreSQL.
 - connect-pg-simple: Session store for PostgreSQL (future use).
 
 ### Development Tools
