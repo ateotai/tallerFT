@@ -236,3 +236,22 @@ export const insertInventoryMovementSchema = createInsertSchema(inventoryMovemen
 });
 export type InsertInventoryMovement = z.infer<typeof insertInventoryMovementSchema>;
 export type InventoryMovement = typeof inventoryMovements.$inferSelect;
+
+export const reports = sqliteTable("reports", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  vehicleId: integer("vehicle_id").notNull().references(() => vehicles.id),
+  userId: integer("user_id").notNull().references(() => users.id),
+  imageUrl: text("image_url"),
+  audioUrl: text("audio_url"),
+  description: text("description").notNull(),
+  notes: text("notes"),
+  status: text("status").notNull().default("pending"),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+});
+
+export const insertReportSchema = createInsertSchema(reports).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertReport = z.infer<typeof insertReportSchema>;
+export type Report = typeof reports.$inferSelect;

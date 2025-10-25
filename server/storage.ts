@@ -28,6 +28,8 @@ import type {
   InsertInventory,
   InventoryMovement,
   InsertInventoryMovement,
+  Report,
+  InsertReport,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -101,6 +103,14 @@ export interface IStorage {
   getInventoryMovements(): Promise<InventoryMovement[]>;
   getInventoryMovementsByItem(inventoryId: number): Promise<InventoryMovement[]>;
   createInventoryMovement(movement: InsertInventoryMovement): Promise<InventoryMovement>;
+  
+  getReports(): Promise<Report[]>;
+  getReport(id: number): Promise<Report | undefined>;
+  getReportsByVehicle(vehicleId: number): Promise<Report[]>;
+  getReportsByUser(userId: number): Promise<Report[]>;
+  createReport(report: InsertReport): Promise<Report>;
+  updateReport(id: number, report: Partial<InsertReport>): Promise<Report | undefined>;
+  deleteReport(id: number): Promise<boolean>;
 }
 
 export class DbStorage implements IStorage {
@@ -406,6 +416,38 @@ export class DbStorage implements IStorage {
   async createInventoryMovement(movement: InsertInventoryMovement): Promise<InventoryMovement> {
     const result = await db.insert(schema.inventoryMovements).values(movement).returning();
     return result[0];
+  }
+
+  async getReports(): Promise<Report[]> {
+    return await db.select().from(schema.reports);
+  }
+
+  async getReport(id: number): Promise<Report | undefined> {
+    const result = await db.select().from(schema.reports).where(eq(schema.reports.id, id)).limit(1);
+    return result[0];
+  }
+
+  async getReportsByVehicle(vehicleId: number): Promise<Report[]> {
+    return await db.select().from(schema.reports).where(eq(schema.reports.vehicleId, vehicleId));
+  }
+
+  async getReportsByUser(userId: number): Promise<Report[]> {
+    return await db.select().from(schema.reports).where(eq(schema.reports.userId, userId));
+  }
+
+  async createReport(report: InsertReport): Promise<Report> {
+    const result = await db.insert(schema.reports).values(report).returning();
+    return result[0];
+  }
+
+  async updateReport(id: number, report: Partial<InsertReport>): Promise<Report | undefined> {
+    const result = await db.update(schema.reports).set(report).where(eq(schema.reports.id, id)).returning();
+    return result[0];
+  }
+
+  async deleteReport(id: number): Promise<boolean> {
+    const result = await db.delete(schema.reports).where(eq(schema.reports.id, id)).returning();
+    return result.length > 0;
   }
 }
 
