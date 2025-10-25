@@ -126,13 +126,18 @@ export function IssueReportsTable({ reports }: IssueReportsTableProps) {
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      {report.imageUrl && (
-                        <ImageIcon className="h-4 w-4 text-muted-foreground" data-testid={`has-image-${report.id}`} />
+                      {Array.isArray(report.images) && report.images.length > 0 && (
+                        <div className="flex items-center gap-1">
+                          <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-xs text-muted-foreground" data-testid={`has-images-${report.id}`}>
+                            {report.images.length}
+                          </span>
+                        </div>
                       )}
                       {report.audioUrl && (
                         <Mic className="h-4 w-4 text-muted-foreground" data-testid={`has-audio-${report.id}`} />
                       )}
-                      {!report.imageUrl && !report.audioUrl && (
+                      {(!Array.isArray(report.images) || report.images.length === 0) && !report.audioUrl && (
                         <span className="text-xs text-muted-foreground">Sin archivos</span>
                       )}
                     </div>
@@ -193,7 +198,7 @@ export function IssueReportsTable({ reports }: IssueReportsTableProps) {
         <EditIssueReportDialog
           report={reportToEdit}
           open={!!reportToEdit}
-          onOpenChange={(open) => !open && setReportToEdit(null)}
+          onOpenChange={(open: boolean) => !open && setReportToEdit(null)}
         />
       )}
     </>

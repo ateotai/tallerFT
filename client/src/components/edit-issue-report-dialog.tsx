@@ -35,7 +35,9 @@ import { insertReportSchema } from "@shared/schema";
 import type { Report, InsertReport } from "@shared/schema";
 import { z } from "zod";
 
-const formSchema = insertReportSchema;
+const formSchema = insertReportSchema.extend({
+  status: z.enum(["pending", "in_progress", "resolved"]),
+});
 
 type FormValues = z.infer<typeof formSchema>;
 
@@ -62,6 +64,7 @@ export function EditIssueReportDialog({ report, open, onOpenChange }: EditIssueR
       userId: report.userId,
       description: report.description,
       notes: report.notes || "",
+      status: report.status,
       images: Array.isArray(report.images) ? report.images : [],
       audioUrl: report.audioUrl || undefined,
     },
@@ -75,6 +78,7 @@ export function EditIssueReportDialog({ report, open, onOpenChange }: EditIssueR
         userId: report.userId,
         description: report.description,
         notes: report.notes || "",
+        status: report.status,
         images: reportImages,
         audioUrl: report.audioUrl || undefined,
       });
@@ -165,7 +169,7 @@ export function EditIssueReportDialog({ report, open, onOpenChange }: EditIssueR
   };
 
   function onSubmit(values: FormValues) {
-    updateMutation.mutate(values as Partial<InsertReport>);
+    updateMutation.mutate(values);
   }
 
   return (
@@ -234,22 +238,31 @@ export function EditIssueReportDialog({ report, open, onOpenChange }: EditIssueR
               )}
             />
 
-            <div>
-              <FormLabel>Estado</FormLabel>
-              <Select
-                onValueChange={(value) => updateMutation.mutate({ status: value })}
-                value={report.status}
-              >
-                <SelectTrigger data-testid="select-edit-status">
-                  <SelectValue placeholder="Seleccionar estado" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="pending">Pendiente</SelectItem>
-                  <SelectItem value="in_progress">En Proceso</SelectItem>
-                  <SelectItem value="resolved">Resuelto</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            <FormField
+              control={form.control}
+              name="status"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Estado</FormLabel>
+                  <Select
+                    onValueChange={field.onChange}
+                    value={field.value}
+                  >
+                    <FormControl>
+                      <SelectTrigger data-testid="select-edit-status">
+                        <SelectValue placeholder="Seleccionar estado" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="pending">Pendiente</SelectItem>
+                      <SelectItem value="in_progress">En Proceso</SelectItem>
+                      <SelectItem value="resolved">Resuelto</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <div className="space-y-4">
               <div>
