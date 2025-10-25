@@ -111,6 +111,29 @@ Material Design-inspired with a focus on productivity tools, using Inter (primar
   - All components include data-testid attributes for E2E testing
   - Accessible at /empleados route with Briefcase icon in sidebar
   - User assignment is optional (nullable) allowing employees without system access
+- **Diagnostics Module (Evaluación y Diagnóstico)**: Complete diagnostic evaluation system with role-based permissions. Features include:
+  - diagnostics table with fields: reportId (FK), employeeId (FK), diagnosis, recommendations, estimatedCost, createdAt
+  - reports table extended with: assignedToEmployeeId (FK to employees), assignedAt timestamp, new status "diagnostico"
+  - users table includes role field: admin, supervisor, employee, user
+  - Status flow: pending → (assign) → diagnostico → in_progress → resolved
+  - **Assignment Workflow**: Admin/supervisor can assign pending reports to employees via AssignReportDialog
+    - Automatically creates diagnostic record when report is assigned
+    - Changes report status from "pending" to "diagnostico"
+    - Tracks assignment timestamp and assigned employee
+  - **DiagnosticsPage**: Displays diagnostic statistics and filterable diagnostic records
+    - Shows total diagnostics and filtered count based on user role
+    - Search functionality across diagnosis and recommendations fields
+    - Accessible at /diagnosticos route with Stethoscope icon in sidebar
+  - **Permission-based UI**: 
+    - Admin/supervisor: Can assign reports, edit/delete all reports and diagnostics
+    - Employee: Can view only their assigned diagnostics (UI currently hardcoded to "admin" for testing)
+    - Regular users: View-only access to their own reports
+  - **DiagnosticsTable**: Displays report ID, mechanic name, diagnosis, recommendations, estimated cost, creation date
+  - AddDiagnosticDialog and EditDiagnosticDialog for creating/updating diagnostics
+  - Forms use React Hook Form with Zod validation
+  - All components include data-testid attributes for E2E testing
+  - **Current Limitation**: Role-based permissions are partially implemented with hardcoded roles in frontend components
+  - **Future Enhancement**: Requires full authentication system to enforce role-based access control properly
 
 ### API Validation
 
