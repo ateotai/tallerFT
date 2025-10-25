@@ -31,7 +31,7 @@ Preferred communication style: Simple, everyday language.
 
 ### Data Model
 
-Core entities include: Users, Clients, VehicleTypes (pre-seeded), Vehicles, Services, ScheduledMaintenance, ServiceCategories (hierarchical with subcategories and pre-seeded), Providers, Inventory, and InventoryMovements. All tables use auto-incrementing integer primary keys, timestamps, and foreign key relationships.
+Core entities include: Users, Clients, VehicleTypes (pre-seeded), Vehicles, Services, ScheduledMaintenance, ServiceCategories (hierarchical with subcategories and pre-seeded), Providers, InventoryCategories (pre-seeded), Inventory (with categoryId FK and maxQuantity field), and InventoryMovements. All tables use auto-incrementing integer primary keys, timestamps, and foreign key relationships.
 
 ### State Management Approach
 
@@ -65,6 +65,20 @@ Material Design-inspired with a focus on productivity tools, using Inter (primar
   - All components include proper data-testid attributes for testing
   - Forms use React Hook Form with Zod validation
   - Provider fields: name, type, phone, email, address, rating (nullable), status
+- **Inventory Categories Module**: Hierarchical management system for inventory categories with full CRUD functionality. Features include:
+  - InventoryCategoriesTable displaying category name, description, creation date, and actions
+  - AddInventoryCategoryDialog and EditInventoryCategoryDialog for creating and updating categories
+  - Delete confirmation with AlertDialog
+  - Tabbed UI in Inventory page (Inventario | Categorías) following the same pattern as Providers
+  - Pre-seeded with 5 categories: Filtros, Frenos, Motor, Lubricantes, Neumáticos
+  - All components include proper data-testid attributes for testing
+  - Forms use React Hook Form with Zod validation
+- **Inventory Module Enhancements**: 
+  - Inventory items now have a nullable categoryId field (FK to inventoryCategories) 
+  - Added maxQuantity field to track maximum stock levels
+  - Inventory table displays resolved category names (not IDs) and shows min/max limits
+  - Add/Edit dialogs use Select component for category selection
+  - Category field is optional (nullable)
 
 ### API Validation
 
