@@ -97,6 +97,20 @@ Material Design-inspired with a focus on productivity tools, using Inter (primar
   - All components include data-testid attributes for E2E testing
   - Accessible at /reportes-fallas route
   - Date/time automatically tracked via createdAt field (hidden from user interface)
+- **Employees Module (Empleados)**: Complete employee management system with employee types. Features include:
+  - Dual-tab structure: Employees (Empleados) | Employee Types (Tipos de Empleado)
+  - employeeTypes table with pre-seeded types: Administrativos, Mecanico, Ayudante
+  - employees table with fields: firstName, lastName, employeeTypeId (FK), phone, email, userId (nullable FK to users)
+  - Employee table displays user account status via badges: "Con usuario" (green with checkmark) or "Sin usuario" (gray with X)
+  - EmployeesTable with columns for ID, name, type, phone, email, user status, and actions
+  - AddEmployeeDialog and EditEmployeeDialog with employee type selector and optional user assignment
+  - Employee types fully editable via EmployeeTypesTable, AddEmployeeTypeDialog, EditEmployeeTypeDialog
+  - Full CRUD operations for both employees and employee types
+  - Delete confirmation dialogs with cascade protection
+  - Forms use React Hook Form with Zod validation
+  - All components include data-testid attributes for E2E testing
+  - Accessible at /empleados route with Briefcase icon in sidebar
+  - User assignment is optional (nullable) allowing employees without system access
 
 ### API Validation
 
