@@ -30,6 +30,10 @@ import type {
   InsertInventoryMovement,
   Report,
   InsertReport,
+  EmployeeType,
+  InsertEmployeeType,
+  Employee,
+  InsertEmployee,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -111,6 +115,18 @@ export interface IStorage {
   createReport(report: InsertReport): Promise<Report>;
   updateReport(id: number, report: Partial<InsertReport>): Promise<Report | undefined>;
   deleteReport(id: number): Promise<boolean>;
+  
+  getEmployeeTypes(): Promise<EmployeeType[]>;
+  getEmployeeType(id: number): Promise<EmployeeType | undefined>;
+  createEmployeeType(employeeType: InsertEmployeeType): Promise<EmployeeType>;
+  updateEmployeeType(id: number, employeeType: Partial<InsertEmployeeType>): Promise<EmployeeType | undefined>;
+  deleteEmployeeType(id: number): Promise<boolean>;
+  
+  getEmployees(): Promise<Employee[]>;
+  getEmployee(id: number): Promise<Employee | undefined>;
+  createEmployee(employee: InsertEmployee): Promise<Employee>;
+  updateEmployee(id: number, employee: Partial<InsertEmployee>): Promise<Employee | undefined>;
+  deleteEmployee(id: number): Promise<boolean>;
 }
 
 export class DbStorage implements IStorage {
@@ -447,6 +463,54 @@ export class DbStorage implements IStorage {
 
   async deleteReport(id: number): Promise<boolean> {
     const result = await db.delete(schema.reports).where(eq(schema.reports.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async getEmployeeTypes(): Promise<EmployeeType[]> {
+    return await db.select().from(schema.employeeTypes);
+  }
+
+  async getEmployeeType(id: number): Promise<EmployeeType | undefined> {
+    const result = await db.select().from(schema.employeeTypes).where(eq(schema.employeeTypes.id, id)).limit(1);
+    return result[0];
+  }
+
+  async createEmployeeType(employeeType: InsertEmployeeType): Promise<EmployeeType> {
+    const result = await db.insert(schema.employeeTypes).values(employeeType).returning();
+    return result[0];
+  }
+
+  async updateEmployeeType(id: number, employeeType: Partial<InsertEmployeeType>): Promise<EmployeeType | undefined> {
+    const result = await db.update(schema.employeeTypes).set(employeeType).where(eq(schema.employeeTypes.id, id)).returning();
+    return result[0];
+  }
+
+  async deleteEmployeeType(id: number): Promise<boolean> {
+    const result = await db.delete(schema.employeeTypes).where(eq(schema.employeeTypes.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async getEmployees(): Promise<Employee[]> {
+    return await db.select().from(schema.employees);
+  }
+
+  async getEmployee(id: number): Promise<Employee | undefined> {
+    const result = await db.select().from(schema.employees).where(eq(schema.employees.id, id)).limit(1);
+    return result[0];
+  }
+
+  async createEmployee(employee: InsertEmployee): Promise<Employee> {
+    const result = await db.insert(schema.employees).values(employee).returning();
+    return result[0];
+  }
+
+  async updateEmployee(id: number, employee: Partial<InsertEmployee>): Promise<Employee | undefined> {
+    const result = await db.update(schema.employees).set(employee).where(eq(schema.employees.id, id)).returning();
+    return result[0];
+  }
+
+  async deleteEmployee(id: number): Promise<boolean> {
+    const result = await db.delete(schema.employees).where(eq(schema.employees.id, id)).returning();
     return result.length > 0;
   }
 }
