@@ -1492,11 +1492,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "ID inválido" });
       }
       
-      if (!req.user) {
-        return res.status(401).json({ error: "No autenticado" });
+      const { userId } = req.body;
+      if (!userId || typeof userId !== 'number') {
+        return res.status(400).json({ error: "Se requiere userId válido" });
       }
       
-      const workOrder = await storage.approveWorkOrder(id, req.user.id);
+      const workOrder = await storage.approveWorkOrder(id, userId);
       if (!workOrder) {
         return res.status(404).json({ error: "Orden de trabajo no encontrada" });
       }
@@ -1505,7 +1506,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         title: "Orden de trabajo aprobada",
         message: `La orden de trabajo #${id} ha sido aprobada`,
         type: "work_order",
-        relatedId: id,
       });
       
       res.json(workOrder);
@@ -1668,11 +1668,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "ID inválido" });
       }
       
-      if (!req.user) {
-        return res.status(401).json({ error: "No autenticado" });
+      const { userId } = req.body;
+      if (!userId || typeof userId !== 'number') {
+        return res.status(400).json({ error: "Se requiere userId válido" });
       }
       
-      const material = await storage.approveMaterial(id, req.user.id);
+      const material = await storage.approveMaterial(id, userId);
       if (!material) {
         return res.status(404).json({ error: "Material no encontrado" });
       }

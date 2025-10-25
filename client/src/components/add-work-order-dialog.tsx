@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -33,7 +33,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Plus } from "lucide-react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { insertWorkOrderSchema, type InsertWorkOrder, type Vehicle, type Employee, type Diagnostic } from "@shared/schema";
+import { insertWorkOrderSchema, type InsertWorkOrder, type Vehicle, type Employee, type Diagnostic, type Report } from "@shared/schema";
 
 export function AddWorkOrderDialog() {
   const [open, setOpen] = useState(false);
@@ -51,13 +51,17 @@ export function AddWorkOrderDialog() {
     queryKey: ["/api/diagnostics"],
   });
 
+  const { data: reports = [] } = useQuery<Report[]>({
+    queryKey: ["/api/reports"],
+  });
+
   const form = useForm<InsertWorkOrder>({
     resolver: zodResolver(insertWorkOrderSchema),
     defaultValues: {
       diagnosticId: undefined,
       vehicleId: undefined,
       assignedToEmployeeId: undefined,
-      status: "pending",
+      status: "awaiting_approval",
       priority: "normal",
       description: "",
       estimatedCost: undefined,
@@ -85,6 +89,33 @@ export function AddWorkOrderDialog() {
       });
     },
   });
+
+  const diagnosticId = form.watch("diagnosticId");
+
+  useEffect(() => {
+    if (diagnosticId && diagnostics.length > 0 && reports.length > 0) {
+      const selectedDiagnostic = diagnostics.find(d => d.id === diagnosticId);
+      if (selectedDiagnostic) {
+        const relatedReport = reports.find(r => r.id === selectedDiagnostic.reportId);
+        
+        if (relatedReport) {
+          form.setValue("vehicleId", relatedReport.vehicleId);
+        }
+        
+        form.setValue("assignedToEmployeeId", selectedDiagnostic.employeeId);
+        
+        const description = `${selectedDiagnostic.possibleCause}\n\nRecomendación Técnica: ${selectedDiagnostic.technicalRecommendation}\n\nMateriales Requeridos: ${selectedDiagnostic.requiredMaterials || 'No especificado'}`;
+        form.setValue("description", description);
+        
+        const priorityMap: Record<string, "low" | "normal" | "high"> = {
+          "crítico": "high",
+          "moderado": "normal",
+          "leve": "low"
+        };
+        form.setValue("priority", priorityMap[selectedDiagnostic.severity] || "normal");
+      }
+    }
+  }, [diagnosticId, diagnostics, reports, form]);
 
   const onSubmit = (data: InsertWorkOrder) => {
     mutation.mutate(data);
@@ -213,6 +244,7 @@ export function AddWorkOrderDialog() {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
+                        <SelectItem value="awaiting_approval">Esperando Aprobación</SelectItem>
                         <SelectItem value="pending">Pendiente</SelectItem>
                         <SelectItem value="in_progress">En Progreso</SelectItem>
                         <SelectItem value="completed">Completada</SelectItem>
