@@ -38,6 +38,12 @@ import type {
   InsertDiagnostic,
   WorkOrder,
   InsertWorkOrder,
+  WorkOrderTask,
+  InsertWorkOrderTask,
+  WorkOrderMaterial,
+  InsertWorkOrderMaterial,
+  WorkOrderEvidence,
+  InsertWorkOrderEvidence,
   Notification,
   InsertNotification,
 } from "@shared/schema";
@@ -680,6 +686,84 @@ export class DbStorage implements IStorage {
 
   async deleteWorkOrder(id: number): Promise<boolean> {
     const result = await db.delete(schema.workOrders).where(eq(schema.workOrders.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async approveWorkOrder(id: number, userId: number): Promise<WorkOrder | undefined> {
+    const approvedAt = new Date();
+    const result = await db.update(schema.workOrders)
+      .set({ 
+        status: "in_progress",
+        approvedBy: userId,
+        approvedAt: approvedAt,
+        startDate: approvedAt,
+      })
+      .where(eq(schema.workOrders.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async getWorkOrderTasks(workOrderId: number): Promise<WorkOrderTask[]> {
+    return await db.select().from(schema.workOrderTasks).where(eq(schema.workOrderTasks.workOrderId, workOrderId));
+  }
+
+  async createWorkOrderTask(task: InsertWorkOrderTask): Promise<WorkOrderTask> {
+    const result = await db.insert(schema.workOrderTasks).values(task).returning();
+    return result[0];
+  }
+
+  async updateWorkOrderTask(id: number, task: Partial<InsertWorkOrderTask>): Promise<WorkOrderTask | undefined> {
+    const result = await db.update(schema.workOrderTasks).set(task).where(eq(schema.workOrderTasks.id, id)).returning();
+    return result[0];
+  }
+
+  async deleteWorkOrderTask(id: number): Promise<boolean> {
+    const result = await db.delete(schema.workOrderTasks).where(eq(schema.workOrderTasks.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async getWorkOrderMaterials(workOrderId: number): Promise<WorkOrderMaterial[]> {
+    return await db.select().from(schema.workOrderMaterials).where(eq(schema.workOrderMaterials.workOrderId, workOrderId));
+  }
+
+  async createWorkOrderMaterial(material: InsertWorkOrderMaterial): Promise<WorkOrderMaterial> {
+    const result = await db.insert(schema.workOrderMaterials).values(material).returning();
+    return result[0];
+  }
+
+  async updateWorkOrderMaterial(id: number, material: Partial<InsertWorkOrderMaterial>): Promise<WorkOrderMaterial | undefined> {
+    const result = await db.update(schema.workOrderMaterials).set(material).where(eq(schema.workOrderMaterials.id, id)).returning();
+    return result[0];
+  }
+
+  async deleteWorkOrderMaterial(id: number): Promise<boolean> {
+    const result = await db.delete(schema.workOrderMaterials).where(eq(schema.workOrderMaterials.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async approveMaterial(id: number, userId: number): Promise<WorkOrderMaterial | undefined> {
+    const result = await db.update(schema.workOrderMaterials)
+      .set({ 
+        approved: true,
+        approvedBy: userId,
+        approvedAt: new Date(),
+      })
+      .where(eq(schema.workOrderMaterials.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async getWorkOrderEvidence(workOrderId: number): Promise<WorkOrderEvidence[]> {
+    return await db.select().from(schema.workOrderEvidence).where(eq(schema.workOrderEvidence.workOrderId, workOrderId));
+  }
+
+  async createWorkOrderEvidence(evidence: InsertWorkOrderEvidence): Promise<WorkOrderEvidence> {
+    const result = await db.insert(schema.workOrderEvidence).values(evidence).returning();
+    return result[0];
+  }
+
+  async deleteWorkOrderEvidence(id: number): Promise<boolean> {
+    const result = await db.delete(schema.workOrderEvidence).where(eq(schema.workOrderEvidence.id, id)).returning();
     return result.length > 0;
   }
 
