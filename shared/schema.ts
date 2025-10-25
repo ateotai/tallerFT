@@ -300,9 +300,17 @@ export const diagnostics = pgTable("diagnostics", {
   id: serial("id").primaryKey(),
   reportId: integer("report_id").notNull().references(() => reports.id),
   employeeId: integer("employee_id").notNull().references(() => employees.id),
-  diagnosis: text("diagnosis").notNull(),
-  recommendations: text("recommendations"),
-  estimatedCost: real("estimated_cost"),
+  odometer: integer("odometer").notNull(),
+  vehicleCondition: text("vehicle_condition").notNull(),
+  fuelLevel: text("fuel_level").notNull(),
+  possibleCause: text("possible_cause").notNull(),
+  severity: text("severity").notNull(),
+  technicalRecommendation: text("technical_recommendation").notNull(),
+  estimatedRepairTime: text("estimated_repair_time").notNull(),
+  requiredMaterials: text("required_materials"),
+  requiresAdditionalTests: boolean("requires_additional_tests").notNull().default(false),
+  approvedBy: integer("approved_by").references(() => users.id),
+  approvedAt: timestamp("approved_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
@@ -311,6 +319,33 @@ export const insertDiagnosticSchema = createInsertSchema(diagnostics).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+  approvedBy: true,
+  approvedAt: true,
 });
 export type InsertDiagnostic = z.infer<typeof insertDiagnosticSchema>;
 export type Diagnostic = typeof diagnostics.$inferSelect;
+
+export const workOrders = pgTable("work_orders", {
+  id: serial("id").primaryKey(),
+  diagnosticId: integer("diagnostic_id").notNull().references(() => diagnostics.id),
+  vehicleId: integer("vehicle_id").notNull().references(() => vehicles.id),
+  assignedToEmployeeId: integer("assigned_to_employee_id").references(() => employees.id),
+  status: text("status").notNull().default("pending"),
+  priority: text("priority").notNull().default("normal"),
+  description: text("description").notNull(),
+  estimatedCost: real("estimated_cost"),
+  actualCost: real("actual_cost"),
+  startDate: timestamp("start_date"),
+  completedDate: timestamp("completed_date"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertWorkOrderSchema = createInsertSchema(workOrders).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertWorkOrder = z.infer<typeof insertWorkOrderSchema>;
+export type WorkOrder = typeof workOrders.$inferSelect;

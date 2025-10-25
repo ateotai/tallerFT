@@ -19,6 +19,7 @@ import {
   insertEmployeeTypeSchema,
   insertEmployeeSchema,
   insertDiagnosticSchema,
+  insertWorkOrderSchema,
 } from "@shared/schema";
 
 function validateId(id: string): number | null {
@@ -1327,6 +1328,120 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting diagnostic:", error);
       res.status(500).json({ error: "Error al eliminar diagnóstico" });
+    }
+  });
+
+  app.post("/api/diagnostics/:id/approve", async (req, res) => {
+    try {
+      const id = validateId(req.params.id);
+      if (id === null) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      const { userId } = req.body;
+      if (!userId || typeof userId !== 'number') {
+        return res.status(400).json({ error: "Se requiere userId válido" });
+      }
+      const result = await storage.approveDiagnostic(id, userId);
+      res.json(result);
+    } catch (error) {
+      console.error("Error approving diagnostic:", error);
+      res.status(500).json({ error: "Error al aprobar diagnóstico" });
+    }
+  });
+
+  app.get("/api/work-orders", async (req, res) => {
+    try {
+      const vehicleId = req.query.vehicleId ? validateId(req.query.vehicleId as string) : null;
+      const employeeId = req.query.employeeId ? validateId(req.query.employeeId as string) : null;
+      
+      if (req.query.vehicleId && vehicleId === null) {
+        return res.status(400).json({ error: "vehicleId inválido" });
+      }
+      if (req.query.employeeId && employeeId === null) {
+        return res.status(400).json({ error: "employeeId inválido" });
+      }
+      
+      let workOrders;
+      if (vehicleId) {
+        workOrders = await storage.getWorkOrdersByVehicle(vehicleId);
+      } else if (employeeId) {
+        workOrders = await storage.getWorkOrdersByEmployee(employeeId);
+      } else {
+        workOrders = await storage.getWorkOrders();
+      }
+      res.json(workOrders);
+    } catch (error) {
+      console.error("Error fetching work orders:", error);
+      res.status(500).json({ error: "Error al obtener órdenes de trabajo" });
+    }
+  });
+
+  app.get("/api/work-orders/:id", async (req, res) => {
+    try {
+      const id = validateId(req.params.id);
+      if (id === null) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      const workOrder = await storage.getWorkOrder(id);
+      if (!workOrder) {
+        return res.status(404).json({ error: "Orden de trabajo no encontrada" });
+      }
+      res.json(workOrder);
+    } catch (error) {
+      console.error("Error fetching work order:", error);
+      res.status(500).json({ error: "Error al obtener orden de trabajo" });
+    }
+  });
+
+  app.post("/api/work-orders", async (req, res) => {
+    try {
+      const validatedData = insertWorkOrderSchema.parse(req.body);
+      const workOrder = await storage.createWorkOrder(validatedData);
+      res.status(201).json(workOrder);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ error: "Datos inválidos", details: error.errors });
+      }
+      console.error("Error creating work order:", error);
+      res.status(500).json({ error: "Error al crear orden de trabajo" });
+    }
+  });
+
+  app.put("/api/work-orders/:id", async (req, res) => {
+    try {
+      const id = validateId(req.params.id);
+      if (id === null) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      const validatedData = insertWorkOrderSchema.partial().parse(req.body);
+      const workOrder = await storage.updateWorkOrder(id, validatedData);
+      if (!workOrder) {
+        return res.status(404).json({ error: "Orden de trabajo no encontrada" });
+      }
+      res.json(workOrder);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ error: "Datos inválidos", details: error.errors });
+      }
+      console.error("Error updating work order:", error);
+      res.status(500).json({ error: "Error al actualizar orden de trabajo" });
+    }
+  });
+
+  app.delete("/api/work-orders/:id", async (req, res) => {
+    try {
+      const id = validateId(req.params.id);
+      if (id === null) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      const deleted = await storage.deleteWorkOrder(id);
+      if (!deleted) {
+        return res.status(404).json({ error: "Orden de trabajo no encontrada" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting work order:", error);
+      res.status(500).json({ error: "Error al eliminar orden de trabajo" });
     }
   });
 

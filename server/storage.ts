@@ -36,6 +36,8 @@ import type {
   InsertEmployee,
   Diagnostic,
   InsertDiagnostic,
+  WorkOrder,
+  InsertWorkOrder,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -143,9 +145,18 @@ export interface IStorage {
   createDiagnostic(diagnostic: InsertDiagnostic): Promise<Diagnostic>;
   updateDiagnostic(id: number, diagnostic: Partial<InsertDiagnostic>): Promise<Diagnostic | undefined>;
   deleteDiagnostic(id: number): Promise<boolean>;
+  approveDiagnostic(diagnosticId: number, userId: number): Promise<{ diagnostic: Diagnostic; workOrder: WorkOrder }>;
   
   assignReportToEmployee(reportId: number, employeeId: number): Promise<{ report: Report; diagnostic: Diagnostic }>;
   getUsers(): Promise<User[]>;
+  
+  getWorkOrders(): Promise<WorkOrder[]>;
+  getWorkOrder(id: number): Promise<WorkOrder | undefined>;
+  getWorkOrdersByVehicle(vehicleId: number): Promise<WorkOrder[]>;
+  getWorkOrdersByEmployee(employeeId: number): Promise<WorkOrder[]>;
+  createWorkOrder(workOrder: InsertWorkOrder): Promise<WorkOrder>;
+  updateWorkOrder(id: number, workOrder: Partial<InsertWorkOrder>): Promise<WorkOrder | undefined>;
+  deleteWorkOrder(id: number): Promise<boolean>;
 }
 
 export class DbStorage implements IStorage {
@@ -581,16 +592,85 @@ export class DbStorage implements IStorage {
       .values({
         reportId: reportId,
         employeeId: employeeId,
-        diagnosis: "",
-        recommendations: "",
+        odometer: 0,
+        vehicleCondition: "pendiente de evaluación",
+        fuelLevel: "sin evaluar",
+        possibleCause: "pendiente de diagnóstico",
+        severity: "pendiente",
+        technicalRecommendation: "pendiente de evaluación",
+        estimatedRepairTime: "por determinar",
+        requiredMaterials: "pendiente de evaluación",
+        requiresAdditionalTests: false,
       })
       .returning();
 
     return { report: updatedReport[0], diagnostic: diagnostic[0] };
   }
 
+  async approveDiagnostic(diagnosticId: number, userId: number): Promise<{ diagnostic: Diagnostic; workOrder: WorkOrder }> {
+    const approvedAt = new Date();
+    
+    const updatedDiagnostic = await db.update(schema.diagnostics)
+      .set({
+        approvedBy: userId,
+        approvedAt: approvedAt,
+      })
+      .where(eq(schema.diagnostics.id, diagnosticId))
+      .returning();
+
+    const diagnostic = updatedDiagnostic[0];
+    
+    const report = await db.select().from(schema.reports).where(eq(schema.reports.id, diagnostic.reportId)).limit(1);
+    
+    const workOrder = await db.insert(schema.workOrders)
+      .values({
+        diagnosticId: diagnosticId,
+        vehicleId: report[0].vehicleId,
+        assignedToEmployeeId: diagnostic.employeeId,
+        status: "pending",
+        priority: diagnostic.severity === "crítico" ? "high" : diagnostic.severity === "moderado" ? "normal" : "low",
+        description: `Orden de trabajo generada del diagnóstico #${diagnosticId}: ${diagnostic.possibleCause}`,
+        estimatedCost: undefined,
+      })
+      .returning();
+
+    return { diagnostic, workOrder: workOrder[0] };
+  }
+
   async getUsers(): Promise<User[]> {
     return await db.select().from(schema.users);
+  }
+
+  async getWorkOrders(): Promise<WorkOrder[]> {
+    return await db.select().from(schema.workOrders);
+  }
+
+  async getWorkOrder(id: number): Promise<WorkOrder | undefined> {
+    const result = await db.select().from(schema.workOrders).where(eq(schema.workOrders.id, id)).limit(1);
+    return result[0];
+  }
+
+  async getWorkOrdersByVehicle(vehicleId: number): Promise<WorkOrder[]> {
+    return await db.select().from(schema.workOrders).where(eq(schema.workOrders.vehicleId, vehicleId));
+  }
+
+  async getWorkOrdersByEmployee(employeeId: number): Promise<WorkOrder[]> {
+    return await db.select().from(schema.workOrders).where(eq(schema.workOrders.assignedToEmployeeId, employeeId));
+  }
+
+  async createWorkOrder(workOrder: InsertWorkOrder): Promise<WorkOrder> {
+    const result = await db.insert(schema.workOrders).values(workOrder).returning();
+    return result[0];
+  }
+
+  async updateWorkOrder(id: number, workOrder: Partial<InsertWorkOrder>): Promise<WorkOrder | undefined> {
+    const result = await db.update(schema.workOrders).set({ ...workOrder, updatedAt: new Date() }).where(eq(schema.workOrders.id, id)).returning();
+    return result[0];
+  }
+
+  async deleteWorkOrder(id: number): Promise<boolean> {
+    const result = await db.delete(schema.workOrders).where(eq(schema.workOrders.id, id)).returning();
+    return result.length > 0;
   }
 }
 
