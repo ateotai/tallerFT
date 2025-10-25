@@ -83,15 +83,20 @@ Material Design-inspired with a focus on productivity tools, using Inter (primar
   - Provider field is optional (nullable) with "Sin proveedor" option
   - Pre-seeded with 5 sample providers for testing
 - **Issue Reports Module (Reportes de Fallas)**: Complete CRUD system for tracking vehicle defects and service requests. Features include:
-  - Reports table with fields: vehicleId, userId, imageUrl, audioUrl, description, notes, status
+  - Reports table with fields: vehicleId, userId, images (jsonb array), audioUrl, description, notes, status, createdAt
+  - Images stored as JSONB array containing {url: string, description: string} objects (up to 3 images)
   - Three status states: pending, in_progress, resolved
   - VehicleSearchCombobox for searching vehicles by economic number, plate, or model
   - IssueReportsPage displays real-time statistics (total, pending, in-progress, resolved reports)
-  - AddIssueReportDialog and EditIssueReportDialog with support for mobile camera capture (image) and microphone (audio)
+  - AddIssueReportDialog: No status field (defaults to "pending"), supports up to 3 images with individual descriptions, mobile camera capture, and microphone audio
+  - EditIssueReportDialog: Includes status selector for updating report status, multi-image support with descriptions
+  - IssueReportsTable displays image count and status badges
   - File uploads stored as base64 data URLs (temporary implementation before object storage integration)
+  - Backend PUT endpoint validates and accepts status field updates
   - Full integration with vehicles and users tables via foreign keys
   - All components include data-testid attributes for E2E testing
   - Accessible at /reportes-fallas route
+  - Date/time automatically tracked via createdAt field (hidden from user interface)
 
 ### API Validation
 
