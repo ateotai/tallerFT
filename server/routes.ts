@@ -15,6 +15,7 @@ import {
   insertInventoryCategorySchema,
   insertInventorySchema,
   insertInventoryMovementSchema,
+  insertReportSchema,
 } from "@shared/schema";
 
 function validateId(id: string): number | null {
@@ -941,6 +942,103 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       console.error("Error creating inventory movement:", error);
       res.status(500).json({ error: "Error al crear movimiento de inventario" });
+    }
+  });
+
+  app.get("/api/reports", async (req, res) => {
+    try {
+      const vehicleId = req.query.vehicleId ? validateId(req.query.vehicleId as string) : null;
+      const userId = req.query.userId ? validateId(req.query.userId as string) : null;
+      
+      if (req.query.vehicleId && vehicleId === null) {
+        return res.status(400).json({ error: "vehicleId inválido" });
+      }
+      if (req.query.userId && userId === null) {
+        return res.status(400).json({ error: "userId inválido" });
+      }
+      
+      let reports;
+      if (vehicleId) {
+        reports = await storage.getReportsByVehicle(vehicleId);
+      } else if (userId) {
+        reports = await storage.getReportsByUser(userId);
+      } else {
+        reports = await storage.getReports();
+      }
+      
+      res.json(reports);
+    } catch (error) {
+      console.error("Error fetching reports:", error);
+      res.status(500).json({ error: "Error al obtener reportes" });
+    }
+  });
+
+  app.get("/api/reports/:id", async (req, res) => {
+    try {
+      const id = validateId(req.params.id);
+      if (id === null) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      const report = await storage.getReport(id);
+      if (!report) {
+        return res.status(404).json({ error: "Reporte no encontrado" });
+      }
+      res.json(report);
+    } catch (error) {
+      console.error("Error fetching report:", error);
+      res.status(500).json({ error: "Error al obtener reporte" });
+    }
+  });
+
+  app.post("/api/reports", async (req, res) => {
+    try {
+      const validatedData = insertReportSchema.parse(req.body);
+      const report = await storage.createReport(validatedData);
+      res.status(201).json(report);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ error: "Datos inválidos", details: error.errors });
+      }
+      console.error("Error creating report:", error);
+      res.status(500).json({ error: "Error al crear reporte" });
+    }
+  });
+
+  app.put("/api/reports/:id", async (req, res) => {
+    try {
+      const id = validateId(req.params.id);
+      if (id === null) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      const validatedData = insertReportSchema.partial().parse(req.body);
+      const report = await storage.updateReport(id, validatedData);
+      if (!report) {
+        return res.status(404).json({ error: "Reporte no encontrado" });
+      }
+      res.json(report);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ error: "Datos inválidos", details: error.errors });
+      }
+      console.error("Error updating report:", error);
+      res.status(500).json({ error: "Error al actualizar reporte" });
+    }
+  });
+
+  app.delete("/api/reports/:id", async (req, res) => {
+    try {
+      const id = validateId(req.params.id);
+      if (id === null) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      const deleted = await storage.deleteReport(id);
+      if (!deleted) {
+        return res.status(404).json({ error: "Reporte no encontrado" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting report:", error);
+      res.status(500).json({ error: "Error al eliminar reporte" });
     }
   });
 
