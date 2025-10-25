@@ -261,3 +261,35 @@ export const insertReportSchema = createInsertSchema(reports).omit({
 });
 export type InsertReport = z.infer<typeof insertReportSchema>;
 export type Report = typeof reports.$inferSelect;
+
+export const employeeTypes = pgTable("employee_types", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull().unique(),
+  description: text("description"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertEmployeeTypeSchema = createInsertSchema(employeeTypes).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertEmployeeType = z.infer<typeof insertEmployeeTypeSchema>;
+export type EmployeeType = typeof employeeTypes.$inferSelect;
+
+export const employees = pgTable("employees", {
+  id: serial("id").primaryKey(),
+  firstName: text("first_name").notNull(),
+  lastName: text("last_name").notNull(),
+  employeeTypeId: integer("employee_type_id").notNull().references(() => employeeTypes.id),
+  phone: text("phone"),
+  email: text("email"),
+  userId: integer("user_id").references(() => users.id),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertEmployeeSchema = createInsertSchema(employees).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertEmployee = z.infer<typeof insertEmployeeSchema>;
+export type Employee = typeof employees.$inferSelect;
