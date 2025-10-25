@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, serial, varchar, timestamp, integer, real, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, varchar, timestamp, integer, real, boolean, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -241,7 +241,7 @@ export const reports = pgTable("reports", {
   id: serial("id").primaryKey(),
   vehicleId: integer("vehicle_id").notNull().references(() => vehicles.id),
   userId: integer("user_id").notNull().references(() => users.id),
-  imageUrl: text("image_url"),
+  images: jsonb("images").$type<Array<{ url: string; description: string }>>().default([]),
   audioUrl: text("audio_url"),
   description: text("description").notNull(),
   notes: text("notes"),
@@ -252,6 +252,12 @@ export const reports = pgTable("reports", {
 export const insertReportSchema = createInsertSchema(reports).omit({
   id: true,
   createdAt: true,
+  status: true,
+}).extend({
+  images: z.array(z.object({
+    url: z.string(),
+    description: z.string().optional().default(""),
+  })).optional().default([]),
 });
 export type InsertReport = z.infer<typeof insertReportSchema>;
 export type Report = typeof reports.$inferSelect;
