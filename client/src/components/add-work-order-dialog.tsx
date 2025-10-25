@@ -46,14 +46,15 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { 
   insertWorkOrderSchema, 
-  type InsertWorkOrder, 
+  type InsertWorkOrder,
+  type WorkOrder,
   type Vehicle, 
   type Employee, 
   type Diagnostic, 
   type Report,
   type ServiceCategory,
   type ServiceSubcategory,
-  type InventoryItem,
+  type Inventory,
   type InsertWorkOrderTask,
   type InsertWorkOrderMaterial,
   type InsertWorkOrderEvidence,
@@ -119,7 +120,7 @@ export function AddWorkOrderDialog() {
     queryKey: ["/api/service-subcategories"],
   });
 
-  const { data: inventory = [] } = useQuery<InventoryItem[]>({
+  const { data: inventory = [] } = useQuery<Inventory[]>({
     queryKey: ["/api/inventory"],
   });
 
@@ -138,36 +139,59 @@ export function AddWorkOrderDialog() {
 
   const mutation = useMutation({
     mutationFn: async (data: InsertWorkOrder) => {
-      const workOrder = await apiRequest("POST", "/api/work-orders", data);
+      let workOrder: WorkOrder;
       
-      if (tasks.length > 0) {
-        for (const task of tasks) {
-          await apiRequest("POST", "/api/work-order-tasks", {
-            ...task,
-            workOrderId: workOrder.id,
-          });
-        }
+      try {
+        workOrder = await apiRequest("POST", "/api/work-orders", data) as unknown as WorkOrder;
+      } catch (error) {
+        throw new Error("Error al crear la orden de trabajo: " + (error instanceof Error ? error.message : "Error desconocido"));
       }
       
-      if (materials.length > 0) {
-        for (const material of materials) {
-          const total = material.quantityNeeded * material.unitCost;
-          await apiRequest("POST", "/api/work-order-materials", {
-            ...material,
-            workOrderId: workOrder.id,
-            total,
-            approved: false,
-          });
-        }
-      }
+      const taskPromises = tasks.map(task => 
+        apiRequest("POST", "/api/work-order-tasks", {
+          ...task,
+          workOrderId: workOrder.id,
+        }).catch(err => {
+          console.error("Error creando tarea:", err);
+          throw new Error("Error al crear una de las tareas");
+        })
+      );
       
-      if (evidences.length > 0 && evidences.length <= 10) {
-        for (const evidence of evidences) {
-          await apiRequest("POST", "/api/work-order-evidence", {
-            ...evidence,
-            workOrderId: workOrder.id,
-          });
+      const materialPromises = materials.map(material => {
+        if (!Number.isFinite(material.quantityNeeded) || !Number.isFinite(material.unitCost)) {
+          throw new Error("Cantidad o costo unitario inválido en materiales");
         }
+        const total = material.quantityNeeded * material.unitCost;
+        return apiRequest("POST", "/api/work-order-materials", {
+          ...material,
+          partNumber: material.partNumber || null,
+          workOrderId: workOrder.id,
+          total,
+          approved: false,
+        }).catch(err => {
+          console.error("Error creando material:", err);
+          throw new Error("Error al crear uno de los materiales");
+        });
+      });
+      
+      const evidencePromises = evidences.slice(0, 10).map(evidence =>
+        apiRequest("POST", "/api/work-order-evidence", {
+          ...evidence,
+          workOrderId: workOrder.id,
+        }).catch(err => {
+          console.error("Error creando evidencia:", err);
+          throw new Error("Error al crear una de las evidencias");
+        })
+      );
+      
+      try {
+        await Promise.all([...taskPromises, ...materialPromises, ...evidencePromises]);
+      } catch (error) {
+        throw new Error(
+          "Orden de trabajo creada pero hubo errores al guardar algunos elementos adicionales. " +
+          "Por favor revise la orden #" + workOrder.id + " y agregue los elementos faltantes manualmente. " +
+          "Detalle: " + (error instanceof Error ? error.message : "Error desconocido")
+        );
       }
       
       return workOrder;
@@ -237,16 +261,35 @@ export function AddWorkOrderDialog() {
   };
 
   const addMaterial = () => {
-    if (newMaterial.description && newMaterial.quantityNeeded > 0 && newMaterial.unitCost >= 0) {
-      setMaterials([...materials, newMaterial]);
-      setNewMaterial({ description: "", quantityNeeded: 1, unitCost: 0 });
-    } else {
+    if (!newMaterial.description || newMaterial.description.trim() === "") {
       toast({
         title: "Error",
-        description: "Complete todos los campos requeridos del material",
+        description: "La descripción del material es requerida",
         variant: "destructive",
       });
+      return;
     }
+    
+    if (!Number.isFinite(newMaterial.quantityNeeded) || newMaterial.quantityNeeded <= 0) {
+      toast({
+        title: "Error",
+        description: "La cantidad debe ser un número válido mayor a 0",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (!Number.isFinite(newMaterial.unitCost) || newMaterial.unitCost < 0) {
+      toast({
+        title: "Error",
+        description: "El costo unitario debe ser un número válido mayor o igual a 0",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setMaterials([...materials, newMaterial]);
+    setNewMaterial({ description: "", quantityNeeded: 1, unitCost: 0 });
   };
 
   const removeMaterial = (index: number) => {
@@ -744,7 +787,7 @@ export function AddWorkOrderDialog() {
                         <SelectItem value="none">Manual (sin inventario)</SelectItem>
                         {inventory.map((item) => (
                           <SelectItem key={item.id} value={item.id.toString()}>
-                            {item.name} - {item.partNumber} (Stock: {item.currentStock})
+                            {item.name} - {item.partNumber} (Stock: {item.quantity})
                           </SelectItem>
                         ))}
                       </SelectContent>
