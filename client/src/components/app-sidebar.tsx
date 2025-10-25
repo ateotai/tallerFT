@@ -9,6 +9,7 @@ import {
   Tag,
   UserCircle,
   LayoutDashboard,
+  FileText,
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import {
@@ -68,6 +69,11 @@ const menuItems = [
     title: "Reportes",
     url: "/reportes",
     icon: BarChart3,
+  },
+  {
+    title: "Reportes de Fallas",
+    url: "/reportes-fallas",
+    icon: FileText,
   },
   {
     title: "Usuarios",
