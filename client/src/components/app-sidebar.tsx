@@ -10,6 +10,7 @@ import {
   UserCircle,
   LayoutDashboard,
   FileText,
+  Briefcase,
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import {
@@ -74,6 +75,11 @@ const menuItems = [
     title: "Reportes de Fallas",
     url: "/reportes-fallas",
     icon: FileText,
+  },
+  {
+    title: "Empleados",
+    url: "/empleados",
+    icon: Briefcase,
   },
   {
     title: "Usuarios",

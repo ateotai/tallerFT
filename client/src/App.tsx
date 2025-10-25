@@ -19,6 +19,7 @@ import InventoryPage from "@/pages/inventory";
 import ReportsPage from "@/pages/reports";
 import IssueReportsPage from "@/pages/issue-reports";
 import UsersPage from "@/pages/users";
+import EmployeesPage from "@/pages/employees";
 
 function Router() {
   return (
@@ -33,6 +34,7 @@ function Router() {
       <Route path="/inventario" component={InventoryPage} />
       <Route path="/reportes" component={ReportsPage} />
       <Route path="/reportes-fallas" component={IssueReportsPage} />
+      <Route path="/empleados" component={EmployeesPage} />
       <Route path="/usuarios" component={UsersPage} />
       <Route component={NotFound} />
     </Switch>
