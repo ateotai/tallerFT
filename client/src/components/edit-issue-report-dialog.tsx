@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
-import { Upload, X, Image as ImageIcon, Mic } from "lucide-react";
+import { X, Image as ImageIcon, Mic } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -26,6 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { VehicleSearchCombobox } from "./vehicle-search-combobox";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -34,12 +35,14 @@ import { insertReportSchema } from "@shared/schema";
 import type { Report, InsertReport } from "@shared/schema";
 import { z } from "zod";
 
-const formSchema = insertReportSchema.extend({
-  image: z.any().optional(),
-  audio: z.any().optional(),
-});
+const formSchema = insertReportSchema;
 
 type FormValues = z.infer<typeof formSchema>;
+
+interface ImageWithDescription {
+  url: string;
+  description: string;
+}
 
 interface EditIssueReportDialogProps {
   report: Report;
@@ -48,7 +51,7 @@ interface EditIssueReportDialogProps {
 }
 
 export function EditIssueReportDialog({ report, open, onOpenChange }: EditIssueReportDialogProps) {
-  const [imagePreview, setImagePreview] = useState<string | null>(report.imageUrl || null);
+  const [images, setImages] = useState<ImageWithDescription[]>([]);
   const [audioPreview, setAudioPreview] = useState<string | null>(report.audioUrl || null);
   const { toast } = useToast();
 
@@ -59,30 +62,29 @@ export function EditIssueReportDialog({ report, open, onOpenChange }: EditIssueR
       userId: report.userId,
       description: report.description,
       notes: report.notes || "",
-      status: report.status,
-      imageUrl: report.imageUrl || undefined,
+      images: Array.isArray(report.images) ? report.images : [],
       audioUrl: report.audioUrl || undefined,
     },
   });
 
   useEffect(() => {
     if (report) {
+      const reportImages = Array.isArray(report.images) ? report.images : [];
       form.reset({
         vehicleId: report.vehicleId,
         userId: report.userId,
         description: report.description,
         notes: report.notes || "",
-        status: report.status,
-        imageUrl: report.imageUrl || undefined,
+        images: reportImages,
         audioUrl: report.audioUrl || undefined,
       });
-      setImagePreview(report.imageUrl || null);
+      setImages(reportImages);
       setAudioPreview(report.audioUrl || null);
     }
   }, [report, form]);
 
   const updateMutation = useMutation({
-    mutationFn: async (data: InsertReport) => {
+    mutationFn: async (data: Partial<InsertReport>) => {
       return await apiRequest("PUT", `/api/reports/${report.id}`, data);
     },
     onSuccess: () => {
@@ -103,15 +105,29 @@ export function EditIssueReportDialog({ report, open, onOpenChange }: EditIssueR
   });
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
+    const files = e.target.files;
+    if (!files) return;
+
+    const remainingSlots = 3 - images.length;
+    const filesToProcess = Array.from(files).slice(0, remainingSlots);
+
+    filesToProcess.forEach((file) => {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setImagePreview(reader.result as string);
-        form.setValue("imageUrl", reader.result as string);
+        const newImage: ImageWithDescription = {
+          url: reader.result as string,
+          description: "",
+        };
+        setImages((prev) => {
+          const updated = [...prev, newImage];
+          form.setValue("images", updated);
+          return updated;
+        });
       };
       reader.readAsDataURL(file);
-    }
+    });
+
+    e.target.value = "";
   };
 
   const handleAudioChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -126,9 +142,21 @@ export function EditIssueReportDialog({ report, open, onOpenChange }: EditIssueR
     }
   };
 
-  const removeImage = () => {
-    setImagePreview(null);
-    form.setValue("imageUrl", undefined);
+  const updateImageDescription = (index: number, description: string) => {
+    setImages((prev) => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], description };
+      form.setValue("images", updated);
+      return updated;
+    });
+  };
+
+  const removeImage = (index: number) => {
+    setImages((prev) => {
+      const updated = prev.filter((_, i) => i !== index);
+      form.setValue("images", updated);
+      return updated;
+    });
   };
 
   const removeAudio = () => {
@@ -137,8 +165,7 @@ export function EditIssueReportDialog({ report, open, onOpenChange }: EditIssueR
   };
 
   function onSubmit(values: FormValues) {
-    const { image, audio, ...reportData } = values;
-    updateMutation.mutate(reportData as InsertReport);
+    updateMutation.mutate(values as Partial<InsertReport>);
   }
 
   return (
@@ -207,61 +234,64 @@ export function EditIssueReportDialog({ report, open, onOpenChange }: EditIssueR
               )}
             />
 
-            <FormField
-              control={form.control}
-              name="status"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Estado</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    value={field.value}
-                  >
-                    <FormControl>
-                      <SelectTrigger data-testid="select-edit-status">
-                        <SelectValue placeholder="Seleccionar estado" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="pending">Pendiente</SelectItem>
-                      <SelectItem value="in_progress">En Proceso</SelectItem>
-                      <SelectItem value="resolved">Resuelto</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <div>
+              <FormLabel>Estado</FormLabel>
+              <Select
+                onValueChange={(value) => updateMutation.mutate({ status: value })}
+                value={report.status}
+              >
+                <SelectTrigger data-testid="select-edit-status">
+                  <SelectValue placeholder="Seleccionar estado" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pending">Pendiente</SelectItem>
+                  <SelectItem value="in_progress">En Proceso</SelectItem>
+                  <SelectItem value="resolved">Resuelto</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
             <div className="space-y-4">
               <div>
-                <FormLabel>Imagen</FormLabel>
-                <div className="mt-2">
-                  {imagePreview ? (
-                    <div className="relative inline-block">
-                      <img
-                        src={imagePreview}
-                        alt="Preview"
-                        className="max-w-full h-48 object-contain rounded border"
-                        data-testid="edit-image-preview"
-                      />
-                      <Button
-                        type="button"
-                        variant="destructive"
-                        size="icon"
-                        className="absolute top-2 right-2"
-                        onClick={removeImage}
-                        data-testid="button-edit-remove-image"
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
+                <FormLabel>Imágenes (máximo 3)</FormLabel>
+                <div className="mt-2 space-y-3">
+                  {images.map((image, index) => (
+                    <div key={index} className="border rounded-md p-3 space-y-2">
+                      <div className="flex gap-3">
+                        <img
+                          src={image.url}
+                          alt={`Imagen ${index + 1}`}
+                          className="w-24 h-24 object-cover rounded border"
+                          data-testid={`edit-image-preview-${index}`}
+                        />
+                        <div className="flex-1 space-y-2">
+                          <Input
+                            placeholder="Descripción de la imagen (opcional)"
+                            value={image.description}
+                            onChange={(e) => updateImageDescription(index, e.target.value)}
+                            data-testid={`input-edit-image-description-${index}`}
+                          />
+                        </div>
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="icon"
+                          onClick={() => removeImage(index)}
+                          data-testid={`button-edit-remove-image-${index}`}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
-                  ) : (
+                  ))}
+
+                  {images.length < 3 && (
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input
                         type="file"
                         accept="image/*"
                         capture="environment"
+                        multiple
                         onChange={handleImageChange}
                         className="hidden"
                         data-testid="input-edit-image"
@@ -269,7 +299,7 @@ export function EditIssueReportDialog({ report, open, onOpenChange }: EditIssueR
                       <Button type="button" variant="outline" asChild>
                         <span>
                           <ImageIcon className="h-4 w-4 mr-2" />
-                          Subir / Tomar Foto
+                          Subir / Tomar Foto ({images.length}/3)
                         </span>
                       </Button>
                     </label>
