@@ -174,8 +174,8 @@ export function AddWorkOrderDialog() {
                   <FormItem>
                     <FormLabel>Mecánico Asignado</FormLabel>
                     <Select 
-                      onValueChange={(value) => field.onChange(value ? parseInt(value) : null)} 
-                      value={field.value?.toString() || ""}
+                      onValueChange={(value) => field.onChange(value === "none" ? null : parseInt(value))} 
+                      value={field.value?.toString() || "none"}
                     >
                       <FormControl>
                         <SelectTrigger data-testid="select-employee">
@@ -183,7 +183,7 @@ export function AddWorkOrderDialog() {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="">Sin asignar</SelectItem>
+                        <SelectItem value="none">Sin asignar</SelectItem>
                         {employees.map((employee) => (
                           <SelectItem key={employee.id} value={employee.id.toString()}>
                             {employee.firstName} {employee.lastName}
@@ -203,8 +203,8 @@ export function AddWorkOrderDialog() {
                   <FormItem>
                     <FormLabel>Diagnóstico Asociado</FormLabel>
                     <Select 
-                      onValueChange={(value) => field.onChange(value ? parseInt(value) : null)} 
-                      value={field.value?.toString() || ""}
+                      onValueChange={(value) => field.onChange(value === "none" ? null : parseInt(value))} 
+                      value={field.value?.toString() || "none"}
                     >
                       <FormControl>
                         <SelectTrigger data-testid="select-diagnostic">
@@ -212,7 +212,7 @@ export function AddWorkOrderDialog() {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="">Sin diagnóstico</SelectItem>
+                        <SelectItem value="none">Sin diagnóstico</SelectItem>
                         {diagnostics.map((diagnostic) => (
                           <SelectItem key={diagnostic.id} value={diagnostic.id.toString()}>
                             Diagnóstico #{diagnostic.id}
