@@ -16,6 +16,8 @@ import {
   insertInventorySchema,
   insertInventoryMovementSchema,
   insertReportSchema,
+  insertEmployeeTypeSchema,
+  insertEmployeeSchema,
 } from "@shared/schema";
 
 function validateId(id: string): number | null {
@@ -1042,6 +1044,164 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting report:", error);
       res.status(500).json({ error: "Error al eliminar reporte" });
+    }
+  });
+
+  app.get("/api/employee-types", async (req, res) => {
+    try {
+      const employeeTypes = await storage.getEmployeeTypes();
+      res.json(employeeTypes);
+    } catch (error) {
+      console.error("Error fetching employee types:", error);
+      res.status(500).json({ error: "Error al obtener tipos de empleado" });
+    }
+  });
+
+  app.get("/api/employee-types/:id", async (req, res) => {
+    try {
+      const id = validateId(req.params.id);
+      if (id === null) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      const employeeType = await storage.getEmployeeType(id);
+      if (!employeeType) {
+        return res.status(404).json({ error: "Tipo de empleado no encontrado" });
+      }
+      res.json(employeeType);
+    } catch (error) {
+      console.error("Error fetching employee type:", error);
+      res.status(500).json({ error: "Error al obtener tipo de empleado" });
+    }
+  });
+
+  app.post("/api/employee-types", async (req, res) => {
+    try {
+      const validatedData = insertEmployeeTypeSchema.parse(req.body);
+      const employeeType = await storage.createEmployeeType(validatedData);
+      res.status(201).json(employeeType);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ error: "Datos inválidos", details: error.errors });
+      }
+      console.error("Error creating employee type:", error);
+      res.status(500).json({ error: "Error al crear tipo de empleado" });
+    }
+  });
+
+  app.put("/api/employee-types/:id", async (req, res) => {
+    try {
+      const id = validateId(req.params.id);
+      if (id === null) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      const validatedData = insertEmployeeTypeSchema.partial().parse(req.body);
+      const employeeType = await storage.updateEmployeeType(id, validatedData);
+      if (!employeeType) {
+        return res.status(404).json({ error: "Tipo de empleado no encontrado" });
+      }
+      res.json(employeeType);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ error: "Datos inválidos", details: error.errors });
+      }
+      console.error("Error updating employee type:", error);
+      res.status(500).json({ error: "Error al actualizar tipo de empleado" });
+    }
+  });
+
+  app.delete("/api/employee-types/:id", async (req, res) => {
+    try {
+      const id = validateId(req.params.id);
+      if (id === null) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      const deleted = await storage.deleteEmployeeType(id);
+      if (!deleted) {
+        return res.status(404).json({ error: "Tipo de empleado no encontrado" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting employee type:", error);
+      res.status(500).json({ error: "Error al eliminar tipo de empleado" });
+    }
+  });
+
+  app.get("/api/employees", async (req, res) => {
+    try {
+      const employees = await storage.getEmployees();
+      res.json(employees);
+    } catch (error) {
+      console.error("Error fetching employees:", error);
+      res.status(500).json({ error: "Error al obtener empleados" });
+    }
+  });
+
+  app.get("/api/employees/:id", async (req, res) => {
+    try {
+      const id = validateId(req.params.id);
+      if (id === null) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      const employee = await storage.getEmployee(id);
+      if (!employee) {
+        return res.status(404).json({ error: "Empleado no encontrado" });
+      }
+      res.json(employee);
+    } catch (error) {
+      console.error("Error fetching employee:", error);
+      res.status(500).json({ error: "Error al obtener empleado" });
+    }
+  });
+
+  app.post("/api/employees", async (req, res) => {
+    try {
+      const validatedData = insertEmployeeSchema.parse(req.body);
+      const employee = await storage.createEmployee(validatedData);
+      res.status(201).json(employee);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ error: "Datos inválidos", details: error.errors });
+      }
+      console.error("Error creating employee:", error);
+      res.status(500).json({ error: "Error al crear empleado" });
+    }
+  });
+
+  app.put("/api/employees/:id", async (req, res) => {
+    try {
+      const id = validateId(req.params.id);
+      if (id === null) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      const validatedData = insertEmployeeSchema.partial().parse(req.body);
+      const employee = await storage.updateEmployee(id, validatedData);
+      if (!employee) {
+        return res.status(404).json({ error: "Empleado no encontrado" });
+      }
+      res.json(employee);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ error: "Datos inválidos", details: error.errors });
+      }
+      console.error("Error updating employee:", error);
+      res.status(500).json({ error: "Error al actualizar empleado" });
+    }
+  });
+
+  app.delete("/api/employees/:id", async (req, res) => {
+    try {
+      const id = validateId(req.params.id);
+      if (id === null) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      const deleted = await storage.deleteEmployee(id);
+      if (!deleted) {
+        return res.status(404).json({ error: "Empleado no encontrado" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting employee:", error);
+      res.status(500).json({ error: "Error al eliminar empleado" });
     }
   });
 
