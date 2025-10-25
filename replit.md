@@ -79,6 +79,9 @@ Material Design-inspired with a focus on productivity tools, using Inter (primar
   - Inventory table displays resolved category names (not IDs) and shows min/max limits
   - Add/Edit dialogs use Select component for category selection
   - Category field is optional (nullable)
+  - Provider field (providerId) is fully integrated with providers table via Select component
+  - Provider field is optional (nullable) with "Sin proveedor" option
+  - Pre-seeded with 5 sample providers for testing
 
 ### API Validation
 
