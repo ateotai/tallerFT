@@ -999,6 +999,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const validatedData = insertReportSchema.parse(req.body);
       const report = await storage.createReport(validatedData);
+      
+      // Create notification for new report
+      await storage.createNotification({
+        type: "report",
+        title: "Nuevo reporte de falla",
+        message: `Se ha registrado un nuevo reporte de falla para el vehículo`,
+        read: false,
+      });
+      
       res.status(201).json(report);
     } catch (error) {
       if (error instanceof ZodError) {
@@ -1284,6 +1293,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const validatedData = insertDiagnosticSchema.parse(req.body);
       const diagnostic = await storage.createDiagnostic(validatedData);
+      
+      // Create notification for new diagnostic
+      await storage.createNotification({
+        type: "diagnostic",
+        title: "Nuevo diagnóstico creado",
+        message: `Se ha creado un diagnóstico profesional para un reporte de falla`,
+        read: false,
+      });
+      
       res.status(201).json(diagnostic);
     } catch (error) {
       if (error instanceof ZodError) {
@@ -1343,6 +1361,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Se requiere userId válido" });
       }
       const result = await storage.approveDiagnostic(id, userId);
+      
+      // Create notification for approved diagnostic
+      await storage.createNotification({
+        type: "work_order",
+        title: "Diagnóstico aprobado",
+        message: `Se ha aprobado un diagnóstico y se ha creado la orden de trabajo automáticamente`,
+        read: false,
+      });
+      
       res.json(result);
     } catch (error) {
       console.error("Error approving diagnostic:", error);
@@ -1398,6 +1425,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const validatedData = insertWorkOrderSchema.parse(req.body);
       const workOrder = await storage.createWorkOrder(validatedData);
+      
+      // Create notification for new work order
+      await storage.createNotification({
+        type: "work_order",
+        title: "Nueva orden de trabajo",
+        message: `Se ha creado una nueva orden de trabajo`,
+        read: false,
+      });
+      
       res.status(201).json(workOrder);
     } catch (error) {
       if (error instanceof ZodError) {
