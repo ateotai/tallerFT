@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2, Check } from "lucide-react";
 import { EditWorkOrderDialog } from "./edit-work-order-dialog";
 import {
   AlertDialog,
@@ -50,6 +50,26 @@ export function WorkOrdersTable({ workOrders }: WorkOrdersTableProps) {
     }
   }, [workOrders, editingWorkOrder]);
 
+  const approveMutation = useMutation({
+    mutationFn: async (id: number) => {
+      await apiRequest("POST", `/api/work-orders/${id}/approve`, { userId: 1 });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/work-orders"] });
+      toast({
+        title: "Orden de trabajo aprobada",
+        description: "La orden de trabajo ha sido aprobada y está en progreso",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "No se pudo aprobar la orden de trabajo",
+        variant: "destructive",
+      });
+    },
+  });
+
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
       await apiRequest("DELETE", `/api/work-orders/${id}`);
@@ -84,6 +104,7 @@ export function WorkOrdersTable({ workOrders }: WorkOrdersTableProps) {
 
   const getStatusBadge = (status: string) => {
     const statusConfig = {
+      awaiting_approval: { label: "Esperando Aprobación", variant: "outline" as const },
       pending: { label: "Pendiente", variant: "outline" as const },
       in_progress: { label: "En Progreso", variant: "default" as const },
       completed: { label: "Completada", variant: "secondary" as const },
@@ -166,6 +187,18 @@ export function WorkOrdersTable({ workOrders }: WorkOrdersTableProps) {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
+                      {workOrder.status === "awaiting_approval" && (
+                        <Button
+                          variant="default"
+                          size="icon"
+                          onClick={() => approveMutation.mutate(workOrder.id)}
+                          disabled={approveMutation.isPending}
+                          data-testid={`button-approve-${workOrder.id}`}
+                          title="Aprobar orden de trabajo"
+                        >
+                          <Check className="h-4 w-4" />
+                        </Button>
+                      )}
                       <Button
                         variant="ghost"
                         size="icon"
