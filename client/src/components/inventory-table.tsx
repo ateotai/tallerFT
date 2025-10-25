@@ -21,16 +21,19 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Pencil, Trash2, AlertTriangle } from "lucide-react";
 import { EditInventoryDialog } from "./edit-inventory-dialog";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import type { Inventory } from "@shared/schema";
+import type { Inventory, InventoryCategory } from "@shared/schema";
 
 interface InventoryTableProps {
   items: Inventory[];
 }
 
 export function InventoryTable({ items }: InventoryTableProps) {
+  const { data: categories = [] } = useQuery<InventoryCategory[]>({
+    queryKey: ["/api/inventory-categories"],
+  });
   const [editingItem, setEditingItem] = useState<Inventory | null>(null);
   const [deletingItem, setDeletingItem] = useState<Inventory | null>(null);
   const { toast } = useToast();
@@ -72,6 +75,7 @@ export function InventoryTable({ items }: InventoryTableProps) {
               <TableHead>Nombre</TableHead>
               <TableHead>Categoría</TableHead>
               <TableHead>Stock</TableHead>
+              <TableHead>Límites</TableHead>
               <TableHead>Precio</TableHead>
               <TableHead>Ubicación</TableHead>
               <TableHead className="text-right">Acciones</TableHead>
@@ -80,7 +84,7 @@ export function InventoryTable({ items }: InventoryTableProps) {
           <TableBody>
             {items.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                   No hay artículos en el inventario
                 </TableCell>
               </TableRow>
@@ -100,7 +104,11 @@ export function InventoryTable({ items }: InventoryTableProps) {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="secondary">{item.category}</Badge>
+                      <Badge variant="secondary">
+                        {item.categoryId 
+                          ? categories.find(c => c.id === item.categoryId)?.name || "Sin categoría"
+                          : "Sin categoría"}
+                      </Badge>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
@@ -113,6 +121,16 @@ export function InventoryTable({ items }: InventoryTableProps) {
                         {isLowStock && (
                           <AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-400" />
                         )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="text-sm space-y-1">
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                          <span>Mín: {item.minQuantity}</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                          <span>Máx: {item.maxQuantity}</span>
+                        </div>
                       </div>
                     </TableCell>
                     <TableCell>
