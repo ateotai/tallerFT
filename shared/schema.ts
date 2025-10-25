@@ -185,13 +185,28 @@ export const insertScheduledMaintenanceSchema = createInsertSchema(scheduledMain
 export type InsertScheduledMaintenance = z.infer<typeof insertScheduledMaintenanceSchema>;
 export type ScheduledMaintenance = typeof scheduledMaintenance.$inferSelect;
 
+export const inventoryCategories = sqliteTable("inventory_categories", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull().unique(),
+  description: text("description").notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+});
+
+export const insertInventoryCategorySchema = createInsertSchema(inventoryCategories).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertInventoryCategory = z.infer<typeof insertInventoryCategorySchema>;
+export type InventoryCategory = typeof inventoryCategories.$inferSelect;
+
 export const inventory = sqliteTable("inventory", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   name: text("name").notNull(),
-  category: text("category").notNull(),
+  categoryId: integer("category_id").references(() => inventoryCategories.id),
   partNumber: text("part_number").unique(),
   quantity: integer("quantity").notNull().default(0),
   minQuantity: integer("min_quantity").notNull().default(0),
+  maxQuantity: integer("max_quantity").notNull().default(0),
   unitPrice: real("unit_price").notNull(),
   location: text("location"),
   providerId: integer("provider_id").references(() => providers.id),
