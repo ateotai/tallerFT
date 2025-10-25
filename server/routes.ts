@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { ZodError } from "zod";
+import { ZodError, z } from "zod";
 import {
   insertVehicleSchema,
   insertVehicleTypeSchema,
@@ -1010,7 +1010,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (id === null) {
         return res.status(400).json({ error: "ID inválido" });
       }
-      const validatedData = insertReportSchema.partial().parse(req.body);
+      const updateSchema = insertReportSchema.partial().extend({
+        status: z.enum(["pending", "in_progress", "resolved"]).optional(),
+      });
+      const validatedData = updateSchema.parse(req.body);
       const report = await storage.updateReport(id, validatedData);
       if (!report) {
         return res.status(404).json({ error: "Reporte no encontrado" });
