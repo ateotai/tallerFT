@@ -246,6 +246,8 @@ export const reports = pgTable("reports", {
   description: text("description").notNull(),
   notes: text("notes"),
   status: text("status").notNull().default("pending"),
+  assignedToEmployeeId: integer("assigned_to_employee_id").references(() => employees.id),
+  assignedAt: timestamp("assigned_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -293,3 +295,22 @@ export const insertEmployeeSchema = createInsertSchema(employees).omit({
 });
 export type InsertEmployee = z.infer<typeof insertEmployeeSchema>;
 export type Employee = typeof employees.$inferSelect;
+
+export const diagnostics = pgTable("diagnostics", {
+  id: serial("id").primaryKey(),
+  reportId: integer("report_id").notNull().references(() => reports.id),
+  employeeId: integer("employee_id").notNull().references(() => employees.id),
+  diagnosis: text("diagnosis").notNull(),
+  recommendations: text("recommendations"),
+  estimatedCost: real("estimated_cost"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertDiagnosticSchema = createInsertSchema(diagnostics).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertDiagnostic = z.infer<typeof insertDiagnosticSchema>;
+export type Diagnostic = typeof diagnostics.$inferSelect;
