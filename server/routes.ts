@@ -12,6 +12,7 @@ import {
   insertProviderSchema,
   insertProviderTypeSchema,
   insertClientSchema,
+  insertInventoryCategorySchema,
   insertInventorySchema,
   insertInventoryMovementSchema,
 } from "@shared/schema";
@@ -673,6 +674,85 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting provider type:", error);
       res.status(500).json({ error: "Error al eliminar tipo de proveedor" });
+    }
+  });
+
+  app.get("/api/inventory-categories", async (req, res) => {
+    try {
+      const categories = await storage.getInventoryCategories();
+      res.json(categories);
+    } catch (error) {
+      console.error("Error fetching inventory categories:", error);
+      res.status(500).json({ error: "Error al obtener categorías de inventario" });
+    }
+  });
+
+  app.get("/api/inventory-categories/:id", async (req, res) => {
+    try {
+      const id = validateId(req.params.id);
+      if (id === null) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      const category = await storage.getInventoryCategory(id);
+      if (!category) {
+        return res.status(404).json({ error: "Categoría no encontrada" });
+      }
+      res.json(category);
+    } catch (error) {
+      console.error("Error fetching inventory category:", error);
+      res.status(500).json({ error: "Error al obtener categoría" });
+    }
+  });
+
+  app.post("/api/inventory-categories", async (req, res) => {
+    try {
+      const validatedData = insertInventoryCategorySchema.parse(req.body);
+      const category = await storage.createInventoryCategory(validatedData);
+      res.status(201).json(category);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ error: "Datos inválidos", details: error.errors });
+      }
+      console.error("Error creating inventory category:", error);
+      res.status(500).json({ error: "Error al crear categoría" });
+    }
+  });
+
+  app.put("/api/inventory-categories/:id", async (req, res) => {
+    try {
+      const id = validateId(req.params.id);
+      if (id === null) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      const validatedData = insertInventoryCategorySchema.partial().parse(req.body);
+      const category = await storage.updateInventoryCategory(id, validatedData);
+      if (!category) {
+        return res.status(404).json({ error: "Categoría no encontrada" });
+      }
+      res.json(category);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ error: "Datos inválidos", details: error.errors });
+      }
+      console.error("Error updating inventory category:", error);
+      res.status(500).json({ error: "Error al actualizar categoría" });
+    }
+  });
+
+  app.delete("/api/inventory-categories/:id", async (req, res) => {
+    try {
+      const id = validateId(req.params.id);
+      if (id === null) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      const deleted = await storage.deleteInventoryCategory(id);
+      if (!deleted) {
+        return res.status(404).json({ error: "Categoría no encontrada" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting inventory category:", error);
+      res.status(500).json({ error: "Error al eliminar categoría" });
     }
   });
 

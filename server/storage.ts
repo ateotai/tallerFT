@@ -22,6 +22,8 @@ import type {
   InsertProviderType,
   Client,
   InsertClient,
+  InventoryCategory,
+  InsertInventoryCategory,
   Inventory,
   InsertInventory,
   InventoryMovement,
@@ -318,6 +320,30 @@ export class DbStorage implements IStorage {
 
   async deleteProviderType(id: number): Promise<boolean> {
     const result = await db.delete(schema.providerTypes).where(eq(schema.providerTypes.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async getInventoryCategories(): Promise<InventoryCategory[]> {
+    return await db.select().from(schema.inventoryCategories);
+  }
+
+  async getInventoryCategory(id: number): Promise<InventoryCategory | undefined> {
+    const result = await db.select().from(schema.inventoryCategories).where(eq(schema.inventoryCategories.id, id)).limit(1);
+    return result[0];
+  }
+
+  async createInventoryCategory(category: InsertInventoryCategory): Promise<InventoryCategory> {
+    const result = await db.insert(schema.inventoryCategories).values(category).returning();
+    return result[0];
+  }
+
+  async updateInventoryCategory(id: number, category: Partial<InsertInventoryCategory>): Promise<InventoryCategory | undefined> {
+    const result = await db.update(schema.inventoryCategories).set(category).where(eq(schema.inventoryCategories.id, id)).returning();
+    return result[0];
+  }
+
+  async deleteInventoryCategory(id: number): Promise<boolean> {
+    const result = await db.delete(schema.inventoryCategories).where(eq(schema.inventoryCategories.id, id)).returning();
     return result.length > 0;
   }
 
