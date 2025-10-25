@@ -1,17 +1,24 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { InventoryTable } from "@/components/inventory-table";
 import { AddInventoryDialog } from "@/components/add-inventory-dialog";
+import { InventoryCategoriesTable } from "@/components/inventory-categories-table";
+import { AddInventoryCategoryDialog } from "@/components/add-inventory-category-dialog";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Search, Package, AlertTriangle, TrendingDown } from "lucide-react";
-import type { Inventory } from "@shared/schema";
+import type { Inventory, InventoryCategory } from "@shared/schema";
 
 export default function InventoryPage() {
   const [searchQuery, setSearchQuery] = useState("");
 
   const { data: items = [], isLoading } = useQuery<Inventory[]>({
     queryKey: ["/api/inventory"],
+  });
+
+  const { data: categories = [], isLoading: isLoadingCategories } = useQuery<InventoryCategory[]>({
+    queryKey: ["/api/inventory-categories"],
   });
 
   const lowStockCount = items.filter((item) => item.quantity <= item.minQuantity).length;
@@ -21,8 +28,7 @@ export default function InventoryPage() {
   const filteredItems = items.filter(
     (item) =>
       item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (item.partNumber && item.partNumber.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      item.category.toLowerCase().includes(searchQuery.toLowerCase())
+      (item.partNumber && item.partNumber.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
   return (
@@ -34,76 +40,109 @@ export default function InventoryPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Items
-            </CardTitle>
-            <Package className="h-5 w-5 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-4xl font-bold" data-testid="stat-total-items">{totalItems}</div>
-            <p className="text-xs text-muted-foreground mt-2">
-              {items.length} tipos diferentes
-            </p>
-          </CardContent>
-        </Card>
+      <Tabs defaultValue="inventory" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="inventory" data-testid="tab-inventory">
+            Inventario
+          </TabsTrigger>
+          <TabsTrigger value="categories" data-testid="tab-categories">
+            Categorías
+          </TabsTrigger>
+        </TabsList>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Valor en Stock
-            </CardTitle>
-            <TrendingDown className="h-5 w-5 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-4xl font-bold" data-testid="stat-total-value">
-              ${totalValue.toLocaleString()}
+        <TabsContent value="inventory" className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Total Items
+                </CardTitle>
+                <Package className="h-5 w-5 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-4xl font-bold" data-testid="stat-total-items">{totalItems}</div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  {items.length} tipos diferentes
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Valor en Stock
+                </CardTitle>
+                <TrendingDown className="h-5 w-5 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-4xl font-bold" data-testid="stat-total-value">
+                  ${totalValue.toLocaleString()}
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Valor total del inventario
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Alertas de Stock
+                </CardTitle>
+                <AlertTriangle className="h-5 w-5 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-4xl font-bold text-red-600 dark:text-red-400" data-testid="stat-low-stock">
+                  {lowStockCount}
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">Items bajo stock mínimo</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar refacciones..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+                data-testid="input-search-inventory"
+              />
             </div>
-            <p className="text-xs text-muted-foreground mt-2">
-              Valor total del inventario
-            </p>
-          </CardContent>
-        </Card>
+            <AddInventoryDialog />
+          </div>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Alertas de Stock
-            </CardTitle>
-            <AlertTriangle className="h-5 w-5 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-4xl font-bold text-red-600 dark:text-red-400" data-testid="stat-low-stock">
-              {lowStockCount}
+          {isLoading ? (
+            <div className="text-center py-12 text-muted-foreground">
+              Cargando inventario...
             </div>
-            <p className="text-xs text-muted-foreground mt-2">Items bajo stock mínimo</p>
-          </CardContent>
-        </Card>
-      </div>
+          ) : (
+            <InventoryTable items={filteredItems} />
+          )}
+        </TabsContent>
 
-      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar refacciones..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
-            data-testid="input-search-inventory"
-          />
-        </div>
-        <AddInventoryDialog />
-      </div>
+        <TabsContent value="categories" className="space-y-6">
+          <div className="flex justify-between items-center">
+            <div>
+              <h2 className="text-2xl font-semibold">Categorías de Inventario</h2>
+              <p className="text-muted-foreground mt-1">
+                Administra las categorías para organizar el inventario
+              </p>
+            </div>
+            <AddInventoryCategoryDialog />
+          </div>
 
-      {isLoading ? (
-        <div className="text-center py-12 text-muted-foreground">
-          Cargando inventario...
-        </div>
-      ) : (
-        <InventoryTable items={filteredItems} />
-      )}
+          {isLoadingCategories ? (
+            <div className="text-center py-12 text-muted-foreground">
+              Cargando categorías...
+            </div>
+          ) : (
+            <InventoryCategoriesTable />
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
