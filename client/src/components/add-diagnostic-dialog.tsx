@@ -19,6 +19,7 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  FormDescription,
 } from "@/components/ui/form";
 import {
   Select,
@@ -29,6 +30,7 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Plus } from "lucide-react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -53,9 +55,15 @@ export function AddDiagnosticDialog() {
     defaultValues: {
       reportId: undefined,
       employeeId: undefined,
-      diagnosis: "",
-      recommendations: "",
-      estimatedCost: undefined,
+      odometer: 0,
+      vehicleCondition: "",
+      fuelLevel: "",
+      possibleCause: "",
+      severity: "pendiente",
+      technicalRecommendation: "",
+      estimatedRepairTime: "",
+      requiredMaterials: "",
+      requiresAdditionalTests: false,
     },
   });
 
@@ -93,15 +101,15 @@ export function AddDiagnosticDialog() {
           Agregar Diagnóstico
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Agregar Diagnóstico</DialogTitle>
           <DialogDescription>
-            Registra un nuevo diagnóstico técnico para un reporte asignado
+            Registra un nuevo diagnóstico técnico profesional para un reporte asignado
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -136,7 +144,7 @@ export function AddDiagnosticDialog() {
                 name="employeeId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Mecánico *</FormLabel>
+                    <FormLabel>Mecánico Asignado *</FormLabel>
                     <Select 
                       onValueChange={(value) => field.onChange(parseInt(value))} 
                       value={field.value?.toString()}
@@ -158,20 +166,121 @@ export function AddDiagnosticDialog() {
                   </FormItem>
                 )}
               />
+
+              <FormField
+                control={form.control}
+                name="odometer"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Odómetro (km) *</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="number"
+                        placeholder="0"
+                        {...field}
+                        onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : 0)}
+                        data-testid="input-odometer"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="severity"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Severidad *</FormLabel>
+                    <Select 
+                      onValueChange={field.onChange} 
+                      value={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger data-testid="select-severity">
+                          <SelectValue placeholder="Selecciona severidad" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="leve">Leve</SelectItem>
+                        <SelectItem value="moderado">Moderado</SelectItem>
+                        <SelectItem value="crítico">Crítico</SelectItem>
+                        <SelectItem value="pendiente">Pendiente</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="vehicleCondition"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Condición del Vehículo *</FormLabel>
+                    <FormControl>
+                      <Input 
+                        placeholder="Ej: Bueno, Regular, Malo"
+                        {...field}
+                        data-testid="input-vehicle-condition"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="fuelLevel"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nivel de Combustible *</FormLabel>
+                    <FormControl>
+                      <Input 
+                        placeholder="Ej: Lleno, 3/4, 1/2, 1/4, Vacío"
+                        {...field}
+                        data-testid="input-fuel-level"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="estimatedRepairTime"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Tiempo Estimado de Reparación *</FormLabel>
+                    <FormControl>
+                      <Input 
+                        placeholder="Ej: 2 horas, 1 día, 3 días"
+                        {...field}
+                        data-testid="input-estimated-repair-time"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
 
             <FormField
               control={form.control}
-              name="diagnosis"
+              name="possibleCause"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Diagnóstico *</FormLabel>
+                  <FormLabel>Causa Posible *</FormLabel>
                   <FormControl>
                     <Textarea 
-                      placeholder="Descripción detallada del diagnóstico técnico"
-                      className="min-h-[100px]"
+                      placeholder="Descripción detallada de la posible causa del problema"
+                      className="min-h-[80px]"
                       {...field}
-                      data-testid="textarea-diagnosis"
+                      data-testid="textarea-possible-cause"
                     />
                   </FormControl>
                   <FormMessage />
@@ -181,17 +290,36 @@ export function AddDiagnosticDialog() {
 
             <FormField
               control={form.control}
-              name="recommendations"
+              name="technicalRecommendation"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Recomendaciones</FormLabel>
+                  <FormLabel>Recomendación Técnica *</FormLabel>
                   <FormControl>
                     <Textarea 
-                      placeholder="Recomendaciones para la reparación"
+                      placeholder="Recomendaciones técnicas para la reparación"
+                      className="min-h-[80px]"
+                      {...field}
+                      data-testid="textarea-technical-recommendation"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="requiredMaterials"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Materiales Requeridos *</FormLabel>
+                  <FormControl>
+                    <Textarea 
+                      placeholder="Lista de materiales y repuestos necesarios para la reparación"
                       className="min-h-[80px]"
                       {...field}
                       value={field.value || ""}
-                      data-testid="textarea-recommendations"
+                      data-testid="textarea-required-materials"
                     />
                   </FormControl>
                   <FormMessage />
@@ -201,22 +329,24 @@ export function AddDiagnosticDialog() {
 
             <FormField
               control={form.control}
-              name="estimatedCost"
+              name="requiresAdditionalTests"
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Costo Estimado</FormLabel>
+                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
                   <FormControl>
-                    <Input 
-                      type="number"
-                      step="0.01"
-                      placeholder="0.00"
-                      {...field}
-                      value={field.value || ""}
-                      onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
-                      data-testid="input-estimated-cost"
+                    <Checkbox
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                      data-testid="checkbox-requires-additional-tests"
                     />
                   </FormControl>
-                  <FormMessage />
+                  <div className="space-y-1 leading-none">
+                    <FormLabel>
+                      Requiere Pruebas Adicionales
+                    </FormLabel>
+                    <FormDescription>
+                      Marca esta casilla si se necesitan pruebas o diagnósticos adicionales
+                    </FormDescription>
+                  </div>
                 </FormItem>
               )}
             />
