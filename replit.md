@@ -26,10 +26,16 @@ The system follows a Material Design-inspired aesthetic, optimized for productiv
 - **Service & Inventory Categories**: Hierarchical management with full CRUD operations for efficient organization.
 - **Issue Reports (Reportes de Fallas)**: System for tracking vehicle defects with image and audio attachments, status management, and integration with vehicles and users.
 - **Diagnostics (Evaluación y Diagnóstico)**: Professional diagnostic evaluation system with a workflow for approval and work order creation, including detailed assessment fields.
-- **Work Orders (Órdenes de Trabajo)**: Complete management system for repair and maintenance tasks, allowing manual creation or automatic generation from approved diagnostics.
+- **Work Orders (Órdenes de Trabajo)**: Complete management system for repair and maintenance tasks with:
+  - Detailed task assignments (technician, mechanic, service category, workshop area, estimated time, completion date)
+  - Materials tracking with inventory integration and admin approval requirements
+  - Evidence documentation supporting up to 10 file attachments with descriptions
+  - Approval workflow (awaiting_approval → in_progress) requiring admin authorization
+  - Auto-fill functionality from diagnostics (populates vehicle, employee, description, and priority based on severity)
+  - Manual creation or automatic generation from approved diagnostics
 - **Notifications System**: Real-time notification system with dropdown in header, polling every 30 seconds, and automatic creation when reports, diagnostics, and work orders are created.
 - **Dashboard**: Real-time metrics and navigation cards for quick overview.
-- **Authentication**: Includes a `users` table for authentication and supports role-based access control (though role checking has a known security limitation in diagnostics approval).
+- **Authentication**: Includes a `users` table for authentication and supports role-based access control. **Known Security Limitation**: userId is hardcoded in approval mutations (both diagnostics and work orders), allowing any user to approve without proper authentication. This is a system-wide limitation requiring full authentication implementation with session management and role validation.
 
 ### System Design Choices
 - **Frontend**: Component-based architecture with custom hooks and query client for server state.
