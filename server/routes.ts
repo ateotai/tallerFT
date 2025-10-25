@@ -20,6 +20,7 @@ import {
   insertEmployeeSchema,
   insertDiagnosticSchema,
   insertWorkOrderSchema,
+  insertNotificationSchema,
 } from "@shared/schema";
 
 function validateId(id: string): number | null {
@@ -1442,6 +1443,94 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting work order:", error);
       res.status(500).json({ error: "Error al eliminar orden de trabajo" });
+    }
+  });
+
+  app.get("/api/notifications", async (req, res) => {
+    try {
+      const unreadOnly = req.query.unreadOnly === "true";
+      const notifications = unreadOnly 
+        ? await storage.getUnreadNotifications() 
+        : await storage.getNotifications();
+      res.json(notifications);
+    } catch (error) {
+      console.error("Error fetching notifications:", error);
+      res.status(500).json({ error: "Error al obtener notificaciones" });
+    }
+  });
+
+  app.get("/api/notifications/:id", async (req, res) => {
+    try {
+      const id = validateId(req.params.id);
+      if (id === null) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      const notification = await storage.getNotification(id);
+      if (!notification) {
+        return res.status(404).json({ error: "Notificación no encontrada" });
+      }
+      res.json(notification);
+    } catch (error) {
+      console.error("Error fetching notification:", error);
+      res.status(500).json({ error: "Error al obtener notificación" });
+    }
+  });
+
+  app.post("/api/notifications", async (req, res) => {
+    try {
+      const validatedData = insertNotificationSchema.parse(req.body);
+      const notification = await storage.createNotification(validatedData);
+      res.status(201).json(notification);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ error: "Datos inválidos", details: error.errors });
+      }
+      console.error("Error creating notification:", error);
+      res.status(500).json({ error: "Error al crear notificación" });
+    }
+  });
+
+  app.patch("/api/notifications/:id/read", async (req, res) => {
+    try {
+      const id = validateId(req.params.id);
+      if (id === null) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      const notification = await storage.markNotificationAsRead(id);
+      if (!notification) {
+        return res.status(404).json({ error: "Notificación no encontrada" });
+      }
+      res.json(notification);
+    } catch (error) {
+      console.error("Error marking notification as read:", error);
+      res.status(500).json({ error: "Error al marcar notificación como leída" });
+    }
+  });
+
+  app.patch("/api/notifications/read-all", async (req, res) => {
+    try {
+      await storage.markAllNotificationsAsRead();
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error marking all notifications as read:", error);
+      res.status(500).json({ error: "Error al marcar todas las notificaciones como leídas" });
+    }
+  });
+
+  app.delete("/api/notifications/:id", async (req, res) => {
+    try {
+      const id = validateId(req.params.id);
+      if (id === null) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      const deleted = await storage.deleteNotification(id);
+      if (!deleted) {
+        return res.status(404).json({ error: "Notificación no encontrada" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting notification:", error);
+      res.status(500).json({ error: "Error al eliminar notificación" });
     }
   });
 

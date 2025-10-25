@@ -38,6 +38,8 @@ import type {
   InsertDiagnostic,
   WorkOrder,
   InsertWorkOrder,
+  Notification,
+  InsertNotification,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -157,6 +159,14 @@ export interface IStorage {
   createWorkOrder(workOrder: InsertWorkOrder): Promise<WorkOrder>;
   updateWorkOrder(id: number, workOrder: Partial<InsertWorkOrder>): Promise<WorkOrder | undefined>;
   deleteWorkOrder(id: number): Promise<boolean>;
+  
+  getNotifications(): Promise<Notification[]>;
+  getUnreadNotifications(): Promise<Notification[]>;
+  getNotification(id: number): Promise<Notification | undefined>;
+  createNotification(notification: InsertNotification): Promise<Notification>;
+  markNotificationAsRead(id: number): Promise<Notification | undefined>;
+  markAllNotificationsAsRead(): Promise<boolean>;
+  deleteNotification(id: number): Promise<boolean>;
 }
 
 export class DbStorage implements IStorage {
@@ -670,6 +680,39 @@ export class DbStorage implements IStorage {
 
   async deleteWorkOrder(id: number): Promise<boolean> {
     const result = await db.delete(schema.workOrders).where(eq(schema.workOrders.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async getNotifications(): Promise<Notification[]> {
+    return await db.select().from(schema.notifications).orderBy(schema.notifications.createdAt);
+  }
+
+  async getUnreadNotifications(): Promise<Notification[]> {
+    return await db.select().from(schema.notifications).where(eq(schema.notifications.read, false)).orderBy(schema.notifications.createdAt);
+  }
+
+  async getNotification(id: number): Promise<Notification | undefined> {
+    const result = await db.select().from(schema.notifications).where(eq(schema.notifications.id, id)).limit(1);
+    return result[0];
+  }
+
+  async createNotification(notification: InsertNotification): Promise<Notification> {
+    const result = await db.insert(schema.notifications).values(notification).returning();
+    return result[0];
+  }
+
+  async markNotificationAsRead(id: number): Promise<Notification | undefined> {
+    const result = await db.update(schema.notifications).set({ read: true }).where(eq(schema.notifications.id, id)).returning();
+    return result[0];
+  }
+
+  async markAllNotificationsAsRead(): Promise<boolean> {
+    await db.update(schema.notifications).set({ read: true }).where(eq(schema.notifications.read, false));
+    return true;
+  }
+
+  async deleteNotification(id: number): Promise<boolean> {
+    const result = await db.delete(schema.notifications).where(eq(schema.notifications.id, id)).returning();
     return result.length > 0;
   }
 }
