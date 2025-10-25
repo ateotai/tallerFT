@@ -1,176 +1,68 @@
 # Vehicle Maintenance Management System
 
 ## Overview
-
-This is a comprehensive vehicle maintenance management system designed for fleet operations. Its primary purpose is to enable organizations to efficiently track vehicles, schedule and manage maintenance services, monitor parts inventory, manage service providers and clients, and generate operational reports. The system is built in Spanish and focuses on providing a data-dense interface for rapid task completion in fleet management, specifically for detailed tracking of preventive and corrective maintenance.
+This system is a comprehensive solution for managing fleet operations, focusing on vehicle tracking, maintenance scheduling, inventory, service provider management, and reporting. It's designed in Spanish to provide a data-rich interface for efficient preventive and corrective maintenance tracking, aiming to improve fleet operational efficiency.
 
 ## User Preferences
-
 Preferred communication style: Simple, everyday language.
 
 ## System Architecture
 
+### Monorepo Structure
+The project is organized as a monorepo with `/client` (React frontend), `/server` (Express backend), `/shared` (shared types and database schema), and `/migrations` (Drizzle database migrations).
+
 ### Technology Stack
+- **Frontend**: React 18, TypeScript, Shadcn/ui (Radix UI), Tailwind CSS, Wouter (routing), TanStack Query (server state), React Hook Form with Zod (forms).
+- **Backend**: Express.js, TypeScript, Node.js (ESM), Vite (dev), esbuild (build).
+- **Database**: PostgreSQL with Neon serverless (neon-http driver), Drizzle ORM.
 
-**Frontend**: React 18 with TypeScript, Shadcn/ui (Radix UI), Tailwind CSS, Wouter for routing, TanStack Query for server state, React Hook Form with Zod for forms.
-**Backend**: Express.js with TypeScript, Node.js (ESM), Vite (dev), esbuild (build).
-**Database**: PostgreSQL with Neon serverless (neon-http driver), Drizzle ORM.
-**Shared**: `shared/schema.ts` for type sharing.
+### UI/UX Decisions
+The system follows a Material Design-inspired aesthetic, optimized for productivity. It features Inter and JetBrains Mono fonts and supports both light and dark modes using an HSL-based color system.
 
-### Application Architecture
+### Core Features
+- **Vehicle Management**: Comprehensive tracking including economic number and assigned area.
+- **Client, Provider, and Employee Management**: Full CRUD operations with search and type management functionalities.
+- **Service & Inventory Categories**: Hierarchical management with full CRUD operations for efficient organization.
+- **Issue Reports (Reportes de Fallas)**: System for tracking vehicle defects with image and audio attachments, status management, and integration with vehicles and users.
+- **Diagnostics (Evaluación y Diagnóstico)**: Professional diagnostic evaluation system with a workflow for approval and work order creation, including detailed assessment fields.
+- **Work Orders (Órdenes de Trabajo)**: Complete management system for repair and maintenance tasks, allowing manual creation or automatic generation from approved diagnostics.
+- **Dashboard**: Real-time metrics and navigation cards for quick overview.
+- **Authentication**: Includes a `users` table for authentication and supports role-based access control (though role checking has a known security limitation in diagnostics approval).
 
-**Monorepo Structure**:
-- `/client`: React frontend.
-- `/server`: Express backend API.
-- `/shared`: Shared types and database schema.
-- `/migrations`: Drizzle database migrations.
-
-**Frontend Architecture**: Component-based with reusable UI primitives, custom hooks, and a query client for server state with optimistic updates.
-**Backend Architecture**: RESTful API (`/api` prefix), storage abstraction layer, direct database access via Drizzle ORM, Zod for input validation.
-**Routing Strategy**: Client-side routing via Wouter with nine main modules. API routes follow `/api/{resource}`.
-
-### Data Model
-
-Core entities include: Users, Clients, VehicleTypes (pre-seeded), Vehicles, Services, ScheduledMaintenance, ServiceCategories (hierarchical with subcategories and pre-seeded), Providers, InventoryCategories (pre-seeded), Inventory (with categoryId FK and maxQuantity field), InventoryMovements, and Reports (for issue/defect tracking). All tables use serial primary keys (PostgreSQL auto-increment), timestamps, and foreign key relationships.
-
-### State Management Approach
-
-**Server State**: TanStack Query for fetching, caching, and synchronization (manual invalidation, optimistic updates).
-**Local State**: React hooks (useState, useContext) for UI state, localStorage for theme, React Hook Form for form state, custom hook for toast notifications.
-
-### Form Validation
-
-Zod schemas are used for defining validation rules, shared between client and server, derived from Drizzle table definitions for type safety.
-
-### Authentication Strategy
-
-The system includes a `users` table for authentication and supports role-based access control.
-
-### Design System
-
-Material Design-inspired with a focus on productivity tools, using Inter (primary) and JetBrains Mono (monospace) fonts. Supports light/dark mode with an HSL-based color system.
-
-### Features
-
-- **Vehicle Management**: Includes `economic_number` and `assigned_area` fields.
-- **Client Search**: `ClientSearchCombobox` for real-time client search.
-- **Vehicle Types Management**: Full CRUD operations for vehicle types via a dedicated administrative subsection with responsive dialogs.
-- **Dashboard**: Main landing page displaying real-time metrics across all system APIs, including recent services and interactive navigation cards.
-- **Service Categories and Subcategories Module**: Hierarchical management system for service categories and subcategories with full CRUD functionality and a tabbed UI.
-- **Providers Module**: Complete CRUD functionality for managing service providers and workshops. Features include:
-  - ProvidersTable with columns for name, type, phone, email, rating, status, and actions
-  - AddProviderDialog and EditProviderDialog for creating and updating providers
-  - Delete confirmation with AlertDialog
-  - State cleanup with useEffect to prevent stale data in edit dialog
-  - All components include proper data-testid attributes for testing
-  - Forms use React Hook Form with Zod validation
-  - Provider fields: name, type, phone, email, address, rating (nullable), status
-- **Inventory Categories Module**: Hierarchical management system for inventory categories with full CRUD functionality. Features include:
-  - InventoryCategoriesTable displaying category name, description, creation date, and actions
-  - AddInventoryCategoryDialog and EditInventoryCategoryDialog for creating and updating categories
-  - Delete confirmation with AlertDialog
-  - Tabbed UI in Inventory page (Inventario | Categorías) following the same pattern as Providers
-  - Pre-seeded with 5 categories: Filtros, Frenos, Motor, Lubricantes, Neumáticos
-  - All components include proper data-testid attributes for testing
-  - Forms use React Hook Form with Zod validation
-- **Inventory Module Enhancements**: 
-  - Inventory items now have a nullable categoryId field (FK to inventoryCategories) 
-  - Added maxQuantity field to track maximum stock levels
-  - Inventory table displays resolved category names (not IDs) and shows min/max limits
-  - Add/Edit dialogs use Select component for category selection
-  - Category field is optional (nullable)
-  - Provider field (providerId) is fully integrated with providers table via Select component
-  - Provider field is optional (nullable) with "Sin proveedor" option
-  - Pre-seeded with 5 sample providers for testing
-- **Issue Reports Module (Reportes de Fallas)**: Complete CRUD system for tracking vehicle defects and service requests. Features include:
-  - Reports table with fields: vehicleId, userId, images (jsonb array), audioUrl, description, notes, status, createdAt
-  - Images stored as JSONB array containing {url: string, description: string} objects (up to 3 images)
-  - Three status states: pending, in_progress, resolved
-  - VehicleSearchCombobox for searching vehicles by economic number, plate, or model
-  - IssueReportsPage displays real-time statistics (total, pending, in-progress, resolved reports)
-  - AddIssueReportDialog: No status field (defaults to "pending"), supports up to 3 images with individual descriptions, mobile camera capture, and microphone audio
-  - EditIssueReportDialog: Includes status selector for updating report status, multi-image support with descriptions
-  - IssueReportsTable displays image count and status badges
-  - File uploads stored as base64 data URLs (temporary implementation before object storage integration)
-  - Backend PUT endpoint validates and accepts status field updates
-  - Full integration with vehicles and users tables via foreign keys
-  - All components include data-testid attributes for E2E testing
-  - Accessible at /reportes-fallas route
-  - Date/time automatically tracked via createdAt field (hidden from user interface)
-- **Employees Module (Empleados)**: Complete employee management system with employee types. Features include:
-  - Dual-tab structure: Employees (Empleados) | Employee Types (Tipos de Empleado)
-  - employeeTypes table with pre-seeded types: Administrativos, Mecanico, Ayudante
-  - employees table with fields: firstName, lastName, employeeTypeId (FK), phone, email, userId (nullable FK to users)
-  - Employee table displays user account status via badges: "Con usuario" (green with checkmark) or "Sin usuario" (gray with X)
-  - EmployeesTable with columns for ID, name, type, phone, email, user status, and actions
-  - AddEmployeeDialog and EditEmployeeDialog with employee type selector and optional user assignment
-  - Employee types fully editable via EmployeeTypesTable, AddEmployeeTypeDialog, EditEmployeeTypeDialog
-  - Full CRUD operations for both employees and employee types
-  - Delete confirmation dialogs with cascade protection
-  - Forms use React Hook Form with Zod validation
-  - All components include data-testid attributes for E2E testing
-  - Accessible at /empleados route with Briefcase icon in sidebar
-  - User assignment is optional (nullable) allowing employees without system access
-- **Diagnostics Module (Evaluación y Diagnóstico)**: Complete diagnostic evaluation system with role-based permissions. Features include:
-  - diagnostics table with fields: reportId (FK), employeeId (FK), diagnosis, recommendations, estimatedCost, createdAt
-  - reports table extended with: assignedToEmployeeId (FK to employees), assignedAt timestamp, new status "diagnostico"
-  - users table includes role field: admin, supervisor, employee, user
-  - Status flow: pending → (assign) → diagnostico → in_progress → resolved
-  - **Assignment Workflow**: Admin/supervisor can assign pending reports to employees via AssignReportDialog
-    - Automatically creates diagnostic record when report is assigned
-    - Changes report status from "pending" to "diagnostico"
-    - Tracks assignment timestamp and assigned employee
-  - **DiagnosticsPage**: Displays diagnostic statistics and filterable diagnostic records
-    - Shows total diagnostics and filtered count based on user role
-    - Search functionality across diagnosis and recommendations fields
-    - Accessible at /diagnosticos route with Stethoscope icon in sidebar
-  - **Permission-based UI**: 
-    - Admin/supervisor: Can assign reports, edit/delete all reports and diagnostics
-    - Employee: Can view only their assigned diagnostics (UI currently hardcoded to "admin" for testing)
-    - Regular users: View-only access to their own reports
-  - **DiagnosticsTable**: Displays report ID, mechanic name, diagnosis, recommendations, estimated cost, creation date
-  - AddDiagnosticDialog and EditDiagnosticDialog for creating/updating diagnostics
-  - Forms use React Hook Form with Zod validation
-  - All components include data-testid attributes for E2E testing
-  - **Current Limitation**: Role-based permissions are partially implemented with hardcoded roles in frontend components
-  - **Future Enhancement**: Requires full authentication system to enforce role-based access control properly
-
-### API Validation
-
-Enhanced ID validation using regex. Zod validation errors return 400, server errors return 500. Partial schema validation for PUT endpoints.
+### System Design Choices
+- **Frontend**: Component-based architecture with custom hooks and query client for server state.
+- **Backend**: RESTful API with an abstraction layer for storage and direct database access, utilizing Zod for input validation.
+- **Data Model**: Relational model with PostgreSQL, using serial primary keys, timestamps, and foreign key relationships across entities like Users, Vehicles, Services, Inventory, and Reports.
+- **State Management**: TanStack Query for server state; React hooks, localStorage, and React Hook Form for local and UI state.
+- **Form Validation**: Zod schemas are used for validation, shared between client and server for type safety.
 
 ## External Dependencies
 
-### Core UI Framework
-- Radix UI: Headless UI component primitives.
-- Shadcn/ui: Pre-built components on Radix.
-- Tailwind CSS: Utility-first CSS framework.
-- class-variance-authority, clsx, tailwind-merge: CSS utilities.
+### UI/Styling
+- **Radix UI**: Headless UI components.
+- **Shadcn/ui**: Pre-built UI components.
+- **Tailwind CSS**: Utility-first CSS framework.
+- `class-variance-authority`, `clsx`, `tailwind-merge`: CSS utilities.
 
-### Data Visualization
-- Recharts: Charting library for reports.
+### Data & Backend
+- **Neon Database Serverless**: PostgreSQL database service.
+- **Drizzle ORM**: TypeScript ORM for PostgreSQL.
+- **connect-pg-simple**: PostgreSQL session store (for future use).
 
-### Backend Infrastructure
-- Neon Database Serverless: PostgreSQL connector using neon-http driver (HTTP-based, no WebSocket required).
-- Drizzle ORM: TypeScript ORM for PostgreSQL.
-- connect-pg-simple: Session store for PostgreSQL (future use).
+### Development & Utilities
+- **Vite**: Build tool and dev server.
+- **esbuild**: Fast JavaScript bundler.
+- **tsx**: TypeScript execution.
+- **date-fns**: Date utility library.
 
-### Development Tools
-- Vite: Build tool and dev server.
-- esbuild: Fast JavaScript bundler.
-- tsx: TypeScript execution.
-
-### Fonts
-- Google Fonts: Inter, JetBrains Mono.
-
-### Form & Validation
-- React Hook Form: Form state management.
-- @hookform/resolvers: Zod resolver for React Hook Form.
-- Zod: Schema validation library.
-- drizzle-zod: Zod schema generation from Drizzle tables.
-
-### Date Handling
-- date-fns: Date utility library.
+### Forms & Validation
+- **React Hook Form**: Form management.
+- **Zod**: Schema validation.
+- `@hookform/resolvers`: Zod resolver for React Hook Form.
+- **drizzle-zod**: Zod schema generation from Drizzle.
 
 ### Routing
-- Wouter: Lightweight routing for React.
+- **Wouter**: Lightweight routing for React.
+
+### Fonts
+- **Google Fonts**: Inter, JetBrains Mono.
