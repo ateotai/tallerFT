@@ -1,4 +1,4 @@
-import { db } from "../db";
+import { db, sqlite } from "../db";
 import { inventoryCategories } from "@shared/schema";
 
 const categories = [
@@ -25,6 +25,18 @@ const categories = [
 ];
 
 async function seed() {
+  console.log("Dropping and recreating inventory_categories table...");
+  
+  sqlite.exec(`
+    DROP TABLE IF EXISTS inventory_categories;
+    CREATE TABLE inventory_categories (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL UNIQUE,
+      description TEXT NOT NULL,
+      created_at INTEGER NOT NULL DEFAULT (unixepoch())
+    );
+  `);
+  
   console.log("Seeding inventory categories...");
   
   for (const category of categories) {
