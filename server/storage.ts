@@ -166,6 +166,21 @@ export interface IStorage {
   updateWorkOrder(id: number, workOrder: Partial<InsertWorkOrder>): Promise<WorkOrder | undefined>;
   deleteWorkOrder(id: number): Promise<boolean>;
   
+  getWorkOrderTasks(workOrderId: number): Promise<WorkOrderTask[]>;
+  createWorkOrderTask(task: InsertWorkOrderTask): Promise<WorkOrderTask>;
+  updateWorkOrderTask(id: number, task: Partial<InsertWorkOrderTask>): Promise<WorkOrderTask | undefined>;
+  deleteWorkOrderTask(id: number): Promise<boolean>;
+  
+  getWorkOrderMaterials(workOrderId: number): Promise<WorkOrderMaterial[]>;
+  createWorkOrderMaterial(material: InsertWorkOrderMaterial): Promise<WorkOrderMaterial>;
+  updateWorkOrderMaterial(id: number, material: Partial<InsertWorkOrderMaterial>): Promise<WorkOrderMaterial | undefined>;
+  deleteWorkOrderMaterial(id: number): Promise<boolean>;
+  approveMaterial(id: number, userId: number): Promise<WorkOrderMaterial | undefined>;
+  
+  getWorkOrderEvidence(workOrderId: number): Promise<WorkOrderEvidence[]>;
+  createWorkOrderEvidence(evidence: InsertWorkOrderEvidence): Promise<WorkOrderEvidence>;
+  deleteWorkOrderEvidence(id: number): Promise<boolean>;
+  
   getNotifications(): Promise<Notification[]>;
   getUnreadNotifications(): Promise<Notification[]>;
   getNotification(id: number): Promise<Notification | undefined>;
