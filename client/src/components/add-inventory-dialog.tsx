@@ -31,7 +31,7 @@ import { Input } from "@/components/ui/input";
 import { Plus } from "lucide-react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { insertInventorySchema, type InsertInventory, type Provider } from "@shared/schema";
+import { insertInventorySchema, type InsertInventory, type Provider, type InventoryCategory } from "@shared/schema";
 
 export function AddInventoryDialog() {
   const [open, setOpen] = useState(false);
@@ -41,14 +41,19 @@ export function AddInventoryDialog() {
     queryKey: ["/api/providers"],
   });
 
+  const { data: categories = [] } = useQuery<InventoryCategory[]>({
+    queryKey: ["/api/inventory-categories"],
+  });
+
   const form = useForm<InsertInventory>({
     resolver: zodResolver(insertInventorySchema),
     defaultValues: {
       name: "",
-      category: "",
+      categoryId: null,
       partNumber: "",
       quantity: 0,
       minQuantity: 0,
+      maxQuantity: 0,
       unitPrice: 0,
       location: "",
       providerId: null,
@@ -129,13 +134,28 @@ export function AddInventoryDialog() {
 
               <FormField
                 control={form.control}
-                name="category"
+                name="categoryId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Categoría</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Filtros" {...field} data-testid="input-category" />
-                    </FormControl>
+                    <FormLabel>Categoría (Opcional)</FormLabel>
+                    <Select
+                      onValueChange={(value) => field.onChange(value === "none" ? null : parseInt(value))}
+                      value={field.value?.toString() || "none"}
+                    >
+                      <FormControl>
+                        <SelectTrigger data-testid="select-category">
+                          <SelectValue placeholder="Selecciona categoría" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="none">Sin categoría</SelectItem>
+                        {categories.map((category) => (
+                          <SelectItem key={category.id} value={category.id.toString()}>
+                            {category.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -188,6 +208,26 @@ export function AddInventoryDialog() {
                         {...field}
                         onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
                         data-testid="input-min-quantity"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="maxQuantity"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Cantidad Máxima</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        placeholder="0"
+                        {...field}
+                        onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                        data-testid="input-max-quantity"
                       />
                     </FormControl>
                     <FormMessage />

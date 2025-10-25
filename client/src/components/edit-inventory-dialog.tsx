@@ -29,7 +29,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { insertInventorySchema, type InsertInventory, type Inventory, type Provider } from "@shared/schema";
+import { insertInventorySchema, type InsertInventory, type Inventory, type Provider, type InventoryCategory } from "@shared/schema";
 
 interface EditInventoryDialogProps {
   item: Inventory;
@@ -44,14 +44,19 @@ export function EditInventoryDialog({ item, open, onOpenChange }: EditInventoryD
     queryKey: ["/api/providers"],
   });
 
+  const { data: categories = [] } = useQuery<InventoryCategory[]>({
+    queryKey: ["/api/inventory-categories"],
+  });
+
   const form = useForm<InsertInventory>({
     resolver: zodResolver(insertInventorySchema),
     defaultValues: {
       name: item.name,
-      category: item.category,
+      categoryId: item.categoryId,
       partNumber: item.partNumber || "",
       quantity: item.quantity,
       minQuantity: item.minQuantity,
+      maxQuantity: item.maxQuantity,
       unitPrice: item.unitPrice,
       location: item.location || "",
       providerId: item.providerId,
@@ -61,10 +66,11 @@ export function EditInventoryDialog({ item, open, onOpenChange }: EditInventoryD
   useEffect(() => {
     form.reset({
       name: item.name,
-      category: item.category,
+      categoryId: item.categoryId,
       partNumber: item.partNumber || "",
       quantity: item.quantity,
       minQuantity: item.minQuantity,
+      maxQuantity: item.maxQuantity,
       unitPrice: item.unitPrice,
       location: item.location || "",
       providerId: item.providerId,
@@ -138,13 +144,28 @@ export function EditInventoryDialog({ item, open, onOpenChange }: EditInventoryD
 
               <FormField
                 control={form.control}
-                name="category"
+                name="categoryId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Categoría</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Filtros" {...field} data-testid="input-category" />
-                    </FormControl>
+                    <FormLabel>Categoría (Opcional)</FormLabel>
+                    <Select
+                      onValueChange={(value) => field.onChange(value === "none" ? null : parseInt(value))}
+                      value={field.value?.toString() || "none"}
+                    >
+                      <FormControl>
+                        <SelectTrigger data-testid="select-category">
+                          <SelectValue placeholder="Selecciona categoría" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="none">Sin categoría</SelectItem>
+                        {categories.map((category) => (
+                          <SelectItem key={category.id} value={category.id.toString()}>
+                            {category.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -197,6 +218,26 @@ export function EditInventoryDialog({ item, open, onOpenChange }: EditInventoryD
                         {...field}
                         onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
                         data-testid="input-min-quantity"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="maxQuantity"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Cantidad Máxima</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        placeholder="0"
+                        {...field}
+                        onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                        data-testid="input-max-quantity"
                       />
                     </FormControl>
                     <FormMessage />
