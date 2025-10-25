@@ -151,8 +151,8 @@ export const services = pgTable("services", {
   cost: real("cost").notNull(),
   mileage: integer("mileage").notNull(),
   status: text("status").notNull().default("completed"),
-  scheduledDate: integer("scheduled_date", { mode: "timestamp" }),
-  completedDate: integer("completed_date", { mode: "timestamp" }),
+  scheduledDate: timestamp("scheduled_date"),
+  completedDate: timestamp("completed_date"),
   notes: text("notes"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
@@ -171,7 +171,7 @@ export const scheduledMaintenance = pgTable("scheduled_maintenance", {
   title: text("title").notNull(),
   description: text("description").notNull(),
   frequency: text("frequency").notNull(),
-  nextDueDate: integer("next_due_date", { mode: "timestamp" }).notNull(),
+  nextDueDate: timestamp("next_due_date").notNull(),
   nextDueMileage: integer("next_due_mileage"),
   estimatedCost: real("estimated_cost"),
   status: text("status").notNull().default("pending"),
@@ -327,10 +327,10 @@ export type Diagnostic = typeof diagnostics.$inferSelect;
 
 export const workOrders = pgTable("work_orders", {
   id: serial("id").primaryKey(),
-  diagnosticId: integer("diagnostic_id").notNull().references(() => diagnostics.id),
+  diagnosticId: integer("diagnostic_id").references(() => diagnostics.id),
   vehicleId: integer("vehicle_id").notNull().references(() => vehicles.id),
   assignedToEmployeeId: integer("assigned_to_employee_id").references(() => employees.id),
-  status: text("status").notNull().default("pending"),
+  status: text("status").notNull().default("awaiting_approval"),
   priority: text("priority").notNull().default("normal"),
   description: text("description").notNull(),
   estimatedCost: real("estimated_cost"),
@@ -338,6 +338,8 @@ export const workOrders = pgTable("work_orders", {
   startDate: timestamp("start_date"),
   completedDate: timestamp("completed_date"),
   notes: text("notes"),
+  approvedBy: integer("approved_by").references(() => users.id),
+  approvedAt: timestamp("approved_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
@@ -346,9 +348,73 @@ export const insertWorkOrderSchema = createInsertSchema(workOrders).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+  approvedBy: true,
+  approvedAt: true,
 });
 export type InsertWorkOrder = z.infer<typeof insertWorkOrderSchema>;
 export type WorkOrder = typeof workOrders.$inferSelect;
+
+export const workOrderTasks = pgTable("work_order_tasks", {
+  id: serial("id").primaryKey(),
+  workOrderId: integer("work_order_id").notNull().references(() => workOrders.id, { onDelete: "cascade" }),
+  responsibleTechnicianId: integer("responsible_technician_id").references(() => employees.id),
+  assignedMechanicId: integer("assigned_mechanic_id").references(() => employees.id),
+  serviceCategoryId: integer("service_category_id").references(() => serviceCategories.id),
+  serviceSubcategoryId: integer("service_subcategory_id").references(() => serviceSubcategories.id),
+  workshopArea: text("workshop_area"),
+  estimatedTime: text("estimated_time"),
+  completionDate: timestamp("completion_date"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertWorkOrderTaskSchema = createInsertSchema(workOrderTasks).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertWorkOrderTask = z.infer<typeof insertWorkOrderTaskSchema>;
+export type WorkOrderTask = typeof workOrderTasks.$inferSelect;
+
+export const workOrderMaterials = pgTable("work_order_materials", {
+  id: serial("id").primaryKey(),
+  workOrderId: integer("work_order_id").notNull().references(() => workOrders.id, { onDelete: "cascade" }),
+  inventoryId: integer("inventory_id").references(() => inventory.id),
+  partNumber: text("part_number"),
+  description: text("description").notNull(),
+  quantityAvailable: integer("quantity_available").default(0),
+  quantityNeeded: integer("quantity_needed").notNull(),
+  unitCost: real("unit_cost").notNull(),
+  total: real("total").notNull(),
+  approved: boolean("approved").notNull().default(false),
+  approvedBy: integer("approved_by").references(() => users.id),
+  approvedAt: timestamp("approved_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertWorkOrderMaterialSchema = createInsertSchema(workOrderMaterials).omit({
+  id: true,
+  createdAt: true,
+  approvedBy: true,
+  approvedAt: true,
+});
+export type InsertWorkOrderMaterial = z.infer<typeof insertWorkOrderMaterialSchema>;
+export type WorkOrderMaterial = typeof workOrderMaterials.$inferSelect;
+
+export const workOrderEvidence = pgTable("work_order_evidence", {
+  id: serial("id").primaryKey(),
+  workOrderId: integer("work_order_id").notNull().references(() => workOrders.id, { onDelete: "cascade" }),
+  fileUrl: text("file_url").notNull(),
+  description: text("description").notNull(),
+  fileType: text("file_type"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertWorkOrderEvidenceSchema = createInsertSchema(workOrderEvidence).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertWorkOrderEvidence = z.infer<typeof insertWorkOrderEvidenceSchema>;
+export type WorkOrderEvidence = typeof workOrderEvidence.$inferSelect;
 
 export const notifications = pgTable("notifications", {
   id: serial("id").primaryKey(),
