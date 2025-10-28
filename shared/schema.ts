@@ -562,6 +562,7 @@ export type PurchaseQuote = typeof purchaseQuotes.$inferSelect;
 export const purchaseQuoteItems = pgTable("purchase_quote_items", {
   id: serial("id").primaryKey(),
   quoteId: integer("quote_id").notNull().references(() => purchaseQuotes.id),
+  partNumber: text("part_number"),
   itemDescription: text("item_description").notNull(),
   quantity: integer("quantity").notNull(),
   unitPrice: real("unit_price").notNull(),

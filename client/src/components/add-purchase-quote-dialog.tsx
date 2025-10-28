@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { z } from "zod";
-import type { Provider, InsertPurchaseQuote, InsertPurchaseQuoteItem } from "@shared/schema";
+import type { Provider, InsertPurchaseQuote, InsertPurchaseQuoteItem, Inventory } from "@shared/schema";
 import { insertPurchaseQuoteSchema } from "@shared/schema";
 import {
   Dialog,
@@ -55,6 +55,8 @@ const quoteFormSchema = z.object({
   total: z.number().min(0).default(0),
   notes: z.string().optional(),
   items: z.array(z.object({
+    inventoryId: z.number().optional(),
+    partNumber: z.string().optional(),
     itemDescription: z.string().min(1, "La descripción es requerida"),
     quantity: z.number().min(1, "La cantidad debe ser mayor a 0"),
     unitPrice: z.number().min(0, "El precio debe ser mayor o igual a 0"),
@@ -71,6 +73,11 @@ interface AddPurchaseQuoteDialogProps {
 export function AddPurchaseQuoteDialog({ providers }: AddPurchaseQuoteDialogProps) {
   const [open, setOpen] = useState(false);
   const { toast } = useToast();
+
+  const { data: inventoryItems = [] } = useQuery<Inventory[]>({
+    queryKey: ["/api/inventory"],
+    enabled: open,
+  });
 
   const form = useForm<QuoteFormValues>({
     resolver: zodResolver(quoteFormSchema),
@@ -113,6 +120,7 @@ export function AddPurchaseQuoteDialog({ providers }: AddPurchaseQuoteDialogProp
       for (const item of data.items) {
         const itemData: InsertPurchaseQuoteItem = {
           quoteId: quote.id,
+          partNumber: item.partNumber || null,
           itemDescription: item.itemDescription,
           quantity: item.quantity,
           unitPrice: item.unitPrice,
@@ -155,11 +163,26 @@ export function AddPurchaseQuoteDialog({ providers }: AddPurchaseQuoteDialogProp
 
   const addItem = () => {
     append({
+      inventoryId: undefined,
+      partNumber: "",
       itemDescription: "",
       quantity: 1,
       unitPrice: 0,
       notes: "",
     });
+  };
+
+  const selectInventoryItem = (index: number, inventoryId: string) => {
+    if (!inventoryId) return;
+    
+    const item = inventoryItems.find(i => i.id === Number(inventoryId));
+    if (item) {
+      form.setValue(`items.${index}.inventoryId`, item.id);
+      form.setValue(`items.${index}.partNumber`, item.partNumber || "");
+      form.setValue(`items.${index}.itemDescription`, item.name);
+      form.setValue(`items.${index}.unitPrice`, item.unitPrice);
+      calculateTotals();
+    }
   };
 
   const onSubmit = (data: QuoteFormValues) => {
@@ -304,110 +327,159 @@ export function AddPurchaseQuoteDialog({ providers }: AddPurchaseQuoteDialogProp
               </div>
 
               {fields.length > 0 ? (
-                <div className="rounded-md border">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Descripción</TableHead>
-                        <TableHead className="w-[100px]">Cantidad</TableHead>
-                        <TableHead className="w-[120px]">Precio Unit.</TableHead>
-                        <TableHead className="w-[120px]">Total</TableHead>
-                        <TableHead className="w-[80px]"></TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {fields.map((field, index) => {
-                        const quantity = form.watch(`items.${index}.quantity`) || 0;
-                        const unitPrice = form.watch(`items.${index}.unitPrice`) || 0;
-                        const itemTotal = quantity * unitPrice;
+                <div className="space-y-4">
+                  {fields.map((field, index) => {
+                    const quantity = form.watch(`items.${index}.quantity`) || 0;
+                    const unitPrice = form.watch(`items.${index}.unitPrice`) || 0;
+                    const itemTotal = quantity * unitPrice;
 
-                        return (
-                          <TableRow key={field.id}>
-                            <TableCell>
-                              <FormField
-                                control={form.control}
-                                name={`items.${index}.itemDescription`}
-                                render={({ field }) => (
-                                  <FormItem>
+                    return (
+                      <div key={field.id} className="border rounded-md p-4 space-y-3">
+                        <div className="flex justify-between items-start">
+                          <h4 className="font-medium">Item #{index + 1}</h4>
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => {
+                              remove(index);
+                              calculateTotals();
+                            }}
+                            data-testid={`button-remove-item-${index}`}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="md:col-span-2">
+                            <FormField
+                              control={form.control}
+                              name={`items.${index}.inventoryId`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Buscar Producto del Inventario</FormLabel>
+                                  <Select
+                                    onValueChange={(value) => {
+                                      field.onChange(value ? Number(value) : undefined);
+                                      selectInventoryItem(index, value);
+                                    }}
+                                    value={field.value?.toString() || ""}
+                                  >
                                     <FormControl>
-                                      <Input
-                                        {...field}
-                                        placeholder="Descripción del item"
-                                        data-testid={`input-item-description-${index}`}
-                                        onBlur={() => calculateTotals()}
-                                      />
+                                      <SelectTrigger data-testid={`select-inventory-${index}`}>
+                                        <SelectValue placeholder="Selecciona un producto o ingresa manualmente" />
+                                      </SelectTrigger>
                                     </FormControl>
-                                  </FormItem>
-                                )}
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <FormField
-                                control={form.control}
-                                name={`items.${index}.quantity`}
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <FormControl>
-                                      <Input
-                                        type="number"
-                                        min="1"
-                                        {...field}
-                                        onChange={(e) => {
-                                          field.onChange(Number(e.target.value));
-                                          calculateTotals();
-                                        }}
-                                        data-testid={`input-quantity-${index}`}
-                                      />
-                                    </FormControl>
-                                  </FormItem>
-                                )}
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <FormField
-                                control={form.control}
-                                name={`items.${index}.unitPrice`}
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <FormControl>
-                                      <Input
-                                        type="number"
-                                        step="0.01"
-                                        min="0"
-                                        {...field}
-                                        onChange={(e) => {
-                                          field.onChange(Number(e.target.value));
-                                          calculateTotals();
-                                        }}
-                                        data-testid={`input-unit-price-${index}`}
-                                      />
-                                    </FormControl>
-                                  </FormItem>
-                                )}
-                              />
-                            </TableCell>
-                            <TableCell className="font-medium">
-                              ${itemTotal.toFixed(2)}
-                            </TableCell>
-                            <TableCell>
-                              <Button
-                                type="button"
-                                size="icon"
-                                variant="ghost"
-                                onClick={() => {
-                                  remove(index);
-                                  calculateTotals();
-                                }}
-                                data-testid={`button-remove-item-${index}`}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
+                                    <SelectContent>
+                                      {inventoryItems.map((item) => (
+                                        <SelectItem key={item.id} value={item.id.toString()}>
+                                          {item.partNumber ? `[${item.partNumber}] ` : ""}{item.name}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+
+                          <FormField
+                            control={form.control}
+                            name={`items.${index}.partNumber`}
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Número de Parte</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    {...field}
+                                    value={field.value || ""}
+                                    placeholder="Ej: F-10W40"
+                                    data-testid={`input-part-number-${index}`}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+
+                          <FormField
+                            control={form.control}
+                            name={`items.${index}.itemDescription`}
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Descripción *</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    {...field}
+                                    placeholder="Descripción del producto"
+                                    data-testid={`input-item-description-${index}`}
+                                    onBlur={() => calculateTotals()}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+
+                          <FormField
+                            control={form.control}
+                            name={`items.${index}.quantity`}
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Cantidad *</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    type="number"
+                                    min="1"
+                                    {...field}
+                                    onChange={(e) => {
+                                      field.onChange(Number(e.target.value));
+                                      calculateTotals();
+                                    }}
+                                    data-testid={`input-quantity-${index}`}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+
+                          <FormField
+                            control={form.control}
+                            name={`items.${index}.unitPrice`}
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Precio Unitario *</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    {...field}
+                                    onChange={(e) => {
+                                      field.onChange(Number(e.target.value));
+                                      calculateTotals();
+                                    }}
+                                    data-testid={`input-unit-price-${index}`}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+
+                        <div className="bg-muted/50 p-3 rounded-md">
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm text-muted-foreground">Total del Item</span>
+                            <span className="text-lg font-semibold">${itemTotal.toFixed(2)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="text-center py-8 text-muted-foreground border rounded-md">
