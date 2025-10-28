@@ -44,6 +44,15 @@ The system follows a Material Design-inspired aesthetic, optimized for productiv
 - **Notifications System**: Real-time notification system with dropdown in header, polling every 30 seconds, and automatic creation when reports, diagnostics, and work orders are created.
 - **Dashboard**: Real-time metrics and navigation cards for quick overview.
 - **Authentication**: Includes a `users` table for authentication and supports role-based access control. **Known Security Limitation**: userId is hardcoded in approval mutations (both diagnostics and work orders), allowing any user to approve without proper authentication. This is a system-wide limitation requiring full authentication implementation with session management and role validation.
+- **Roles & Permissions System**: Comprehensive role-based access control with granular permission management:
+  - **Roles Management** (/roles): Full CRUD operations for system roles with active status tracking
+  - **Permissions Assignment** (/permisos): Module-based permission matrix interface allowing assignment of specific permissions to roles
+  - **Permission Structure**: 63 permissions across 17 modules (Dashboard, Vehículos, Tareas Programadas, Categorías, Proveedores, Clientes, Inventario, Reportes de Fallas, Diagnósticos, Órdenes de Trabajo, Empleados, Usuarios, Talleres, Áreas, Configuración, Roles, Permisos)
+  - **Permission Actions**: Standard actions (view, create, edit, delete) plus special "approve" permission for Diagnósticos and Órdenes de Trabajo
+  - **Database Schema**: Many-to-many relationship between roles and permissions via role_permissions table
+  - **Seed Data**: Pre-populated "Administrador" role with all 63 permissions assigned
+  - **UI Design**: Accordion-organized permission matrix with checkboxes at role-permission intersections, collapsible "Roles y Permisos" subsection in sidebar under Administración
+  - **Implementation**: React Query mutations for permission assignment/removal with optimistic updates and toast notifications
 
 ### System Design Choices
 - **Frontend**: Component-based architecture with custom hooks and query client for server state.
