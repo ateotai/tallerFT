@@ -35,6 +35,8 @@ The system follows a Material Design-inspired aesthetic, optimized for productiv
   - Auto-fill functionality from diagnostics (populates vehicle, employee, description, and priority based on severity)
   - Manual creation or automatic generation from approved diagnostics
   - **Edit Form Features**: Loads existing tasks/materials/evidences when dialog opens, allows adding/removing items, uses delete-and-recreate approach on submit for simplicity and reliability
+  - **View Details Dialog**: Tabbed interface showing complete work order information (General, Tareas, Materiales, Evidencias) with formatted display of all associated data
+  - **Print Functionality**: Professional print-ready layout with work order details, tasks table, materials breakdown with totals, and signature lines for approval workflow
   - **Known Limitation**: Work order creation/editing uses cascading POST requests without backend transaction support. If secondary elements (tasks/materials/evidence) fail, the main work order persists and users must complete it manually. Enhanced error handling alerts users with the work order ID for manual completion.
 - **Company (Empresa)**: Collapsible sidebar section for company-wide settings:
   - **Workshops (Talleres)**: Management of internal and external maintenance workshops with full CRUD operations (name, address, phone, email, type, capacity, active status). Each workshop can manage its own inventory.
