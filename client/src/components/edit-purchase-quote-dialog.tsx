@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -32,6 +32,19 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
   Table,
   TableBody,
   TableCell,
@@ -39,9 +52,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Check, ChevronsUpDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { normalizeText } from "@/lib/utils";
 
 const quoteFormSchema = z.object({
   quoteNumber: z.string().min(1, "El número de cotización es requerido"),
@@ -75,6 +89,8 @@ interface EditPurchaseQuoteDialogProps {
 export function EditPurchaseQuoteDialog({ quote, providers, open, onOpenChange }: EditPurchaseQuoteDialogProps) {
   const { toast } = useToast();
   const [isLoadingItems, setIsLoadingItems] = useState(true);
+  const [searchValues, setSearchValues] = useState<Record<number, string>>({});
+  const [openPopovers, setOpenPopovers] = useState<Record<number, boolean>>({});
 
   const { data: inventoryItems = [] } = useQuery<Inventory[]>({
     queryKey: ["/api/inventory"],
@@ -203,17 +219,26 @@ export function EditPurchaseQuoteDialog({ quote, providers, open, onOpenChange }
     });
   };
 
-  const selectInventoryItem = (index: number, inventoryId: string) => {
-    if (!inventoryId) return;
+  const selectInventoryItem = (index: number, item: Inventory) => {
+    form.setValue(`items.${index}.inventoryId`, item.id);
+    form.setValue(`items.${index}.partNumber`, item.partNumber || "");
+    form.setValue(`items.${index}.itemDescription`, item.name);
+    form.setValue(`items.${index}.unitPrice`, item.unitPrice);
+    setSearchValues(prev => ({ ...prev, [index]: item.name }));
+    setOpenPopovers(prev => ({ ...prev, [index]: false }));
+    calculateTotals();
+  };
+
+  const getFilteredInventory = (index: number) => {
+    const searchValue = searchValues[index] || "";
+    if (!searchValue) return inventoryItems;
     
-    const item = inventoryItems.find(i => i.id === Number(inventoryId));
-    if (item) {
-      form.setValue(`items.${index}.inventoryId`, item.id);
-      form.setValue(`items.${index}.partNumber`, item.partNumber || "");
-      form.setValue(`items.${index}.itemDescription`, item.name);
-      form.setValue(`items.${index}.unitPrice`, item.unitPrice);
-      calculateTotals();
-    }
+    const normalizedSearch = normalizeText(searchValue);
+    return inventoryItems.filter(item => {
+      const normalizedName = normalizeText(item.name);
+      const normalizedPartNumber = normalizeText(item.partNumber || "");
+      return normalizedName.includes(normalizedSearch) || normalizedPartNumber.includes(normalizedSearch);
+    });
   };
 
   const onSubmit = (data: QuoteFormValues) => {
@@ -352,159 +377,163 @@ export function EditPurchaseQuoteDialog({ quote, providers, open, onOpenChange }
               </div>
 
               {fields.length > 0 ? (
-                <div className="space-y-4">
-                  {fields.map((field, index) => {
-                    const quantity = form.watch(`items.${index}.quantity`) || 0;
-                    const unitPrice = form.watch(`items.${index}.unitPrice`) || 0;
-                    const itemTotal = quantity * unitPrice;
+                <div className="rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Nombre de Refacción</TableHead>
+                        <TableHead className="w-[120px]">Cantidad</TableHead>
+                        <TableHead className="w-[140px]">Subtotal</TableHead>
+                        <TableHead className="w-[60px]"></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {fields.map((field, index) => {
+                        const quantity = form.watch(`items.${index}.quantity`) || 0;
+                        const unitPrice = form.watch(`items.${index}.unitPrice`) || 0;
+                        const itemTotal = quantity * unitPrice;
+                        const currentDescription = form.watch(`items.${index}.itemDescription`) || "";
 
-                    return (
-                      <div key={field.id} className="border rounded-md p-4 space-y-3">
-                        <div className="flex justify-between items-start">
-                          <h4 className="font-medium">Item #{index + 1}</h4>
-                          <Button
-                            type="button"
-                            size="icon"
-                            variant="ghost"
-                            onClick={() => {
-                              remove(index);
-                              calculateTotals();
-                            }}
-                            data-testid={`button-remove-item-${index}`}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div className="md:col-span-2">
-                            <FormField
-                              control={form.control}
-                              name={`items.${index}.inventoryId`}
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Buscar Producto del Inventario</FormLabel>
-                                  <Select
-                                    onValueChange={(value) => {
-                                      field.onChange(value ? Number(value) : undefined);
-                                      selectInventoryItem(index, value);
-                                    }}
-                                    value={field.value?.toString() || ""}
-                                  >
+                        return (
+                          <TableRow key={field.id}>
+                            <TableCell>
+                              <FormField
+                                control={form.control}
+                                name={`items.${index}.itemDescription`}
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <Popover 
+                                      open={openPopovers[index] || false}
+                                      onOpenChange={(isOpen) => setOpenPopovers(prev => ({ ...prev, [index]: isOpen }))}
+                                    >
+                                      <PopoverTrigger asChild>
+                                        <FormControl>
+                                          <Button
+                                            variant="outline"
+                                            role="combobox"
+                                            className="w-full justify-between"
+                                            data-testid={`select-inventory-${index}`}
+                                            type="button"
+                                          >
+                                            <span className="truncate">
+                                              {currentDescription || "Buscar refacción..."}
+                                            </span>
+                                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                          </Button>
+                                        </FormControl>
+                                      </PopoverTrigger>
+                                      <PopoverContent className="w-[400px] p-0" align="start">
+                                        <Command>
+                                          <CommandInput 
+                                            placeholder="Buscar refacción..." 
+                                            value={searchValues[index] || ""}
+                                            onValueChange={(value) => setSearchValues(prev => ({ ...prev, [index]: value }))}
+                                          />
+                                          <CommandList>
+                                            <CommandEmpty>No se encontraron refacciones</CommandEmpty>
+                                            <CommandGroup>
+                                              {getFilteredInventory(index).map((item) => (
+                                                <CommandItem
+                                                  key={item.id}
+                                                  value={item.id.toString()}
+                                                  onSelect={() => selectInventoryItem(index, item)}
+                                                >
+                                                  <Check
+                                                    className={`mr-2 h-4 w-4 ${
+                                                      form.getValues(`items.${index}.inventoryId`) === item.id
+                                                        ? "opacity-100"
+                                                        : "opacity-0"
+                                                    }`}
+                                                  />
+                                                  <div className="flex-1">
+                                                    <div className="font-medium">{item.name}</div>
+                                                    {item.partNumber && (
+                                                      <div className="text-sm text-muted-foreground">
+                                                        #{item.partNumber}
+                                                      </div>
+                                                    )}
+                                                  </div>
+                                                  <div className="text-sm text-muted-foreground">
+                                                    ${item.unitPrice.toFixed(2)}
+                                                  </div>
+                                                </CommandItem>
+                                              ))}
+                                            </CommandGroup>
+                                          </CommandList>
+                                        </Command>
+                                      </PopoverContent>
+                                    </Popover>
+                                    <input type="hidden" {...field} />
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                              <FormField
+                                control={form.control}
+                                name={`items.${index}.unitPrice`}
+                                render={({ field }) => (
+                                  <input type="hidden" {...field} />
+                                )}
+                              />
+                              <FormField
+                                control={form.control}
+                                name={`items.${index}.partNumber`}
+                                render={({ field }) => (
+                                  <input type="hidden" {...field} value={field.value || ""} />
+                                )}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <FormField
+                                control={form.control}
+                                name={`items.${index}.quantity`}
+                                render={({ field }) => (
+                                  <FormItem>
                                     <FormControl>
-                                      <SelectTrigger data-testid={`select-inventory-${index}`}>
-                                        <SelectValue placeholder="Selecciona un producto o ingresa manualmente" />
-                                      </SelectTrigger>
+                                      <Input
+                                        type="number"
+                                        min="1"
+                                        {...field}
+                                        onChange={(e) => {
+                                          field.onChange(Number(e.target.value));
+                                          calculateTotals();
+                                        }}
+                                        data-testid={`input-quantity-${index}`}
+                                      />
                                     </FormControl>
-                                    <SelectContent>
-                                      {inventoryItems.map((item) => (
-                                        <SelectItem key={item.id} value={item.id.toString()}>
-                                          {item.partNumber ? `[${item.partNumber}] ` : ""}{item.name}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          </div>
-
-                          <FormField
-                            control={form.control}
-                            name={`items.${index}.partNumber`}
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Número de Parte</FormLabel>
-                                <FormControl>
-                                  <Input
-                                    {...field}
-                                    value={field.value || ""}
-                                    placeholder="Ej: F-10W40"
-                                    data-testid={`input-part-number-${index}`}
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-
-                          <FormField
-                            control={form.control}
-                            name={`items.${index}.itemDescription`}
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Descripción *</FormLabel>
-                                <FormControl>
-                                  <Input
-                                    {...field}
-                                    placeholder="Descripción del producto"
-                                    data-testid={`input-item-description-${index}`}
-                                    onBlur={() => calculateTotals()}
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-
-                          <FormField
-                            control={form.control}
-                            name={`items.${index}.quantity`}
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Cantidad *</FormLabel>
-                                <FormControl>
-                                  <Input
-                                    type="number"
-                                    min="1"
-                                    {...field}
-                                    onChange={(e) => {
-                                      field.onChange(Number(e.target.value));
-                                      calculateTotals();
-                                    }}
-                                    data-testid={`input-quantity-${index}`}
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-
-                          <FormField
-                            control={form.control}
-                            name={`items.${index}.unitPrice`}
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Precio Unitario *</FormLabel>
-                                <FormControl>
-                                  <Input
-                                    type="number"
-                                    step="0.01"
-                                    min="0"
-                                    {...field}
-                                    onChange={(e) => {
-                                      field.onChange(Number(e.target.value));
-                                      calculateTotals();
-                                    }}
-                                    data-testid={`input-unit-price-${index}`}
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-
-                        <div className="bg-muted/50 p-3 rounded-md">
-                          <div className="flex justify-between items-center">
-                            <span className="text-sm text-muted-foreground">Total del Item</span>
-                            <span className="text-lg font-semibold">${itemTotal.toFixed(2)}</span>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                            </TableCell>
+                            <TableCell className="font-medium">
+                              ${itemTotal.toFixed(2)}
+                            </TableCell>
+                            <TableCell>
+                              <Button
+                                type="button"
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => {
+                                  remove(index);
+                                  const newSearchValues = { ...searchValues };
+                                  delete newSearchValues[index];
+                                  setSearchValues(newSearchValues);
+                                  const newOpenPopovers = { ...openPopovers };
+                                  delete newOpenPopovers[index];
+                                  setOpenPopovers(newOpenPopovers);
+                                  calculateTotals();
+                                }}
+                                data-testid={`button-remove-item-${index}`}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
                 </div>
               ) : (
                 <div className="text-center py-8 text-muted-foreground border rounded-md">
