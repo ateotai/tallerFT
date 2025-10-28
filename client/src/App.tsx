@@ -26,6 +26,8 @@ import WorkOrdersPage from "@/pages/work-orders";
 import WorkshopsPage from "@/pages/workshops";
 import AreasPage from "@/pages/areas";
 import ConfigurationPage from "@/pages/configuration";
+import RolesPage from "@/pages/roles";
+import PermissionsPage from "@/pages/permissions";
 
 function Router() {
   return (
@@ -46,6 +48,8 @@ function Router() {
       <Route path="/ordenes-trabajo" component={WorkOrdersPage} />
       <Route path="/empleados" component={EmployeesPage} />
       <Route path="/usuarios" component={UsersPage} />
+      <Route path="/roles" component={RolesPage} />
+      <Route path="/permisos" component={PermissionsPage} />
       <Route path="/configuracion" component={ConfigurationPage} />
       <Route component={NotFound} />
     </Switch>
