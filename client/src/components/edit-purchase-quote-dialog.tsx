@@ -423,7 +423,7 @@ export function EditPurchaseQuoteDialog({ quote, providers, open, onOpenChange }
                                         </FormControl>
                                       </PopoverTrigger>
                                       <PopoverContent className="w-[400px] p-0" align="start">
-                                        <Command>
+                                        <Command shouldFilter={false}>
                                           <CommandInput 
                                             placeholder="Buscar refacción..." 
                                             value={searchValues[index] || ""}
