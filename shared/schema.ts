@@ -552,6 +552,9 @@ export const purchaseQuotes = pgTable("purchase_quotes", {
 export const insertPurchaseQuoteSchema = createInsertSchema(purchaseQuotes).omit({
   id: true,
   createdAt: true,
+}).extend({
+  quoteDate: z.coerce.date(),
+  expirationDate: z.coerce.date(),
 });
 export type InsertPurchaseQuote = z.infer<typeof insertPurchaseQuoteSchema>;
 export type PurchaseQuote = typeof purchaseQuotes.$inferSelect;

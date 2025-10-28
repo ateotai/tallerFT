@@ -77,7 +77,8 @@ export function EditPurchaseQuoteDialog({ quote, providers, open, onOpenChange }
   const { data: existingItems = [] } = useQuery<PurchaseQuoteItem[]>({
     queryKey: ["/api/purchase-quote-items", quote.id],
     queryFn: async () => {
-      return await apiRequest("GET", `/api/purchase-quote-items/${quote.id}`) as PurchaseQuoteItem[];
+      const response = await apiRequest("GET", `/api/purchase-quote-items/${quote.id}`);
+      return await response.json() as PurchaseQuoteItem[];
     },
     enabled: open,
   });
@@ -127,8 +128,8 @@ export function EditPurchaseQuoteDialog({ quote, providers, open, onOpenChange }
       const quoteData: Partial<InsertPurchaseQuote> = {
         quoteNumber: data.quoteNumber,
         providerId: data.providerId,
-        quoteDate: new Date(data.quoteDate),
-        expirationDate: new Date(data.expirationDate),
+        quoteDate: new Date(data.quoteDate + 'T00:00:00Z'),
+        expirationDate: new Date(data.expirationDate + 'T00:00:00Z'),
         status: data.status,
         subtotal: data.subtotal,
         tax: data.tax,

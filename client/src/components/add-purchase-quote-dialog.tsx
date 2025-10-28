@@ -98,8 +98,8 @@ export function AddPurchaseQuoteDialog({ providers }: AddPurchaseQuoteDialogProp
       const quoteData: InsertPurchaseQuote = {
         quoteNumber: data.quoteNumber,
         providerId: data.providerId,
-        quoteDate: new Date(data.quoteDate),
-        expirationDate: new Date(data.expirationDate),
+        quoteDate: new Date(data.quoteDate + 'T00:00:00Z'),
+        expirationDate: new Date(data.expirationDate + 'T00:00:00Z'),
         status: data.status,
         subtotal: data.subtotal,
         tax: data.tax,
@@ -107,7 +107,8 @@ export function AddPurchaseQuoteDialog({ providers }: AddPurchaseQuoteDialogProp
         notes: data.notes,
       };
 
-      const quote = await apiRequest("POST", "/api/purchase-quotes", quoteData) as { id: number };
+      const quoteResponse = await apiRequest("POST", "/api/purchase-quotes", quoteData);
+      const quote = await quoteResponse.json() as { id: number };
 
       for (const item of data.items) {
         const itemData: InsertPurchaseQuoteItem = {

@@ -30,7 +30,8 @@ export function PrintPurchaseQuoteDialog({ quote, providers, open, onOpenChange 
   const { data: items = [] } = useQuery<PurchaseQuoteItem[]>({
     queryKey: ["/api/purchase-quote-items", quote.id],
     queryFn: async () => {
-      return await apiRequest("GET", `/api/purchase-quote-items/${quote.id}`) as PurchaseQuoteItem[];
+      const response = await apiRequest("GET", `/api/purchase-quote-items/${quote.id}`);
+      return await response.json() as PurchaseQuoteItem[];
     },
     enabled: open,
   });
