@@ -27,6 +27,9 @@ import {
   insertWorkshopSchema,
   insertAreaSchema,
   insertCompanyConfigurationSchema,
+  insertRoleSchema,
+  insertPermissionSchema,
+  insertRolePermissionSchema,
 } from "@shared/schema";
 
 function validateId(id: string): number | null {
@@ -2030,6 +2033,223 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       console.error("Error updating configuration:", error);
       res.status(500).json({ error: "Error al actualizar configuración" });
+    }
+  });
+
+  // Roles routes
+  app.get("/api/roles", async (req, res) => {
+    try {
+      const roles = await storage.getRoles();
+      res.json(roles);
+    } catch (error) {
+      console.error("Error fetching roles:", error);
+      res.status(500).json({ error: "Error al obtener roles" });
+    }
+  });
+
+  app.get("/api/roles/:id", async (req, res) => {
+    try {
+      const id = validateId(req.params.id);
+      if (id === null) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      const role = await storage.getRole(id);
+      if (!role) {
+        return res.status(404).json({ error: "Rol no encontrado" });
+      }
+      res.json(role);
+    } catch (error) {
+      console.error("Error fetching role:", error);
+      res.status(500).json({ error: "Error al obtener rol" });
+    }
+  });
+
+  app.post("/api/roles", async (req, res) => {
+    try {
+      const validatedData = insertRoleSchema.parse(req.body);
+      const role = await storage.createRole(validatedData);
+      res.status(201).json(role);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ error: "Datos inválidos", details: error.errors });
+      }
+      console.error("Error creating role:", error);
+      res.status(500).json({ error: "Error al crear rol" });
+    }
+  });
+
+  app.put("/api/roles/:id", async (req, res) => {
+    try {
+      const id = validateId(req.params.id);
+      if (id === null) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      const validatedData = insertRoleSchema.partial().parse(req.body);
+      const role = await storage.updateRole(id, validatedData);
+      if (!role) {
+        return res.status(404).json({ error: "Rol no encontrado" });
+      }
+      res.json(role);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ error: "Datos inválidos", details: error.errors });
+      }
+      console.error("Error updating role:", error);
+      res.status(500).json({ error: "Error al actualizar rol" });
+    }
+  });
+
+  app.delete("/api/roles/:id", async (req, res) => {
+    try {
+      const id = validateId(req.params.id);
+      if (id === null) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      const deleted = await storage.deleteRole(id);
+      if (!deleted) {
+        return res.status(404).json({ error: "Rol no encontrado" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting role:", error);
+      res.status(500).json({ error: "Error al eliminar rol" });
+    }
+  });
+
+  // Permissions routes
+  app.get("/api/permissions", async (req, res) => {
+    try {
+      const permissions = await storage.getPermissions();
+      res.json(permissions);
+    } catch (error) {
+      console.error("Error fetching permissions:", error);
+      res.status(500).json({ error: "Error al obtener permisos" });
+    }
+  });
+
+  app.get("/api/permissions/:id", async (req, res) => {
+    try {
+      const id = validateId(req.params.id);
+      if (id === null) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      const permission = await storage.getPermission(id);
+      if (!permission) {
+        return res.status(404).json({ error: "Permiso no encontrado" });
+      }
+      res.json(permission);
+    } catch (error) {
+      console.error("Error fetching permission:", error);
+      res.status(500).json({ error: "Error al obtener permiso" });
+    }
+  });
+
+  app.post("/api/permissions", async (req, res) => {
+    try {
+      const validatedData = insertPermissionSchema.parse(req.body);
+      const permission = await storage.createPermission(validatedData);
+      res.status(201).json(permission);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ error: "Datos inválidos", details: error.errors });
+      }
+      console.error("Error creating permission:", error);
+      res.status(500).json({ error: "Error al crear permiso" });
+    }
+  });
+
+  app.put("/api/permissions/:id", async (req, res) => {
+    try {
+      const id = validateId(req.params.id);
+      if (id === null) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      const validatedData = insertPermissionSchema.partial().parse(req.body);
+      const permission = await storage.updatePermission(id, validatedData);
+      if (!permission) {
+        return res.status(404).json({ error: "Permiso no encontrado" });
+      }
+      res.json(permission);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ error: "Datos inválidos", details: error.errors });
+      }
+      console.error("Error updating permission:", error);
+      res.status(500).json({ error: "Error al actualizar permiso" });
+    }
+  });
+
+  app.delete("/api/permissions/:id", async (req, res) => {
+    try {
+      const id = validateId(req.params.id);
+      if (id === null) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      const deleted = await storage.deletePermission(id);
+      if (!deleted) {
+        return res.status(404).json({ error: "Permiso no encontrado" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting permission:", error);
+      res.status(500).json({ error: "Error al eliminar permiso" });
+    }
+  });
+
+  // Role Permissions routes
+  app.get("/api/role-permissions", async (req, res) => {
+    try {
+      const rolePermissions = await storage.getAllRolePermissions();
+      res.json(rolePermissions);
+    } catch (error) {
+      console.error("Error fetching role permissions:", error);
+      res.status(500).json({ error: "Error al obtener permisos de roles" });
+    }
+  });
+
+  app.get("/api/role-permissions/:roleId", async (req, res) => {
+    try {
+      const roleId = validateId(req.params.roleId);
+      if (roleId === null) {
+        return res.status(400).json({ error: "ID de rol inválido" });
+      }
+      const rolePermissions = await storage.getRolePermissions(roleId);
+      res.json(rolePermissions);
+    } catch (error) {
+      console.error("Error fetching role permissions:", error);
+      res.status(500).json({ error: "Error al obtener permisos del rol" });
+    }
+  });
+
+  app.post("/api/role-permissions", async (req, res) => {
+    try {
+      const validatedData = insertRolePermissionSchema.parse(req.body);
+      const rolePermission = await storage.createRolePermission(validatedData);
+      res.status(201).json(rolePermission);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ error: "Datos inválidos", details: error.errors });
+      }
+      console.error("Error creating role permission:", error);
+      res.status(500).json({ error: "Error al asignar permiso a rol" });
+    }
+  });
+
+  app.delete("/api/role-permissions/:roleId/:permissionId", async (req, res) => {
+    try {
+      const roleId = validateId(req.params.roleId);
+      const permissionId = validateId(req.params.permissionId);
+      if (roleId === null || permissionId === null) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      const deleted = await storage.deleteRolePermission(roleId, permissionId);
+      if (!deleted) {
+        return res.status(404).json({ error: "Permiso de rol no encontrado" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting role permission:", error);
+      res.status(500).json({ error: "Error al eliminar permiso de rol" });
     }
   });
 

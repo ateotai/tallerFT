@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import * as schema from "@shared/schema";
 import type {
   User,
@@ -990,8 +990,10 @@ export class DbStorage implements IStorage {
 
   async deleteRolePermission(roleId: number, permissionId: number): Promise<boolean> {
     const result = await db.delete(schema.rolePermissions)
-      .where(eq(schema.rolePermissions.roleId, roleId))
-      .where(eq(schema.rolePermissions.permissionId, permissionId))
+      .where(and(
+        eq(schema.rolePermissions.roleId, roleId),
+        eq(schema.rolePermissions.permissionId, permissionId)
+      ))
       .returning();
     return result.length > 0;
   }
