@@ -17,6 +17,8 @@ import {
   Building2,
   MapPin,
   Settings,
+  UserCog,
+  Lock,
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useState } from "react";
@@ -115,6 +117,19 @@ const companyMenuItems = [
   },
 ];
 
+const rolesPermissionsMenuItems = [
+  {
+    title: "Roles",
+    url: "/roles",
+    icon: UserCog,
+  },
+  {
+    title: "Permisos",
+    url: "/permisos",
+    icon: Lock,
+  },
+];
+
 const adminMenuItems = [
   {
     title: "Empleados",
@@ -132,9 +147,11 @@ export function AppSidebar() {
   const [location] = useLocation();
   const [maintenanceOpen, setMaintenanceOpen] = useState(true);
   const [companyOpen, setCompanyOpen] = useState(true);
+  const [rolesPermissionsOpen, setRolesPermissionsOpen] = useState(true);
 
   const isMaintenanceActive = maintenanceMenuItems.some(item => location === item.url);
   const isCompanyActive = companyMenuItems.some(item => location === item.url);
+  const isRolesPermissionsActive = rolesPermissionsMenuItems.some(item => location === item.url);
 
   return (
     <Sidebar>
@@ -278,6 +295,43 @@ export function AppSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
+              
+              <Collapsible
+                open={rolesPermissionsOpen}
+                onOpenChange={setRolesPermissionsOpen}
+                className="group/collapsible"
+              >
+                <SidebarMenuItem>
+                  <CollapsibleTrigger asChild>
+                    <SidebarMenuButton
+                      data-testid="button-roles-permissions-toggle"
+                      isActive={isRolesPermissionsActive}
+                    >
+                      <UserCog className="h-5 w-5" />
+                      <span>Roles y Permisos</span>
+                      <ChevronDown className="ml-auto h-4 w-4 transition-transform group-data-[state=open]/collapsible:rotate-180" />
+                    </SidebarMenuButton>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <SidebarMenuSub>
+                      {rolesPermissionsMenuItems.map((item) => (
+                        <SidebarMenuSubItem key={item.title}>
+                          <SidebarMenuSubButton
+                            asChild
+                            isActive={location === item.url}
+                            data-testid={`link-${item.title.toLowerCase()}`}
+                          >
+                            <Link href={item.url}>
+                              <item.icon className="h-4 w-4" />
+                              <span>{item.title}</span>
+                            </Link>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                      ))}
+                    </SidebarMenuSub>
+                  </CollapsibleContent>
+                </SidebarMenuItem>
+              </Collapsible>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
