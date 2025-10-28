@@ -52,6 +52,12 @@ import type {
   InsertArea,
   CompanyConfiguration,
   InsertCompanyConfiguration,
+  Role,
+  InsertRole,
+  Permission,
+  InsertPermission,
+  RolePermission,
+  InsertRolePermission,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -210,6 +216,24 @@ export interface IStorage {
   getCompanyConfiguration(): Promise<CompanyConfiguration | undefined>;
   updateCompanyConfiguration(id: number, config: Partial<InsertCompanyConfiguration>): Promise<CompanyConfiguration | undefined>;
   createCompanyConfiguration(config: InsertCompanyConfiguration): Promise<CompanyConfiguration>;
+  
+  getRoles(): Promise<Role[]>;
+  getRole(id: number): Promise<Role | undefined>;
+  createRole(role: InsertRole): Promise<Role>;
+  updateRole(id: number, role: Partial<InsertRole>): Promise<Role | undefined>;
+  deleteRole(id: number): Promise<boolean>;
+  
+  getPermissions(): Promise<Permission[]>;
+  getPermission(id: number): Promise<Permission | undefined>;
+  createPermission(permission: InsertPermission): Promise<Permission>;
+  updatePermission(id: number, permission: Partial<InsertPermission>): Promise<Permission | undefined>;
+  deletePermission(id: number): Promise<boolean>;
+  
+  getRolePermissions(roleId: number): Promise<RolePermission[]>;
+  getAllRolePermissions(): Promise<RolePermission[]>;
+  createRolePermission(rolePermission: InsertRolePermission): Promise<RolePermission>;
+  deleteRolePermission(roleId: number, permissionId: number): Promise<boolean>;
+  deleteAllRolePermissions(roleId: number): Promise<boolean>;
 }
 
 export class DbStorage implements IStorage {
@@ -901,6 +925,80 @@ export class DbStorage implements IStorage {
       .where(eq(schema.companyConfiguration.id, id))
       .returning();
     return result[0];
+  }
+
+  async getRoles(): Promise<Role[]> {
+    return await db.select().from(schema.roles);
+  }
+
+  async getRole(id: number): Promise<Role | undefined> {
+    const result = await db.select().from(schema.roles).where(eq(schema.roles.id, id)).limit(1);
+    return result[0];
+  }
+
+  async createRole(role: InsertRole): Promise<Role> {
+    const result = await db.insert(schema.roles).values(role).returning();
+    return result[0];
+  }
+
+  async updateRole(id: number, role: Partial<InsertRole>): Promise<Role | undefined> {
+    const result = await db.update(schema.roles).set(role).where(eq(schema.roles.id, id)).returning();
+    return result[0];
+  }
+
+  async deleteRole(id: number): Promise<boolean> {
+    const result = await db.delete(schema.roles).where(eq(schema.roles.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async getPermissions(): Promise<Permission[]> {
+    return await db.select().from(schema.permissions);
+  }
+
+  async getPermission(id: number): Promise<Permission | undefined> {
+    const result = await db.select().from(schema.permissions).where(eq(schema.permissions.id, id)).limit(1);
+    return result[0];
+  }
+
+  async createPermission(permission: InsertPermission): Promise<Permission> {
+    const result = await db.insert(schema.permissions).values(permission).returning();
+    return result[0];
+  }
+
+  async updatePermission(id: number, permission: Partial<InsertPermission>): Promise<Permission | undefined> {
+    const result = await db.update(schema.permissions).set(permission).where(eq(schema.permissions.id, id)).returning();
+    return result[0];
+  }
+
+  async deletePermission(id: number): Promise<boolean> {
+    const result = await db.delete(schema.permissions).where(eq(schema.permissions.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async getRolePermissions(roleId: number): Promise<RolePermission[]> {
+    return await db.select().from(schema.rolePermissions).where(eq(schema.rolePermissions.roleId, roleId));
+  }
+
+  async getAllRolePermissions(): Promise<RolePermission[]> {
+    return await db.select().from(schema.rolePermissions);
+  }
+
+  async createRolePermission(rolePermission: InsertRolePermission): Promise<RolePermission> {
+    const result = await db.insert(schema.rolePermissions).values(rolePermission).returning();
+    return result[0];
+  }
+
+  async deleteRolePermission(roleId: number, permissionId: number): Promise<boolean> {
+    const result = await db.delete(schema.rolePermissions)
+      .where(eq(schema.rolePermissions.roleId, roleId))
+      .where(eq(schema.rolePermissions.permissionId, permissionId))
+      .returning();
+    return result.length > 0;
+  }
+
+  async deleteAllRolePermissions(roleId: number): Promise<boolean> {
+    await db.delete(schema.rolePermissions).where(eq(schema.rolePermissions.roleId, roleId));
+    return true;
   }
 }
 
