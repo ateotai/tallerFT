@@ -46,6 +46,12 @@ import type {
   InsertWorkOrderEvidence,
   Notification,
   InsertNotification,
+  Workshop,
+  InsertWorkshop,
+  Area,
+  InsertArea,
+  CompanyConfiguration,
+  InsertCompanyConfiguration,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -188,6 +194,22 @@ export interface IStorage {
   markNotificationAsRead(id: number): Promise<Notification | undefined>;
   markAllNotificationsAsRead(): Promise<boolean>;
   deleteNotification(id: number): Promise<boolean>;
+  
+  getWorkshops(): Promise<Workshop[]>;
+  getWorkshop(id: number): Promise<Workshop | undefined>;
+  createWorkshop(workshop: InsertWorkshop): Promise<Workshop>;
+  updateWorkshop(id: number, workshop: Partial<InsertWorkshop>): Promise<Workshop | undefined>;
+  deleteWorkshop(id: number): Promise<boolean>;
+  
+  getAreas(): Promise<Area[]>;
+  getArea(id: number): Promise<Area | undefined>;
+  createArea(area: InsertArea): Promise<Area>;
+  updateArea(id: number, area: Partial<InsertArea>): Promise<Area | undefined>;
+  deleteArea(id: number): Promise<boolean>;
+  
+  getCompanyConfiguration(): Promise<CompanyConfiguration | undefined>;
+  updateCompanyConfiguration(id: number, config: Partial<InsertCompanyConfiguration>): Promise<CompanyConfiguration | undefined>;
+  createCompanyConfiguration(config: InsertCompanyConfiguration): Promise<CompanyConfiguration>;
 }
 
 export class DbStorage implements IStorage {
@@ -813,6 +835,72 @@ export class DbStorage implements IStorage {
   async deleteNotification(id: number): Promise<boolean> {
     const result = await db.delete(schema.notifications).where(eq(schema.notifications.id, id)).returning();
     return result.length > 0;
+  }
+
+  async getWorkshops(): Promise<Workshop[]> {
+    return await db.select().from(schema.workshops);
+  }
+
+  async getWorkshop(id: number): Promise<Workshop | undefined> {
+    const result = await db.select().from(schema.workshops).where(eq(schema.workshops.id, id)).limit(1);
+    return result[0];
+  }
+
+  async createWorkshop(workshop: InsertWorkshop): Promise<Workshop> {
+    const result = await db.insert(schema.workshops).values(workshop).returning();
+    return result[0];
+  }
+
+  async updateWorkshop(id: number, workshop: Partial<InsertWorkshop>): Promise<Workshop | undefined> {
+    const result = await db.update(schema.workshops).set(workshop).where(eq(schema.workshops.id, id)).returning();
+    return result[0];
+  }
+
+  async deleteWorkshop(id: number): Promise<boolean> {
+    const result = await db.delete(schema.workshops).where(eq(schema.workshops.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async getAreas(): Promise<Area[]> {
+    return await db.select().from(schema.areas);
+  }
+
+  async getArea(id: number): Promise<Area | undefined> {
+    const result = await db.select().from(schema.areas).where(eq(schema.areas.id, id)).limit(1);
+    return result[0];
+  }
+
+  async createArea(area: InsertArea): Promise<Area> {
+    const result = await db.insert(schema.areas).values(area).returning();
+    return result[0];
+  }
+
+  async updateArea(id: number, area: Partial<InsertArea>): Promise<Area | undefined> {
+    const result = await db.update(schema.areas).set(area).where(eq(schema.areas.id, id)).returning();
+    return result[0];
+  }
+
+  async deleteArea(id: number): Promise<boolean> {
+    const result = await db.delete(schema.areas).where(eq(schema.areas.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async getCompanyConfiguration(): Promise<CompanyConfiguration | undefined> {
+    const result = await db.select().from(schema.companyConfiguration).limit(1);
+    return result[0];
+  }
+
+  async createCompanyConfiguration(config: InsertCompanyConfiguration): Promise<CompanyConfiguration> {
+    const result = await db.insert(schema.companyConfiguration).values(config).returning();
+    return result[0];
+  }
+
+  async updateCompanyConfiguration(id: number, config: Partial<InsertCompanyConfiguration>): Promise<CompanyConfiguration | undefined> {
+    const result = await db.update(schema.companyConfiguration)
+      .set({ ...config, updatedAt: new Date() })
+      .where(eq(schema.companyConfiguration.id, id))
+      .returning();
+    return result[0];
   }
 }
 

@@ -24,6 +24,9 @@ import {
   insertWorkOrderMaterialSchema,
   insertWorkOrderEvidenceSchema,
   insertNotificationSchema,
+  insertWorkshopSchema,
+  insertAreaSchema,
+  insertCompanyConfigurationSchema,
 } from "@shared/schema";
 
 function validateId(id: string): number | null {
@@ -1821,6 +1824,212 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting notification:", error);
       res.status(500).json({ error: "Error al eliminar notificación" });
+    }
+  });
+
+  // Workshops routes
+  app.get("/api/workshops", async (req, res) => {
+    try {
+      const workshops = await storage.getWorkshops();
+      res.json(workshops);
+    } catch (error) {
+      console.error("Error fetching workshops:", error);
+      res.status(500).json({ error: "Error al obtener talleres" });
+    }
+  });
+
+  app.get("/api/workshops/:id", async (req, res) => {
+    try {
+      const id = validateId(req.params.id);
+      if (id === null) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      const workshop = await storage.getWorkshop(id);
+      if (!workshop) {
+        return res.status(404).json({ error: "Taller no encontrado" });
+      }
+      res.json(workshop);
+    } catch (error) {
+      console.error("Error fetching workshop:", error);
+      res.status(500).json({ error: "Error al obtener taller" });
+    }
+  });
+
+  app.post("/api/workshops", async (req, res) => {
+    try {
+      const validatedData = insertWorkshopSchema.parse(req.body);
+      const workshop = await storage.createWorkshop(validatedData);
+      res.status(201).json(workshop);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ error: "Datos inválidos", details: error.errors });
+      }
+      console.error("Error creating workshop:", error);
+      res.status(500).json({ error: "Error al crear taller" });
+    }
+  });
+
+  app.put("/api/workshops/:id", async (req, res) => {
+    try {
+      const id = validateId(req.params.id);
+      if (id === null) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      const validatedData = insertWorkshopSchema.partial().parse(req.body);
+      const workshop = await storage.updateWorkshop(id, validatedData);
+      if (!workshop) {
+        return res.status(404).json({ error: "Taller no encontrado" });
+      }
+      res.json(workshop);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ error: "Datos inválidos", details: error.errors });
+      }
+      console.error("Error updating workshop:", error);
+      res.status(500).json({ error: "Error al actualizar taller" });
+    }
+  });
+
+  app.delete("/api/workshops/:id", async (req, res) => {
+    try {
+      const id = validateId(req.params.id);
+      if (id === null) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      const deleted = await storage.deleteWorkshop(id);
+      if (!deleted) {
+        return res.status(404).json({ error: "Taller no encontrado" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting workshop:", error);
+      res.status(500).json({ error: "Error al eliminar taller" });
+    }
+  });
+
+  // Areas routes
+  app.get("/api/areas", async (req, res) => {
+    try {
+      const areas = await storage.getAreas();
+      res.json(areas);
+    } catch (error) {
+      console.error("Error fetching areas:", error);
+      res.status(500).json({ error: "Error al obtener áreas" });
+    }
+  });
+
+  app.get("/api/areas/:id", async (req, res) => {
+    try {
+      const id = validateId(req.params.id);
+      if (id === null) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      const area = await storage.getArea(id);
+      if (!area) {
+        return res.status(404).json({ error: "Área no encontrada" });
+      }
+      res.json(area);
+    } catch (error) {
+      console.error("Error fetching area:", error);
+      res.status(500).json({ error: "Error al obtener área" });
+    }
+  });
+
+  app.post("/api/areas", async (req, res) => {
+    try {
+      const validatedData = insertAreaSchema.parse(req.body);
+      const area = await storage.createArea(validatedData);
+      res.status(201).json(area);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ error: "Datos inválidos", details: error.errors });
+      }
+      console.error("Error creating area:", error);
+      res.status(500).json({ error: "Error al crear área" });
+    }
+  });
+
+  app.put("/api/areas/:id", async (req, res) => {
+    try {
+      const id = validateId(req.params.id);
+      if (id === null) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      const validatedData = insertAreaSchema.partial().parse(req.body);
+      const area = await storage.updateArea(id, validatedData);
+      if (!area) {
+        return res.status(404).json({ error: "Área no encontrada" });
+      }
+      res.json(area);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ error: "Datos inválidos", details: error.errors });
+      }
+      console.error("Error updating area:", error);
+      res.status(500).json({ error: "Error al actualizar área" });
+    }
+  });
+
+  app.delete("/api/areas/:id", async (req, res) => {
+    try {
+      const id = validateId(req.params.id);
+      if (id === null) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      const deleted = await storage.deleteArea(id);
+      if (!deleted) {
+        return res.status(404).json({ error: "Área no encontrada" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting area:", error);
+      res.status(500).json({ error: "Error al eliminar área" });
+    }
+  });
+
+  // Company Configuration routes
+  app.get("/api/configuration", async (req, res) => {
+    try {
+      const configuration = await storage.getCompanyConfiguration();
+      res.json(configuration);
+    } catch (error) {
+      console.error("Error fetching configuration:", error);
+      res.status(500).json({ error: "Error al obtener configuración" });
+    }
+  });
+
+  app.post("/api/configuration", async (req, res) => {
+    try {
+      const validatedData = insertCompanyConfigurationSchema.parse(req.body);
+      const configuration = await storage.createCompanyConfiguration(validatedData);
+      res.status(201).json(configuration);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ error: "Datos inválidos", details: error.errors });
+      }
+      console.error("Error creating configuration:", error);
+      res.status(500).json({ error: "Error al crear configuración" });
+    }
+  });
+
+  app.put("/api/configuration/:id", async (req, res) => {
+    try {
+      const id = validateId(req.params.id);
+      if (id === null) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      const validatedData = insertCompanyConfigurationSchema.partial().parse(req.body);
+      const configuration = await storage.updateCompanyConfiguration(id, validatedData);
+      if (!configuration) {
+        return res.status(404).json({ error: "Configuración no encontrada" });
+      }
+      res.json(configuration);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ error: "Datos inválidos", details: error.errors });
+      }
+      console.error("Error updating configuration:", error);
+      res.status(500).json({ error: "Error al actualizar configuración" });
     }
   });
 

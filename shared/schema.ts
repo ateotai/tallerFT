@@ -432,3 +432,60 @@ export const insertNotificationSchema = createInsertSchema(notifications).omit({
 });
 export type InsertNotification = z.infer<typeof insertNotificationSchema>;
 export type Notification = typeof notifications.$inferSelect;
+
+export const workshops = pgTable("workshops", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  address: text("address"),
+  phone: text("phone"),
+  email: text("email"),
+  type: text("type").notNull().default("internal"),
+  capacity: integer("capacity"),
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertWorkshopSchema = createInsertSchema(workshops).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertWorkshop = z.infer<typeof insertWorkshopSchema>;
+export type Workshop = typeof workshops.$inferSelect;
+
+export const areas = pgTable("areas", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull().unique(),
+  description: text("description"),
+  responsibleEmployeeId: integer("responsible_employee_id").references(() => employees.id),
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertAreaSchema = createInsertSchema(areas).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertArea = z.infer<typeof insertAreaSchema>;
+export type Area = typeof areas.$inferSelect;
+
+export const companyConfiguration = pgTable("company_configuration", {
+  id: serial("id").primaryKey(),
+  companyName: text("company_name").notNull(),
+  companyAddress: text("company_address"),
+  companyPhone: text("company_phone"),
+  companyEmail: text("company_email"),
+  taxId: text("tax_id"),
+  logo: text("logo"),
+  timezone: text("timezone").notNull().default("America/Mexico_City"),
+  currency: text("currency").notNull().default("MXN"),
+  maintenanceAlertDays: integer("maintenance_alert_days").notNull().default(7),
+  inventoryLowStockAlert: boolean("inventory_low_stock_alert").notNull().default(true),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertCompanyConfigurationSchema = createInsertSchema(companyConfiguration).omit({
+  id: true,
+  updatedAt: true,
+});
+export type InsertCompanyConfiguration = z.infer<typeof insertCompanyConfigurationSchema>;
+export type CompanyConfiguration = typeof companyConfiguration.$inferSelect;

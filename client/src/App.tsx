@@ -23,6 +23,9 @@ import UsersPage from "@/pages/users";
 import EmployeesPage from "@/pages/employees";
 import DiagnosticsPage from "@/pages/diagnostics";
 import WorkOrdersPage from "@/pages/work-orders";
+import WorkshopsPage from "@/pages/workshops";
+import AreasPage from "@/pages/areas";
+import ConfigurationPage from "@/pages/configuration";
 
 function Router() {
   return (
@@ -33,6 +36,8 @@ function Router() {
       <Route path="/programados" component={ScheduledPage} />
       <Route path="/categorias" component={CategoriesPage} />
       <Route path="/proveedores" component={ProvidersPage} />
+      <Route path="/talleres" component={WorkshopsPage} />
+      <Route path="/areas" component={AreasPage} />
       <Route path="/clientes" component={ClientsPage} />
       <Route path="/inventario" component={InventoryPage} />
       <Route path="/reportes" component={ReportsPage} />
@@ -41,6 +46,7 @@ function Router() {
       <Route path="/ordenes-trabajo" component={WorkOrdersPage} />
       <Route path="/empleados" component={EmployeesPage} />
       <Route path="/usuarios" component={UsersPage} />
+      <Route path="/configuracion" component={ConfigurationPage} />
       <Route component={NotFound} />
     </Switch>
   );
