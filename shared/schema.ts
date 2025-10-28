@@ -534,3 +534,40 @@ export const insertRolePermissionSchema = createInsertSchema(rolePermissions).om
 });
 export type InsertRolePermission = z.infer<typeof insertRolePermissionSchema>;
 export type RolePermission = typeof rolePermissions.$inferSelect;
+
+export const purchaseQuotes = pgTable("purchase_quotes", {
+  id: serial("id").primaryKey(),
+  quoteNumber: text("quote_number").notNull().unique(),
+  providerId: integer("provider_id").notNull().references(() => providers.id),
+  quoteDate: timestamp("quote_date").notNull(),
+  expirationDate: timestamp("expiration_date").notNull(),
+  status: text("status").notNull().default("draft"),
+  subtotal: real("subtotal").notNull().default(0),
+  tax: real("tax").notNull().default(0),
+  total: real("total").notNull().default(0),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertPurchaseQuoteSchema = createInsertSchema(purchaseQuotes).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertPurchaseQuote = z.infer<typeof insertPurchaseQuoteSchema>;
+export type PurchaseQuote = typeof purchaseQuotes.$inferSelect;
+
+export const purchaseQuoteItems = pgTable("purchase_quote_items", {
+  id: serial("id").primaryKey(),
+  quoteId: integer("quote_id").notNull().references(() => purchaseQuotes.id),
+  itemDescription: text("item_description").notNull(),
+  quantity: integer("quantity").notNull(),
+  unitPrice: real("unit_price").notNull(),
+  total: real("total").notNull(),
+  notes: text("notes"),
+});
+
+export const insertPurchaseQuoteItemSchema = createInsertSchema(purchaseQuoteItems).omit({
+  id: true,
+});
+export type InsertPurchaseQuoteItem = z.infer<typeof insertPurchaseQuoteItemSchema>;
+export type PurchaseQuoteItem = typeof purchaseQuoteItems.$inferSelect;
