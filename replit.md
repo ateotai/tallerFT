@@ -58,15 +58,18 @@ The system follows a Material Design-inspired aesthetic, optimized for productiv
 - **Purchase Quotes (Cotizaciones de Compra)**: Complete supplier purchase quote management system:
   - **Quote Management** (/cotizaciones): Full CRUD operations for supplier purchase quotes with automatic quote numbering
   - **Multi-Item Quotes**: Dynamic form fields for adding multiple items per quote with automatic subtotal, tax (16%), and total calculations
+  - **Inventory Product Search**: Integrated product selector that searches inventory by name or part number, auto-filling description, unit price, and part number when selected
+  - **Card-Based Item UI**: Replaced table layout with card-based design for better UX with product search and manual entry options
   - **Provider Integration**: Foreign key relationship with providers table for quote assignment
   - **Status Tracking**: Comprehensive status workflow (draft, sent, accepted, rejected, expired) with visual badges
   - **Four Dialog System**: Add, Edit, View, and Print dialogs following same pattern as work orders module
-  - **Database Schema**: Two related tables (purchase_quotes and purchase_quote_items) with FK relationship
+  - **Database Schema**: Two related tables (purchase_quotes and purchase_quote_items with partNumber field) with FK relationship
   - **Date Handling**: Uses z.coerce.date() in backend schema to accept both Date objects and ISO strings from JSON
   - **Response Parsing**: Properly parses JSON from apiRequest Response objects throughout all dialogs
   - **Print Functionality**: Professional print layout with company branding, quote details, items table, and totals breakdown
-  - **Edit Workflow**: Loads existing items when dialog opens, uses delete-and-recreate pattern for simplicity on submit
+  - **Edit Workflow**: Loads existing items including partNumber when dialog opens, uses delete-and-recreate pattern for simplicity on submit
   - **Technical Implementation**: Cascading POST requests for quote and items creation with proper error handling and toast notifications
+  - **Manual Edit Capability**: All fields remain editable after selecting an inventory product, allowing price adjustments and custom descriptions
 
 ### System Design Choices
 - **Frontend**: Component-based architecture with custom hooks and query client for server state.
