@@ -55,6 +55,18 @@ The system follows a Material Design-inspired aesthetic, optimized for productiv
   - **Seed Data**: Pre-populated "Administrador" role with all 63 permissions assigned
   - **UI Design**: Accordion-organized permission matrix with checkboxes at role-permission intersections, collapsible "Roles y Permisos" subsection in sidebar under Administración
   - **Implementation**: React Query mutations for permission assignment/removal with optimistic updates and toast notifications
+- **Purchase Quotes (Cotizaciones de Compra)**: Complete supplier purchase quote management system:
+  - **Quote Management** (/cotizaciones): Full CRUD operations for supplier purchase quotes with automatic quote numbering
+  - **Multi-Item Quotes**: Dynamic form fields for adding multiple items per quote with automatic subtotal, tax (16%), and total calculations
+  - **Provider Integration**: Foreign key relationship with providers table for quote assignment
+  - **Status Tracking**: Comprehensive status workflow (draft, sent, accepted, rejected, expired) with visual badges
+  - **Four Dialog System**: Add, Edit, View, and Print dialogs following same pattern as work orders module
+  - **Database Schema**: Two related tables (purchase_quotes and purchase_quote_items) with FK relationship
+  - **Date Handling**: Uses z.coerce.date() in backend schema to accept both Date objects and ISO strings from JSON
+  - **Response Parsing**: Properly parses JSON from apiRequest Response objects throughout all dialogs
+  - **Print Functionality**: Professional print layout with company branding, quote details, items table, and totals breakdown
+  - **Edit Workflow**: Loads existing items when dialog opens, uses delete-and-recreate pattern for simplicity on submit
+  - **Technical Implementation**: Cascading POST requests for quote and items creation with proper error handling and toast notifications
 
 ### System Design Choices
 - **Frontend**: Component-based architecture with custom hooks and query client for server state.
