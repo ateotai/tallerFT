@@ -30,6 +30,8 @@ import {
   insertRoleSchema,
   insertPermissionSchema,
   insertRolePermissionSchema,
+  insertPurchaseQuoteSchema,
+  insertPurchaseQuoteItemSchema,
 } from "@shared/schema";
 
 function validateId(id: string): number | null {
@@ -2250,6 +2252,153 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting role permission:", error);
       res.status(500).json({ error: "Error al eliminar permiso de rol" });
+    }
+  });
+
+  // Purchase Quotes routes
+  app.get("/api/purchase-quotes", async (req, res) => {
+    try {
+      const quotes = await storage.getPurchaseQuotes();
+      res.json(quotes);
+    } catch (error) {
+      console.error("Error fetching purchase quotes:", error);
+      res.status(500).json({ error: "Error al obtener cotizaciones" });
+    }
+  });
+
+  app.get("/api/purchase-quotes/:id", async (req, res) => {
+    try {
+      const id = validateId(req.params.id);
+      if (id === null) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      const quote = await storage.getPurchaseQuote(id);
+      if (!quote) {
+        return res.status(404).json({ error: "Cotización no encontrada" });
+      }
+      res.json(quote);
+    } catch (error) {
+      console.error("Error fetching purchase quote:", error);
+      res.status(500).json({ error: "Error al obtener cotización" });
+    }
+  });
+
+  app.post("/api/purchase-quotes", async (req, res) => {
+    try {
+      const validatedData = insertPurchaseQuoteSchema.parse(req.body);
+      const quote = await storage.createPurchaseQuote(validatedData);
+      res.status(201).json(quote);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ error: "Datos inválidos", details: error.errors });
+      }
+      console.error("Error creating purchase quote:", error);
+      res.status(500).json({ error: "Error al crear cotización" });
+    }
+  });
+
+  app.put("/api/purchase-quotes/:id", async (req, res) => {
+    try {
+      const id = validateId(req.params.id);
+      if (id === null) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      const validatedData = insertPurchaseQuoteSchema.partial().parse(req.body);
+      const quote = await storage.updatePurchaseQuote(id, validatedData);
+      if (!quote) {
+        return res.status(404).json({ error: "Cotización no encontrada" });
+      }
+      res.json(quote);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ error: "Datos inválidos", details: error.errors });
+      }
+      console.error("Error updating purchase quote:", error);
+      res.status(500).json({ error: "Error al actualizar cotización" });
+    }
+  });
+
+  app.delete("/api/purchase-quotes/:id", async (req, res) => {
+    try {
+      const id = validateId(req.params.id);
+      if (id === null) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      const deleted = await storage.deletePurchaseQuote(id);
+      if (!deleted) {
+        return res.status(404).json({ error: "Cotización no encontrada" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting purchase quote:", error);
+      res.status(500).json({ error: "Error al eliminar cotización" });
+    }
+  });
+
+  // Purchase Quote Items routes
+  app.get("/api/purchase-quote-items/:quoteId", async (req, res) => {
+    try {
+      const quoteId = validateId(req.params.quoteId);
+      if (quoteId === null) {
+        return res.status(400).json({ error: "ID de cotización inválido" });
+      }
+      const items = await storage.getPurchaseQuoteItems(quoteId);
+      res.json(items);
+    } catch (error) {
+      console.error("Error fetching purchase quote items:", error);
+      res.status(500).json({ error: "Error al obtener items de cotización" });
+    }
+  });
+
+  app.post("/api/purchase-quote-items", async (req, res) => {
+    try {
+      const validatedData = insertPurchaseQuoteItemSchema.parse(req.body);
+      const item = await storage.createPurchaseQuoteItem(validatedData);
+      res.status(201).json(item);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ error: "Datos inválidos", details: error.errors });
+      }
+      console.error("Error creating purchase quote item:", error);
+      res.status(500).json({ error: "Error al crear item de cotización" });
+    }
+  });
+
+  app.put("/api/purchase-quote-items/:id", async (req, res) => {
+    try {
+      const id = validateId(req.params.id);
+      if (id === null) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      const validatedData = insertPurchaseQuoteItemSchema.partial().parse(req.body);
+      const item = await storage.updatePurchaseQuoteItem(id, validatedData);
+      if (!item) {
+        return res.status(404).json({ error: "Item no encontrado" });
+      }
+      res.json(item);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ error: "Datos inválidos", details: error.errors });
+      }
+      console.error("Error updating purchase quote item:", error);
+      res.status(500).json({ error: "Error al actualizar item" });
+    }
+  });
+
+  app.delete("/api/purchase-quote-items/:id", async (req, res) => {
+    try {
+      const id = validateId(req.params.id);
+      if (id === null) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      const deleted = await storage.deletePurchaseQuoteItem(id);
+      if (!deleted) {
+        return res.status(404).json({ error: "Item no encontrado" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting purchase quote item:", error);
+      res.status(500).json({ error: "Error al eliminar item" });
     }
   });
 

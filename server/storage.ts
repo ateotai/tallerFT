@@ -58,6 +58,10 @@ import type {
   InsertPermission,
   RolePermission,
   InsertRolePermission,
+  PurchaseQuote,
+  InsertPurchaseQuote,
+  PurchaseQuoteItem,
+  InsertPurchaseQuoteItem,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -234,6 +238,19 @@ export interface IStorage {
   createRolePermission(rolePermission: InsertRolePermission): Promise<RolePermission>;
   deleteRolePermission(roleId: number, permissionId: number): Promise<boolean>;
   deleteAllRolePermissions(roleId: number): Promise<boolean>;
+
+  getPurchaseQuotes(): Promise<PurchaseQuote[]>;
+  getPurchaseQuote(id: number): Promise<PurchaseQuote | undefined>;
+  createPurchaseQuote(quote: InsertPurchaseQuote): Promise<PurchaseQuote>;
+  updatePurchaseQuote(id: number, quote: Partial<InsertPurchaseQuote>): Promise<PurchaseQuote | undefined>;
+  deletePurchaseQuote(id: number): Promise<boolean>;
+  
+  getPurchaseQuoteItems(quoteId: number): Promise<PurchaseQuoteItem[]>;
+  getPurchaseQuoteItem(id: number): Promise<PurchaseQuoteItem | undefined>;
+  createPurchaseQuoteItem(item: InsertPurchaseQuoteItem): Promise<PurchaseQuoteItem>;
+  updatePurchaseQuoteItem(id: number, item: Partial<InsertPurchaseQuoteItem>): Promise<PurchaseQuoteItem | undefined>;
+  deletePurchaseQuoteItem(id: number): Promise<boolean>;
+  deletePurchaseQuoteItems(quoteId: number): Promise<boolean>;
 }
 
 export class DbStorage implements IStorage {
@@ -1000,6 +1017,59 @@ export class DbStorage implements IStorage {
 
   async deleteAllRolePermissions(roleId: number): Promise<boolean> {
     await db.delete(schema.rolePermissions).where(eq(schema.rolePermissions.roleId, roleId));
+    return true;
+  }
+
+  async getPurchaseQuotes(): Promise<PurchaseQuote[]> {
+    return await db.select().from(schema.purchaseQuotes);
+  }
+
+  async getPurchaseQuote(id: number): Promise<PurchaseQuote | undefined> {
+    const result = await db.select().from(schema.purchaseQuotes).where(eq(schema.purchaseQuotes.id, id)).limit(1);
+    return result[0];
+  }
+
+  async createPurchaseQuote(quote: InsertPurchaseQuote): Promise<PurchaseQuote> {
+    const result = await db.insert(schema.purchaseQuotes).values(quote).returning();
+    return result[0];
+  }
+
+  async updatePurchaseQuote(id: number, quote: Partial<InsertPurchaseQuote>): Promise<PurchaseQuote | undefined> {
+    const result = await db.update(schema.purchaseQuotes).set(quote).where(eq(schema.purchaseQuotes.id, id)).returning();
+    return result[0];
+  }
+
+  async deletePurchaseQuote(id: number): Promise<boolean> {
+    const result = await db.delete(schema.purchaseQuotes).where(eq(schema.purchaseQuotes.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async getPurchaseQuoteItems(quoteId: number): Promise<PurchaseQuoteItem[]> {
+    return await db.select().from(schema.purchaseQuoteItems).where(eq(schema.purchaseQuoteItems.quoteId, quoteId));
+  }
+
+  async getPurchaseQuoteItem(id: number): Promise<PurchaseQuoteItem | undefined> {
+    const result = await db.select().from(schema.purchaseQuoteItems).where(eq(schema.purchaseQuoteItems.id, id)).limit(1);
+    return result[0];
+  }
+
+  async createPurchaseQuoteItem(item: InsertPurchaseQuoteItem): Promise<PurchaseQuoteItem> {
+    const result = await db.insert(schema.purchaseQuoteItems).values(item).returning();
+    return result[0];
+  }
+
+  async updatePurchaseQuoteItem(id: number, item: Partial<InsertPurchaseQuoteItem>): Promise<PurchaseQuoteItem | undefined> {
+    const result = await db.update(schema.purchaseQuoteItems).set(item).where(eq(schema.purchaseQuoteItems.id, id)).returning();
+    return result[0];
+  }
+
+  async deletePurchaseQuoteItem(id: number): Promise<boolean> {
+    const result = await db.delete(schema.purchaseQuoteItems).where(eq(schema.purchaseQuoteItems.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async deletePurchaseQuoteItems(quoteId: number): Promise<boolean> {
+    await db.delete(schema.purchaseQuoteItems).where(eq(schema.purchaseQuoteItems.quoteId, quoteId));
     return true;
   }
 }
