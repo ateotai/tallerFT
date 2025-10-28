@@ -24,7 +24,7 @@ import { EditInventoryDialog } from "./edit-inventory-dialog";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import type { Inventory, InventoryCategory } from "@shared/schema";
+import type { Inventory, InventoryCategory, Workshop } from "@shared/schema";
 
 interface InventoryTableProps {
   items: Inventory[];
@@ -33,6 +33,9 @@ interface InventoryTableProps {
 export function InventoryTable({ items }: InventoryTableProps) {
   const { data: categories = [] } = useQuery<InventoryCategory[]>({
     queryKey: ["/api/inventory-categories"],
+  });
+  const { data: workshops = [] } = useQuery<Workshop[]>({
+    queryKey: ["/api/workshops"],
   });
   const [editingItem, setEditingItem] = useState<Inventory | null>(null);
   const [deletingItem, setDeletingItem] = useState<Inventory | null>(null);
@@ -78,13 +81,14 @@ export function InventoryTable({ items }: InventoryTableProps) {
               <TableHead>Límites</TableHead>
               <TableHead>Precio</TableHead>
               <TableHead>Ubicación</TableHead>
+              <TableHead>Taller</TableHead>
               <TableHead className="text-right">Acciones</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {items.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                   No hay artículos en el inventario
                 </TableCell>
               </TableRow>
@@ -139,6 +143,13 @@ export function InventoryTable({ items }: InventoryTableProps) {
                     <TableCell>
                       <span className="text-sm text-muted-foreground">
                         {item.location || "N/A"}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-sm text-muted-foreground" data-testid={`text-workshop-${item.id}`}>
+                        {item.workshopId 
+                          ? workshops.find(w => w.id === item.workshopId)?.name || "Sin asignar"
+                          : "Sin asignar"}
                       </span>
                     </TableCell>
                     <TableCell className="text-right">

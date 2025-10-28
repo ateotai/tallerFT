@@ -29,7 +29,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { insertInventorySchema, type InsertInventory, type Inventory, type Provider, type InventoryCategory } from "@shared/schema";
+import { insertInventorySchema, type InsertInventory, type Inventory, type Provider, type InventoryCategory, type Workshop } from "@shared/schema";
 
 interface EditInventoryDialogProps {
   item: Inventory;
@@ -48,6 +48,10 @@ export function EditInventoryDialog({ item, open, onOpenChange }: EditInventoryD
     queryKey: ["/api/inventory-categories"],
   });
 
+  const { data: workshops = [] } = useQuery<Workshop[]>({
+    queryKey: ["/api/workshops"],
+  });
+
   const form = useForm<InsertInventory>({
     resolver: zodResolver(insertInventorySchema),
     defaultValues: {
@@ -60,6 +64,7 @@ export function EditInventoryDialog({ item, open, onOpenChange }: EditInventoryD
       unitPrice: item.unitPrice,
       location: item.location || "",
       providerId: item.providerId,
+      workshopId: item.workshopId,
     },
   });
 
@@ -74,6 +79,7 @@ export function EditInventoryDialog({ item, open, onOpenChange }: EditInventoryD
       unitPrice: item.unitPrice,
       location: item.location || "",
       providerId: item.providerId,
+      workshopId: item.workshopId,
     });
   }, [item, form]);
 
@@ -286,6 +292,35 @@ export function EditInventoryDialog({ item, open, onOpenChange }: EditInventoryD
                         {providers.map((provider) => (
                           <SelectItem key={provider.id} value={provider.id.toString()}>
                             {provider.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="workshopId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Taller</FormLabel>
+                    <Select
+                      onValueChange={(value) => field.onChange(value === "none" ? null : parseInt(value))}
+                      value={field.value?.toString() || "none"}
+                    >
+                      <FormControl>
+                        <SelectTrigger data-testid="select-workshop">
+                          <SelectValue placeholder="Seleccionar taller" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="none">Sin asignar</SelectItem>
+                        {workshops.map((workshop) => (
+                          <SelectItem key={workshop.id} value={workshop.id.toString()}>
+                            {workshop.name}
                           </SelectItem>
                         ))}
                       </SelectContent>

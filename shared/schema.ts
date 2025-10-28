@@ -210,6 +210,7 @@ export const inventory = pgTable("inventory", {
   unitPrice: real("unit_price").notNull(),
   location: text("location"),
   providerId: integer("provider_id").references(() => providers.id),
+  workshopId: integer("workshop_id").references(() => workshops.id),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
