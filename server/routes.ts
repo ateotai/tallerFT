@@ -2402,6 +2402,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.delete("/api/purchase-quote-items/by-quote/:quoteId", async (req, res) => {
+    try {
+      const quoteId = validateId(req.params.quoteId);
+      if (quoteId === null) {
+        return res.status(400).json({ error: "ID de cotización inválido" });
+      }
+      await storage.deletePurchaseQuoteItems(quoteId);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting purchase quote items:", error);
+      res.status(500).json({ error: "Error al eliminar items" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

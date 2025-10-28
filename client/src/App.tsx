@@ -15,6 +15,7 @@ import ServicesPage from "@/pages/services";
 import ScheduledPage from "@/pages/scheduled";
 import CategoriesPage from "@/pages/categories";
 import ProvidersPage from "@/pages/providers";
+import PurchaseQuotesPage from "@/pages/purchase-quotes";
 import ClientsPage from "@/pages/clients";
 import InventoryPage from "@/pages/inventory";
 import ReportsPage from "@/pages/reports";
@@ -38,6 +39,7 @@ function Router() {
       <Route path="/programados" component={ScheduledPage} />
       <Route path="/categorias" component={CategoriesPage} />
       <Route path="/proveedores" component={ProvidersPage} />
+      <Route path="/cotizaciones" component={PurchaseQuotesPage} />
       <Route path="/talleres" component={WorkshopsPage} />
       <Route path="/areas" component={AreasPage} />
       <Route path="/clientes" component={ClientsPage} />

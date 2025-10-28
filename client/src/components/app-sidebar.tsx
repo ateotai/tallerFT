@@ -19,6 +19,7 @@ import {
   Settings,
   UserCog,
   Lock,
+  ShoppingCart,
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useState } from "react";
@@ -63,6 +64,11 @@ const mainMenuItems = [
     title: "Proveedores",
     url: "/proveedores",
     icon: Users,
+  },
+  {
+    title: "Cotizaciones de Compra",
+    url: "/cotizaciones",
+    icon: ShoppingCart,
   },
   {
     title: "Clientes",
