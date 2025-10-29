@@ -9,10 +9,9 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Pencil, Trash2, Check, Eye, Printer } from "lucide-react";
+import { Pencil, Trash2, Check, Eye } from "lucide-react";
 import { EditWorkOrderDialog } from "./edit-work-order-dialog";
 import { ViewWorkOrderDialog } from "./view-work-order-dialog";
-import { PrintWorkOrderDialog } from "./print-work-order-dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -37,7 +36,6 @@ export function WorkOrdersTable({ workOrders }: WorkOrdersTableProps) {
   const [editingWorkOrder, setEditingWorkOrder] = useState<WorkOrder | null>(null);
   const [deletingWorkOrder, setDeletingWorkOrder] = useState<WorkOrder | null>(null);
   const [viewingWorkOrder, setViewingWorkOrder] = useState<WorkOrder | null>(null);
-  const [printingWorkOrder, setPrintingWorkOrder] = useState<WorkOrder | null>(null);
   const { toast } = useToast();
 
   const { data: vehicles = [] } = useQuery<Vehicle[]>({
@@ -215,15 +213,6 @@ export function WorkOrdersTable({ workOrders }: WorkOrdersTableProps) {
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => setPrintingWorkOrder(workOrder)}
-                        data-testid={`button-print-${workOrder.id}`}
-                        title="Imprimir orden de trabajo"
-                      >
-                        <Printer className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
                         onClick={() => setEditingWorkOrder(workOrder)}
                         data-testid={`button-edit-${workOrder.id}`}
                         title="Editar"
@@ -261,14 +250,6 @@ export function WorkOrdersTable({ workOrders }: WorkOrdersTableProps) {
           workOrder={viewingWorkOrder}
           open={!!viewingWorkOrder}
           onOpenChange={(open: boolean) => !open && setViewingWorkOrder(null)}
-        />
-      )}
-
-      {printingWorkOrder && (
-        <PrintWorkOrderDialog
-          workOrder={printingWorkOrder}
-          open={!!printingWorkOrder}
-          onOpenChange={(open: boolean) => !open && setPrintingWorkOrder(null)}
         />
       )}
 

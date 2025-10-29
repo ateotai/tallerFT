@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Dialog,
@@ -5,6 +6,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -16,7 +18,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Printer, Mail } from "lucide-react";
+import { PrintWorkOrderDialog } from "./print-work-order-dialog";
 import { format } from "date-fns";
+import { useToast } from "@/hooks/use-toast";
 import type {
   WorkOrder,
   Vehicle,
@@ -39,6 +44,9 @@ export function ViewWorkOrderDialog({
   open,
   onOpenChange,
 }: ViewWorkOrderDialogProps) {
+  const [showPrint, setShowPrint] = useState(false);
+  const { toast } = useToast();
+
   const { data: vehicles = [] } = useQuery<Vehicle[]>({
     queryKey: ["/api/vehicles"],
   });
@@ -129,14 +137,45 @@ export function ViewWorkOrderDialog({
     return <Badge variant={config.variant}>{config.label}</Badge>;
   };
 
+  const handleSendEmail = () => {
+    toast({
+      title: "Funcionalidad en desarrollo",
+      description: "La función de envío de correo estará disponible próximamente",
+    });
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-3">
-            <span>Orden de Trabajo #{workOrder.id}</span>
-            {getStatusBadge(workOrder.status)}
-          </DialogTitle>
+          <div className="flex items-center justify-between gap-4">
+            <DialogTitle className="flex items-center gap-3">
+              <span>Orden de Trabajo #{workOrder.id}</span>
+              {getStatusBadge(workOrder.status)}
+            </DialogTitle>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowPrint(true)}
+                data-testid="button-print-work-order"
+                className="gap-2"
+              >
+                <Printer className="h-4 w-4" />
+                Imprimir
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSendEmail}
+                data-testid="button-email-work-order"
+                className="gap-2"
+              >
+                <Mail className="h-4 w-4" />
+                Enviar a Correo
+              </Button>
+            </div>
+          </div>
         </DialogHeader>
 
         <Tabs defaultValue="general" className="w-full">
@@ -411,6 +450,14 @@ export function ViewWorkOrderDialog({
           </TabsContent>
         </Tabs>
       </DialogContent>
+
+      {showPrint && (
+        <PrintWorkOrderDialog
+          workOrder={workOrder}
+          open={showPrint}
+          onOpenChange={setShowPrint}
+        />
+      )}
     </Dialog>
   );
 }
