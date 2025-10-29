@@ -30,7 +30,7 @@ The system follows a Material Design-inspired aesthetic, optimized for productiv
   - **Comprehensive Add & Edit Forms** with 4 tabs (General, Tareas, Materiales, Evidencias) for creating and editing complete work orders
   - **Task Assignments**: Only "Mecánico Asignado" field (removed "Técnico Responsable"), plus service category/subcategory (loaded from database with active filtering), provider (optional, FK to providers table), workshop area, estimated time, completion date
   - Materials tracking with inventory integration, automatic cost calculation, and admin approval requirements
-  - Evidence documentation supporting up to 10 file attachments with descriptions
+  - **Evidence Documentation**: File upload system supporting up to 10 attachments (images, PDFs, documents) with descriptions. Uses FileReader to convert files to data URLs for storage. No file type field required.
   - Approval workflow (awaiting_approval → in_progress) requiring admin authorization
   - Auto-fill functionality from diagnostics (populates vehicle, employee, description, and priority based on severity)
   - Manual creation or automatic generation from approved diagnostics
