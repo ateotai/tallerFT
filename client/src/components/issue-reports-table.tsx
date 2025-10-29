@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Edit, Trash2, Image as ImageIcon, Mic, UserPlus } from "lucide-react";
+import { Edit, Trash2, Image as ImageIcon, Mic, UserPlus, RotateCcw } from "lucide-react";
 import { EditIssueReportDialog } from "./edit-issue-report-dialog";
 import { AssignReportDialog } from "./assign-report-dialog";
 import {
@@ -78,6 +78,27 @@ export function IssueReportsTable({ reports }: IssueReportsTableProps) {
     },
   });
 
+  const reopenMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const response = await apiRequest("POST", `/api/reports/${id}/reopen`);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/reports"] });
+      toast({
+        title: "Reporte reabierto",
+        description: "El reporte ha sido reabierto exitosamente",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Error al reabrir el reporte",
+        variant: "destructive",
+      });
+    },
+  });
+
   const getVehicleInfo = (vehicleId: number) => {
     const vehicle = vehicles.find((v) => v.id === vehicleId);
     if (!vehicle) return "Desconocido";
@@ -93,6 +114,7 @@ export function IssueReportsTable({ reports }: IssueReportsTableProps) {
               <TableHead>Vehículo</TableHead>
               <TableHead>Descripción</TableHead>
               <TableHead>Estado</TableHead>
+              <TableHead>Resolución</TableHead>
               <TableHead>Archivos</TableHead>
               <TableHead>Fecha</TableHead>
               <TableHead className="text-right">Acciones</TableHead>
@@ -101,7 +123,7 @@ export function IssueReportsTable({ reports }: IssueReportsTableProps) {
           <TableBody>
             {reports.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center text-muted-foreground">
+                <TableCell colSpan={7} className="text-center text-muted-foreground">
                   No hay reportes registrados
                 </TableCell>
               </TableRow>
@@ -129,6 +151,22 @@ export function IssueReportsTable({ reports }: IssueReportsTableProps) {
                     >
                       {statusLabels[report.status as keyof typeof statusLabels]}
                     </Badge>
+                  </TableCell>
+                  <TableCell data-testid={`resolved-status-${report.id}`}>
+                    {report.resolved ? (
+                      <div className="space-y-1">
+                        <Badge variant="secondary" className="bg-green-500/10 text-green-700 dark:text-green-400">
+                          Resuelto
+                        </Badge>
+                        {report.resolvedDate && (
+                          <p className="text-xs text-muted-foreground">
+                            {format(new Date(report.resolvedDate), "dd/MM/yyyy")}
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">Pendiente</span>
+                    )}
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
@@ -161,6 +199,18 @@ export function IssueReportsTable({ reports }: IssueReportsTableProps) {
                           data-testid={`button-assign-${report.id}`}
                         >
                           <UserPlus className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {(currentUserRole === "admin" || currentUserRole === "supervisor") && report.resolved && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => reopenMutation.mutate(report.id)}
+                          disabled={reopenMutation.isPending}
+                          data-testid={`button-reopen-${report.id}`}
+                          title="Reabrir reporte"
+                        >
+                          <RotateCcw className="h-4 w-4" />
                         </Button>
                       )}
                       {(currentUserRole === "admin" || currentUserRole === "supervisor") && (
