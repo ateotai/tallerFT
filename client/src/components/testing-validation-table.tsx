@@ -47,14 +47,13 @@ export function TestingValidationTable({ workOrders }: TestingValidationTablePro
 
   const activateVehicleMutation = useMutation({
     mutationFn: async (workOrderId: number) => {
-      const response = await apiRequest(`/api/work-orders/${workOrderId}/activate-vehicle`, {
-        method: "POST",
-      });
+      const response = await apiRequest("POST", `/api/work-orders/${workOrderId}/activate-vehicle`);
       return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/work-orders"] });
       queryClient.invalidateQueries({ queryKey: ["/api/vehicles"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/reports"] });
       toast({
         title: "Vehículo dado de alta",
         description: "El vehículo ha sido activado y está listo para su uso operativo",

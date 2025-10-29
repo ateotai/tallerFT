@@ -25,6 +25,10 @@ The system follows a Material Design-inspired aesthetic, optimized for productiv
 - **Client, Provider, and Employee Management**: Full CRUD operations with search and type management functionalities.
 - **Service & Inventory Categories**: Hierarchical management with full CRUD operations for efficient organization.
 - **Issue Reports (Reportes de Fallas)**: System for tracking vehicle defects with image and audio attachments, status management, and integration with vehicles and users.
+  - **Automatic Resolution**: When a vehicle is activated in Testing & Validation, associated issue reports are automatically marked as resolved with timestamp
+  - **Report Reopening**: "Reabrir" button (RotateCcw icon) allows admins/supervisors to reopen resolved reports, clearing resolution status and creating notification
+  - **Resolution Column**: Displays resolution status badge and date in issue reports table for tracking
+  - **Database Schema**: reports table includes `resolved` (boolean) and `resolvedDate` (timestamp) fields
 - **Diagnostics (Evaluación y Diagnóstico)**: Professional diagnostic evaluation system with a workflow for approval and work order creation, including detailed assessment fields.
 - **Work Orders (Órdenes de Trabajo)**: Complete management system for repair and maintenance tasks with:
   - **Comprehensive Add & Edit Forms** with 4 tabs (General, Tareas, Materiales, Evidencias) for creating and editing complete work orders

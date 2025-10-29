@@ -85,6 +85,7 @@ export function IssueReportsTable({ reports }: IssueReportsTableProps) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/reports"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
       toast({
         title: "Reporte reabierto",
         description: "El reporte ha sido reabierto exitosamente",
