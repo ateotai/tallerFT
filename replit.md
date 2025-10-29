@@ -28,7 +28,7 @@ The system follows a Material Design-inspired aesthetic, optimized for productiv
 - **Diagnostics (Evaluación y Diagnóstico)**: Professional diagnostic evaluation system with a workflow for approval and work order creation, including detailed assessment fields.
 - **Work Orders (Órdenes de Trabajo)**: Complete management system for repair and maintenance tasks with:
   - **Comprehensive Add & Edit Forms** with 4 tabs (General, Tareas, Materiales, Evidencias) for creating and editing complete work orders
-  - Detailed task assignments (technician, mechanic, service category, workshop area, estimated time, completion date)
+  - **Task Assignments**: Only "Mecánico Asignado" field (removed "Técnico Responsable"), plus service category/subcategory (loaded from database with active filtering), provider (optional, FK to providers table), workshop area, estimated time, completion date
   - Materials tracking with inventory integration, automatic cost calculation, and admin approval requirements
   - Evidence documentation supporting up to 10 file attachments with descriptions
   - Approval workflow (awaiting_approval → in_progress) requiring admin authorization
@@ -37,6 +37,7 @@ The system follows a Material Design-inspired aesthetic, optimized for productiv
   - **Edit Form Features**: Loads existing tasks/materials/evidences when dialog opens, allows adding/removing items, uses delete-and-recreate approach on submit for simplicity and reliability
   - **View Details Dialog**: Tabbed interface showing complete work order information (General, Tareas, Materiales, Evidencias) with formatted display of all associated data
   - **Print Functionality**: Professional print-ready layout with work order details, tasks table, materials breakdown with totals, and signature lines for approval workflow
+  - **Database Schema**: workOrderTasks table includes providerId (nullable FK to providers), assignedMechanicId (FK to employees), serviceCategoryId/serviceSubcategoryId (FK to service categories)
   - **Known Limitation**: Work order creation/editing uses cascading POST requests without backend transaction support. If secondary elements (tasks/materials/evidence) fail, the main work order persists and users must complete it manually. Enhanced error handling alerts users with the work order ID for manual completion.
 - **Company (Empresa)**: Collapsible sidebar section for company-wide settings:
   - **Workshops (Talleres)**: Management of internal and external maintenance workshops with full CRUD operations (name, address, phone, email, type, capacity, active status). Each workshop can manage its own inventory.
