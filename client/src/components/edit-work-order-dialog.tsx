@@ -44,6 +44,7 @@ import {
   type ServiceCategory,
   type ServiceSubcategory,
   type Inventory,
+  type Provider,
   type WorkOrderTask,
   type WorkOrderMaterial,
   type WorkOrderEvidence,
@@ -60,6 +61,7 @@ interface TaskFormData {
   assignedMechanicId?: number | null;
   serviceCategoryId?: number | null;
   serviceSubcategoryId?: number | null;
+  providerId?: number | null;
   workshopArea?: string;
   estimatedTime?: string;
   completionDate?: string;
@@ -102,6 +104,10 @@ export function EditWorkOrderDialog({ workOrder, open, onOpenChange }: EditWorkO
 
   const { data: serviceSubcategories = [] } = useQuery<ServiceSubcategory[]>({
     queryKey: ["/api/service-subcategories"],
+  });
+
+  const { data: providers = [] } = useQuery<Provider[]>({
+    queryKey: ["/api/providers"],
   });
 
   const { data: inventory = [] } = useQuery<Inventory[]>({
@@ -579,26 +585,6 @@ export function EditWorkOrderDialog({ workOrder, open, onOpenChange }: EditWorkO
                   <h3 className="font-semibold">Agregar Tarea</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="text-sm font-medium">Técnico Responsable</label>
-                      <Select
-                        value={newTask.responsibleTechnicianId?.toString() || "none"}
-                        onValueChange={(value) => setNewTask({ ...newTask, responsibleTechnicianId: value === "none" ? null : parseInt(value) })}
-                      >
-                        <SelectTrigger data-testid="select-task-technician">
-                          <SelectValue placeholder="Selecciona técnico" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">Sin asignar</SelectItem>
-                          {employees.map((emp) => (
-                            <SelectItem key={emp.id} value={emp.id.toString()}>
-                              {emp.firstName} {emp.lastName}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div>
                       <label className="text-sm font-medium">Mecánico Asignado</label>
                       <Select
                         value={newTask.assignedMechanicId?.toString() || "none"}
@@ -633,7 +619,7 @@ export function EditWorkOrderDialog({ workOrder, open, onOpenChange }: EditWorkO
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="none">Sin categoría</SelectItem>
-                          {serviceCategories.map((cat) => (
+                          {serviceCategories.filter(c => c.active).map((cat) => (
                             <SelectItem key={cat.id} value={cat.id.toString()}>
                               {cat.name}
                             </SelectItem>
@@ -657,6 +643,26 @@ export function EditWorkOrderDialog({ workOrder, open, onOpenChange }: EditWorkO
                           {filteredSubcategories.map((sub) => (
                             <SelectItem key={sub.id} value={sub.id.toString()}>
                               {sub.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <label className="text-sm font-medium">Proveedor</label>
+                      <Select
+                        value={newTask.providerId?.toString() || "none"}
+                        onValueChange={(value) => setNewTask({ ...newTask, providerId: value === "none" ? null : parseInt(value) })}
+                      >
+                        <SelectTrigger data-testid="select-task-provider">
+                          <SelectValue placeholder="Selecciona proveedor" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Sin proveedor</SelectItem>
+                          {providers.filter(p => p.status === "active").map((provider) => (
+                            <SelectItem key={provider.id} value={provider.id.toString()}>
+                              {provider.name}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -714,9 +720,9 @@ export function EditWorkOrderDialog({ workOrder, open, onOpenChange }: EditWorkO
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Técnico</TableHead>
                           <TableHead>Mecánico</TableHead>
                           <TableHead>Categoría</TableHead>
+                          <TableHead>Proveedor</TableHead>
                           <TableHead>Área</TableHead>
                           <TableHead>Tiempo Est.</TableHead>
                           <TableHead></TableHead>
@@ -724,14 +730,14 @@ export function EditWorkOrderDialog({ workOrder, open, onOpenChange }: EditWorkO
                       </TableHeader>
                       <TableBody>
                         {tasks.map((task, index) => {
-                          const tech = employees.find(e => e.id === task.responsibleTechnicianId);
                           const mech = employees.find(e => e.id === task.assignedMechanicId);
                           const cat = serviceCategories.find(c => c.id === task.serviceCategoryId);
+                          const provider = providers.find(p => p.id === task.providerId);
                           return (
                             <TableRow key={index}>
-                              <TableCell>{tech ? `${tech.firstName} ${tech.lastName}` : "-"}</TableCell>
                               <TableCell>{mech ? `${mech.firstName} ${mech.lastName}` : "-"}</TableCell>
                               <TableCell>{cat?.name || "-"}</TableCell>
+                              <TableCell>{provider?.name || "-"}</TableCell>
                               <TableCell>{task.workshopArea || "-"}</TableCell>
                               <TableCell>{task.estimatedTime || "-"}</TableCell>
                               <TableCell>

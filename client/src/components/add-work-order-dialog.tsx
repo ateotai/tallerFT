@@ -55,6 +55,7 @@ import {
   type ServiceCategory,
   type ServiceSubcategory,
   type Inventory,
+  type Provider,
   type InsertWorkOrderTask,
   type InsertWorkOrderMaterial,
   type InsertWorkOrderEvidence,
@@ -65,6 +66,7 @@ interface TaskForm {
   assignedMechanicId?: number;
   serviceCategoryId?: number;
   serviceSubcategoryId?: number;
+  providerId?: number;
   workshopArea?: string;
   estimatedTime?: string;
   completionDate?: string;
@@ -122,6 +124,10 @@ export function AddWorkOrderDialog() {
 
   const { data: inventory = [] } = useQuery<Inventory[]>({
     queryKey: ["/api/inventory"],
+  });
+
+  const { data: providers = [] } = useQuery<Provider[]>({
+    queryKey: ["/api/providers"],
   });
 
   const form = useForm<InsertWorkOrder>({
@@ -577,26 +583,6 @@ export function AddWorkOrderDialog() {
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">Técnico Responsable</label>
-                    <Select
-                      value={newTask.responsibleTechnicianId?.toString() || "none"}
-                      onValueChange={(value) => setNewTask({ ...newTask, responsibleTechnicianId: value === "none" ? undefined : parseInt(value) })}
-                    >
-                      <SelectTrigger data-testid="select-task-technician">
-                        <SelectValue placeholder="Selecciona técnico" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">Sin asignar</SelectItem>
-                        {employees.map((emp) => (
-                          <SelectItem key={emp.id} value={emp.id.toString()}>
-                            {emp.firstName} {emp.lastName}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
                     <label className="text-sm font-medium">Mecánico Asignado</label>
                     <Select
                       value={newTask.assignedMechanicId?.toString() || "none"}
@@ -633,7 +619,7 @@ export function AddWorkOrderDialog() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="none">Sin categoría</SelectItem>
-                        {serviceCategories.map((cat) => (
+                        {serviceCategories.filter(c => c.active).map((cat) => (
                           <SelectItem key={cat.id} value={cat.id.toString()}>
                             {cat.name}
                           </SelectItem>
@@ -657,6 +643,26 @@ export function AddWorkOrderDialog() {
                         {filteredSubcategories.map((sub) => (
                           <SelectItem key={sub.id} value={sub.id.toString()}>
                             {sub.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Proveedor</label>
+                    <Select
+                      value={newTask.providerId?.toString() || "none"}
+                      onValueChange={(value) => setNewTask({ ...newTask, providerId: value === "none" ? undefined : parseInt(value) })}
+                    >
+                      <SelectTrigger data-testid="select-task-provider">
+                        <SelectValue placeholder="Selecciona proveedor" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Sin proveedor</SelectItem>
+                        {providers.filter(p => p.status === "active").map((provider) => (
+                          <SelectItem key={provider.id} value={provider.id.toString()}>
+                            {provider.name}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -721,8 +727,8 @@ export function AddWorkOrderDialog() {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Categoría</TableHead>
-                        <TableHead>Técnico</TableHead>
                         <TableHead>Mecánico</TableHead>
+                        <TableHead>Proveedor</TableHead>
                         <TableHead>Tiempo</TableHead>
                         <TableHead className="w-[100px]">Acciones</TableHead>
                       </TableRow>
@@ -730,14 +736,14 @@ export function AddWorkOrderDialog() {
                     <TableBody>
                       {tasks.map((task, index) => {
                         const category = serviceCategories.find(c => c.id === task.serviceCategoryId);
-                        const tech = employees.find(e => e.id === task.responsibleTechnicianId);
                         const mech = employees.find(e => e.id === task.assignedMechanicId);
+                        const provider = providers.find(p => p.id === task.providerId);
                         
                         return (
                           <TableRow key={index}>
                             <TableCell>{category?.name || "Sin categoría"}</TableCell>
-                            <TableCell>{tech ? `${tech.firstName} ${tech.lastName}` : "-"}</TableCell>
                             <TableCell>{mech ? `${mech.firstName} ${mech.lastName}` : "-"}</TableCell>
+                            <TableCell>{provider?.name || "-"}</TableCell>
                             <TableCell>{task.estimatedTime || "-"}</TableCell>
                             <TableCell>
                               <Button

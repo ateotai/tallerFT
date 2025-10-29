@@ -362,6 +362,7 @@ export const workOrderTasks = pgTable("work_order_tasks", {
   assignedMechanicId: integer("assigned_mechanic_id").references(() => employees.id),
   serviceCategoryId: integer("service_category_id").references(() => serviceCategories.id),
   serviceSubcategoryId: integer("service_subcategory_id").references(() => serviceSubcategories.id),
+  providerId: integer("provider_id").references(() => providers.id),
   workshopArea: text("workshop_area"),
   estimatedTime: text("estimated_time"),
   completionDate: timestamp("completion_date"),
