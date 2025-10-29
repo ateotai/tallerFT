@@ -37,7 +37,12 @@ The system follows a Material Design-inspired aesthetic, optimized for productiv
   - **Edit Form Features**: Loads existing tasks/materials/evidences when dialog opens, allows adding/removing items, uses delete-and-recreate approach on submit for simplicity and reliability
   - **View Details Dialog**: Tabbed interface showing complete work order information (General, Tareas, Materiales, Evidencias) with formatted display of all associated data
   - **Print Functionality**: Professional print-ready layout with work order details, tasks table, materials breakdown with totals, and signature lines for approval workflow
-  - **Database Schema**: workOrderTasks table includes providerId (nullable FK to providers), assignedMechanicId (FK to employees), serviceCategoryId/serviceSubcategoryId (FK to service categories)
+  - **Database Schema**: workOrderTasks table includes providerId (nullable FK to providers), assignedMechanicId (FK to employees), serviceCategoryId/serviceSubcategoryId (FK to service categories). Task completionDate field uses z.coerce.date() for automatic ISO string conversion.
+  - **Technical Implementation**: 
+    - Express body parser configured to 50MB limit to handle base64-encoded evidence files
+    - RESTful API endpoints: `/api/work-orders/:workOrderId/tasks|materials|evidence`
+    - Date handling: Backend schema uses z.coerce.date() to accept ISO strings from JSON and convert to Date objects
+    - Enhanced error logging with detailed task/material/evidence data for debugging validation failures
   - **Known Limitation**: Work order creation/editing uses cascading POST requests without backend transaction support. If secondary elements (tasks/materials/evidence) fail, the main work order persists and users must complete it manually. Enhanced error handling alerts users with the work order ID for manual completion.
 - **Company (Empresa)**: Collapsible sidebar section for company-wide settings:
   - **Workshops (Talleres)**: Management of internal and external maintenance workshops with full CRUD operations (name, address, phone, email, type, capacity, active status). Each workshop can manage its own inventory.
