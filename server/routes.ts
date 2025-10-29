@@ -1256,6 +1256,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/reports/:id/reopen", async (req, res) => {
+    try {
+      const id = validateId(req.params.id);
+      if (id === null) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      const report = await storage.reopenReport(id);
+      if (!report) {
+        return res.status(404).json({ error: "Reporte no encontrado" });
+      }
+      
+      await storage.createNotification({
+        title: "Reporte reabierto",
+        message: `El reporte #${id} ha sido reabierto`,
+        type: "report",
+      });
+      
+      res.json(report);
+    } catch (error) {
+      console.error("Error reopening report:", error);
+      res.status(500).json({ error: "Error al reabrir reporte" });
+    }
+  });
+
   app.get("/api/diagnostics", async (req, res) => {
     try {
       const reportId = req.query.reportId ? validateId(req.query.reportId as string) : null;
