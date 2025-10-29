@@ -249,6 +249,8 @@ export const reports = pgTable("reports", {
   status: text("status").notNull().default("pending"),
   assignedToEmployeeId: integer("assigned_to_employee_id").references(() => employees.id),
   assignedAt: timestamp("assigned_at"),
+  resolved: boolean("resolved").notNull().default(false),
+  resolvedDate: timestamp("resolved_date"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -256,6 +258,8 @@ export const insertReportSchema = createInsertSchema(reports).omit({
   id: true,
   createdAt: true,
   status: true,
+  resolved: true,
+  resolvedDate: true,
 }).extend({
   images: z.array(z.object({
     url: z.string(),
