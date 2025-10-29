@@ -1544,6 +1544,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Vehículo no encontrado" });
       }
       
+      // If work order has a diagnostic, resolve the associated report
+      if (workOrder.diagnosticId) {
+        const diagnostic = await storage.getDiagnostic(workOrder.diagnosticId);
+        if (diagnostic && diagnostic.reportId) {
+          await storage.resolveReport(diagnostic.reportId);
+        }
+      }
+      
       await storage.createNotification({
         title: "Vehículo dado de alta",
         message: `El vehículo ${vehicle.brand} ${vehicle.model} (${vehicle.economicNumber}) ha sido dado de alta y está listo para uso operativo`,

@@ -143,6 +143,8 @@ export interface IStorage {
   createReport(report: InsertReport): Promise<Report>;
   updateReport(id: number, report: Partial<InsertReport>): Promise<Report | undefined>;
   deleteReport(id: number): Promise<boolean>;
+  resolveReport(id: number): Promise<Report | undefined>;
+  reopenReport(id: number): Promise<Report | undefined>;
   
   getEmployeeTypes(): Promise<EmployeeType[]>;
   getEmployeeType(id: number): Promise<EmployeeType | undefined>;
@@ -588,6 +590,22 @@ export class DbStorage implements IStorage {
   async deleteReport(id: number): Promise<boolean> {
     const result = await db.delete(schema.reports).where(eq(schema.reports.id, id)).returning();
     return result.length > 0;
+  }
+
+  async resolveReport(id: number): Promise<Report | undefined> {
+    const result = await db.update(schema.reports)
+      .set({ resolved: true, resolvedDate: new Date() })
+      .where(eq(schema.reports.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async reopenReport(id: number): Promise<Report | undefined> {
+    const result = await db.update(schema.reports)
+      .set({ resolved: false, resolvedDate: null })
+      .where(eq(schema.reports.id, id))
+      .returning();
+    return result[0];
   }
 
   async getEmployeeTypes(): Promise<EmployeeType[]> {
