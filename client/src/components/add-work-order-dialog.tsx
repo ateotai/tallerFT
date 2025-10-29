@@ -84,7 +84,7 @@ interface MaterialForm {
 interface EvidenceForm {
   fileUrl: string;
   description: string;
-  fileType?: string;
+  fileName?: string;
 }
 
 export function AddWorkOrderDialog() {
@@ -919,23 +919,31 @@ export function AddWorkOrderDialog() {
               <CardContent className="space-y-4">
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">URL del Archivo *</label>
+                    <label className="text-sm font-medium">Archivo *</label>
                     <Input
-                      placeholder="https://ejemplo.com/archivo.jpg"
-                      value={newEvidence.fileUrl}
-                      onChange={(e) => setNewEvidence({ ...newEvidence, fileUrl: e.target.value })}
-                      data-testid="input-evidence-url"
+                      type="file"
+                      accept="image/*,application/pdf,.doc,.docx"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onloadend = () => {
+                            setNewEvidence({ 
+                              ...newEvidence, 
+                              fileUrl: reader.result as string,
+                              fileName: file.name
+                            });
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                      data-testid="input-evidence-file"
                     />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Tipo de Archivo</label>
-                    <Input
-                      placeholder="Ej: image/jpeg, application/pdf"
-                      value={newEvidence.fileType || ""}
-                      onChange={(e) => setNewEvidence({ ...newEvidence, fileType: e.target.value })}
-                      data-testid="input-evidence-type"
-                    />
+                    {newEvidence.fileName && (
+                      <p className="text-sm text-muted-foreground">
+                        Archivo seleccionado: {newEvidence.fileName}
+                      </p>
+                    )}
                   </div>
 
                   <div className="space-y-2">
@@ -972,8 +980,7 @@ export function AddWorkOrderDialog() {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Descripción</TableHead>
-                        <TableHead>Tipo</TableHead>
-                        <TableHead>URL</TableHead>
+                        <TableHead>Archivo</TableHead>
                         <TableHead className="w-[100px]">Acciones</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -981,11 +988,8 @@ export function AddWorkOrderDialog() {
                       {evidences.map((evidence, index) => (
                         <TableRow key={index}>
                           <TableCell>{evidence.description}</TableCell>
-                          <TableCell>{evidence.fileType || "-"}</TableCell>
                           <TableCell className="max-w-[200px] truncate">
-                            <a href={evidence.fileUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
-                              {evidence.fileUrl}
-                            </a>
+                            {evidence.fileName || "Archivo adjunto"}
                           </TableCell>
                           <TableCell>
                             <Button
