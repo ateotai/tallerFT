@@ -295,12 +295,17 @@ export function EditWorkOrderDialog({ workOrder, open, onOpenChange }: EditWorkO
           apiRequest("DELETE", `/api/work-orders/evidence/${evidence.id}`)
         ));
 
-        const taskPromises = tasks.map(task => 
-          apiRequest("POST", `/api/work-orders/${workOrder.id}/tasks`, task).catch(err => {
+        const taskPromises = tasks.map(task => {
+          // Convert completionDate string to Date object if present
+          const taskData = {
+            ...task,
+            completionDate: task.completionDate ? new Date(task.completionDate) : undefined,
+          };
+          return apiRequest("POST", `/api/work-orders/${workOrder.id}/tasks`, taskData).catch(err => {
             console.error("Error creando tarea:", err);
             throw new Error("Error al crear una de las tareas");
-          })
-        );
+          });
+        });
         
         const materialPromises = materials.map(material => {
           if (!Number.isFinite(material.quantityNeeded) || !Number.isFinite(material.unitCost)) {

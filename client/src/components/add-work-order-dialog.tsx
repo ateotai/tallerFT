@@ -154,14 +154,20 @@ export function AddWorkOrderDialog() {
         throw new Error("Error al crear la orden de trabajo: " + (error instanceof Error ? error.message : "Error desconocido"));
       }
       
-      const taskPromises = tasks.map(task => 
-        apiRequest("POST", `/api/work-orders/${workOrder.id}/tasks`, {
+      const taskPromises = tasks.map(task => {
+        console.log("📝 Creating task with data:", task);
+        // Convert completionDate string to Date object if present
+        const taskData = {
           ...task,
-        }).catch(err => {
-          console.error("Error creando tarea:", err);
+          completionDate: task.completionDate ? new Date(task.completionDate) : undefined,
+        };
+        return apiRequest("POST", `/api/work-orders/${workOrder.id}/tasks`, taskData).catch(async (err) => {
+          const errorText = await err.text?.() || err.message || "Unknown error";
+          console.error("❌ Error creating task:", errorText);
+          console.error("Task data that failed:", taskData);
           throw new Error("Error al crear una de las tareas");
-        })
-      );
+        });
+      });
       
       const materialPromises = materials.map(material => {
         if (!Number.isFinite(material.quantityNeeded) || !Number.isFinite(material.unitCost)) {
