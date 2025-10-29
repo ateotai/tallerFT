@@ -156,15 +156,10 @@ export function AddWorkOrderDialog() {
       
       const taskPromises = tasks.map(task => {
         console.log("📝 Creating task with data:", task);
-        // Convert completionDate string to Date object if present
-        const taskData = {
-          ...task,
-          completionDate: task.completionDate ? new Date(task.completionDate) : undefined,
-        };
-        return apiRequest("POST", `/api/work-orders/${workOrder.id}/tasks`, taskData).catch(async (err) => {
+        return apiRequest("POST", `/api/work-orders/${workOrder.id}/tasks`, task).catch(async (err) => {
           const errorText = await err.text?.() || err.message || "Unknown error";
           console.error("❌ Error creating task:", errorText);
-          console.error("Task data that failed:", taskData);
+          console.error("Task data that failed:", task);
           throw new Error("Error al crear una de las tareas");
         });
       });

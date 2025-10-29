@@ -373,6 +373,8 @@ export const workOrderTasks = pgTable("work_order_tasks", {
 export const insertWorkOrderTaskSchema = createInsertSchema(workOrderTasks).omit({
   id: true,
   createdAt: true,
+}).extend({
+  completionDate: z.coerce.date().optional(),
 });
 export type InsertWorkOrderTask = z.infer<typeof insertWorkOrderTaskSchema>;
 export type WorkOrderTask = typeof workOrderTasks.$inferSelect;

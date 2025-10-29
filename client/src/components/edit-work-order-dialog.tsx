@@ -296,12 +296,7 @@ export function EditWorkOrderDialog({ workOrder, open, onOpenChange }: EditWorkO
         ));
 
         const taskPromises = tasks.map(task => {
-          // Convert completionDate string to Date object if present
-          const taskData = {
-            ...task,
-            completionDate: task.completionDate ? new Date(task.completionDate) : undefined,
-          };
-          return apiRequest("POST", `/api/work-orders/${workOrder.id}/tasks`, taskData).catch(err => {
+          return apiRequest("POST", `/api/work-orders/${workOrder.id}/tasks`, task).catch(err => {
             console.error("Error creando tarea:", err);
             throw new Error("Error al crear una de las tareas");
           });
