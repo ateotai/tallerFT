@@ -35,8 +35,9 @@ The system follows a Material Design-inspired aesthetic, optimized for productiv
   - Auto-fill functionality from diagnostics (populates vehicle, employee, description, and priority based on severity)
   - Manual creation or automatic generation from approved diagnostics
   - **Edit Form Features**: Loads existing tasks/materials/evidences when dialog opens, allows adding/removing items, uses delete-and-recreate approach on submit for simplicity and reliability
-  - **View Details Dialog**: Tabbed interface showing complete work order information (General, Tareas, Materiales, Evidencias) with formatted display of all associated data
-  - **Print Functionality**: Professional print-ready layout with work order details, tasks table, materials breakdown with totals, and signature lines for approval workflow
+  - **View Details Dialog**: Tabbed interface showing complete work order information (General, Tareas, Materiales, Evidencias) with formatted display of all associated data. Header includes Print and Email buttons for quick actions.
+  - **Print Functionality**: Professional print-ready layout with work order details, tasks table, materials breakdown with totals, and signature lines for approval workflow. Print button located in view dialog header (not in table).
+  - **Email Functionality**: "Enviar a Correo" button in view dialog header with placeholder toast notification (full implementation pending)
   - **Database Schema**: workOrderTasks table includes providerId (nullable FK to providers), assignedMechanicId (FK to employees), serviceCategoryId/serviceSubcategoryId (FK to service categories). Task completionDate field uses z.coerce.date() for automatic ISO string conversion.
   - **Technical Implementation**: 
     - Express body parser configured to 50MB limit to handle base64-encoded evidence files
