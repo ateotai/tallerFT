@@ -148,15 +148,15 @@ export function AddWorkOrderDialog() {
       let workOrder: WorkOrder;
       
       try {
-        workOrder = await apiRequest("POST", "/api/work-orders", data) as unknown as WorkOrder;
+        const response = await apiRequest("POST", "/api/work-orders", data);
+        workOrder = await response.json();
       } catch (error) {
         throw new Error("Error al crear la orden de trabajo: " + (error instanceof Error ? error.message : "Error desconocido"));
       }
       
       const taskPromises = tasks.map(task => 
-        apiRequest("POST", "/api/work-order-tasks", {
+        apiRequest("POST", `/api/work-orders/${workOrder.id}/tasks`, {
           ...task,
-          workOrderId: workOrder.id,
         }).catch(err => {
           console.error("Error creando tarea:", err);
           throw new Error("Error al crear una de las tareas");
@@ -168,10 +168,9 @@ export function AddWorkOrderDialog() {
           throw new Error("Cantidad o costo unitario inválido en materiales");
         }
         const total = material.quantityNeeded * material.unitCost;
-        return apiRequest("POST", "/api/work-order-materials", {
+        return apiRequest("POST", `/api/work-orders/${workOrder.id}/materials`, {
           ...material,
           partNumber: material.partNumber || null,
-          workOrderId: workOrder.id,
           total,
           approved: false,
         }).catch(err => {
@@ -181,9 +180,8 @@ export function AddWorkOrderDialog() {
       });
       
       const evidencePromises = evidences.slice(0, 10).map(evidence =>
-        apiRequest("POST", "/api/work-order-evidence", {
+        apiRequest("POST", `/api/work-orders/${workOrder.id}/evidence`, {
           ...evidence,
-          workOrderId: workOrder.id,
         }).catch(err => {
           console.error("Error creando evidencia:", err);
           throw new Error("Error al crear una de las evidencias");
@@ -254,7 +252,21 @@ export function AddWorkOrderDialog() {
   }, [diagnosticId, diagnostics, reports, form]);
 
   const onSubmit = (data: InsertWorkOrder) => {
+    console.log("✅ Form submit triggered with data:", JSON.stringify(data, null, 2));
+    console.log("📋 Form errors:", JSON.stringify(form.formState.errors, null, 2));
+    console.log("🚀 Starting mutation...");
     mutation.mutate(data);
+  };
+
+  // Log validation errors when form is invalid
+  const handleFormError = (errors: typeof form.formState.errors) => {
+    console.error("❌ Form validation failed!");
+    console.error("Validation errors:", JSON.stringify(errors, null, 2));
+    toast({
+      title: "Error de validación",
+      description: "Por favor revisa los campos marcados en rojo",
+      variant: "destructive",
+    });
   };
 
   const addTask = () => {
@@ -384,7 +396,7 @@ export function AddWorkOrderDialog() {
 
           <TabsContent value="general" className="space-y-4 mt-4">
             <Form {...form}>
-              <form id="work-order-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              <form id="work-order-form" onSubmit={form.handleSubmit(onSubmit, handleFormError)} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
@@ -1031,7 +1043,7 @@ export function AddWorkOrderDialog() {
               type="submit"
               form="work-order-form"
               disabled={mutation.isPending}
-              data-testid="button-submit"
+              data-testid="button-submit-work-order"
             >
               {mutation.isPending ? "Creando..." : "Crear Orden de Trabajo"}
             </Button>

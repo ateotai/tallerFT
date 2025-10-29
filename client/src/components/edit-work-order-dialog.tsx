@@ -282,7 +282,8 @@ export function EditWorkOrderDialog({ workOrder, open, onOpenChange }: EditWorkO
   const mutation = useMutation({
     mutationFn: async (data: InsertWorkOrder) => {
       try {
-        const updatedWorkOrder = await apiRequest("PUT", `/api/work-orders/${workOrder.id}`, data) as unknown as WorkOrder;
+        const response = await apiRequest("PUT", `/api/work-orders/${workOrder.id}`, data);
+        const updatedWorkOrder = await response.json();
         
         await Promise.all(existingTasks.map(task => 
           apiRequest("DELETE", `/api/work-orders/tasks/${task.id}`)
