@@ -18,7 +18,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Printer, Mail } from "lucide-react";
+import { Printer, Mail, FileImage, AlertCircle } from "lucide-react";
 import { PrintWorkOrderDialog } from "./print-work-order-dialog";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
@@ -45,7 +45,12 @@ export function ViewWorkOrderDialog({
   onOpenChange,
 }: ViewWorkOrderDialogProps) {
   const [showPrint, setShowPrint] = useState(false);
+  const [imageErrors, setImageErrors] = useState<Set<number>>(new Set());
   const { toast } = useToast();
+
+  const handleImageError = (evidenceId: number) => {
+    setImageErrors((prev) => new Set(prev).add(evidenceId));
+  };
 
   const { data: vehicles = [] } = useQuery<Vehicle[]>({
     queryKey: ["/api/vehicles"],
@@ -432,15 +437,43 @@ export function ViewWorkOrderDialog({
                   <div
                     key={evidence.id}
                     className="rounded-md border p-4 space-y-3"
+                    data-testid={`evidence-card-${evidence.id}`}
                   >
-                    <div className="aspect-video bg-muted rounded-md overflow-hidden">
-                      <img
-                        src={evidence.fileUrl}
-                        alt={evidence.description}
-                        className="w-full h-full object-cover"
-                      />
+                    <div className="aspect-video bg-muted rounded-md overflow-hidden flex items-center justify-center">
+                      {imageErrors.has(evidence.id) ? (
+                        <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground">
+                          <AlertCircle className="h-12 w-12" />
+                          <p className="text-xs text-center px-4">
+                            No se pudo cargar la imagen
+                          </p>
+                        </div>
+                      ) : evidence.fileUrl.startsWith("data:") ? (
+                        <img
+                          src={evidence.fileUrl}
+                          alt={evidence.description}
+                          className="w-full h-full object-cover"
+                          onError={() => handleImageError(evidence.id)}
+                          data-testid={`evidence-image-${evidence.id}`}
+                        />
+                      ) : (
+                        <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground">
+                          <FileImage className="h-12 w-12" />
+                          <p className="text-xs text-center px-4">
+                            Archivo externo
+                          </p>
+                          <a
+                            href={evidence.fileUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-primary hover:underline"
+                            data-testid={`evidence-link-${evidence.id}`}
+                          >
+                            Ver archivo
+                          </a>
+                        </div>
+                      )}
                     </div>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-sm text-muted-foreground" data-testid={`evidence-description-${evidence.id}`}>
                       {evidence.description}
                     </p>
                   </div>
