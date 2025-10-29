@@ -45,6 +45,16 @@ The system follows a Material Design-inspired aesthetic, optimized for productiv
     - Date handling: Backend schema uses z.coerce.date() to accept ISO strings from JSON and convert to Date objects
     - Enhanced error logging with detailed task/material/evidence data for debugging validation failures
   - **Known Limitation**: Work order creation/editing uses cascading POST requests without backend transaction support. If secondary elements (tasks/materials/evidence) fail, the main work order persists and users must complete it manually. Enhanced error handling alerts users with the work order ID for manual completion.
+- **Testing and Validation (Prueba y Validación)**: Specialized subsection in Service Management for final validation and vehicle activation:
+  - **Page Route** (/prueba-validacion): Dedicated page accessible from "Gestión de Servicio" sidebar menu
+  - **Completed Work Orders Filter**: Displays only work orders with status "completed" for final review
+  - **Statistics Cards**: Shows count of completed work orders pending validation and vehicles ready for activation
+  - **View Functionality**: "Ver" button opens ViewWorkOrderDialog to review complete order details before activation
+  - **Vehicle Activation**: "Dar de Alta" button with confirmation dialog to mark vehicles as ready for operational use
+  - **Backend Endpoint**: POST /api/work-orders/:id/activate-vehicle validates completion status and creates activation notification
+  - **Notification Integration**: Creates system notification when vehicle is activated, informing team that vehicle is ready for service
+  - **Empty State**: Shows friendly message when no completed work orders are available for validation
+  - **UI Components**: TestingValidationPage and TestingValidationTable with full data-testid attributes for testing
 - **Company (Empresa)**: Collapsible sidebar section for company-wide settings:
   - **Workshops (Talleres)**: Management of internal and external maintenance workshops with full CRUD operations (name, address, phone, email, type, capacity, active status). Each workshop can manage its own inventory.
   - **Areas (Áreas)**: Operational area management with responsible employee assignment (name, description, responsible employee FK, active status)
