@@ -38,12 +38,12 @@ export function PrintWorkOrderDialog({
   });
 
   const { data: tasks = [] } = useQuery<WorkOrderTask[]>({
-    queryKey: ["/api/work-order-tasks", workOrder.id],
+    queryKey: ['/api/work-orders', workOrder.id, 'tasks'],
     enabled: open,
   });
 
   const { data: materials = [] } = useQuery<WorkOrderMaterial[]>({
-    queryKey: ["/api/work-order-materials", workOrder.id],
+    queryKey: ['/api/work-orders', workOrder.id, 'materials'],
     enabled: open,
   });
 
