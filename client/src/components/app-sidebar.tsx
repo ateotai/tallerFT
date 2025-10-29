@@ -13,6 +13,7 @@ import {
   Briefcase,
   Stethoscope,
   ClipboardList,
+  ClipboardCheck,
   ChevronDown,
   Building2,
   MapPin,
@@ -102,6 +103,11 @@ const maintenanceMenuItems = [
     title: "Órdenes de Trabajo",
     url: "/ordenes-trabajo",
     icon: ClipboardList,
+  },
+  {
+    title: "Prueba y Validación",
+    url: "/prueba-validacion",
+    icon: ClipboardCheck,
   },
 ];
 

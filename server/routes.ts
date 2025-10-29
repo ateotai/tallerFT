@@ -1523,6 +1523,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/work-orders/:id/activate-vehicle", async (req, res) => {
+    try {
+      const id = validateId(req.params.id);
+      if (id === null) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      
+      const workOrder = await storage.getWorkOrder(id);
+      if (!workOrder) {
+        return res.status(404).json({ error: "Orden de trabajo no encontrada" });
+      }
+      
+      if (workOrder.status !== "completed") {
+        return res.status(400).json({ error: "La orden de trabajo debe estar completada para dar de alta el vehículo" });
+      }
+      
+      const vehicle = await storage.getVehicle(workOrder.vehicleId);
+      if (!vehicle) {
+        return res.status(404).json({ error: "Vehículo no encontrado" });
+      }
+      
+      await storage.createNotification({
+        title: "Vehículo dado de alta",
+        message: `El vehículo ${vehicle.brand} ${vehicle.model} (${vehicle.economicNumber}) ha sido dado de alta y está listo para uso operativo`,
+        type: "vehicle",
+      });
+      
+      res.json({ success: true, message: "Vehículo activado exitosamente" });
+    } catch (error) {
+      console.error("Error activating vehicle:", error);
+      res.status(500).json({ error: "Error al activar el vehículo" });
+    }
+  });
+
   app.get("/api/work-orders/:workOrderId/tasks", async (req, res) => {
     try {
       const workOrderId = validateId(req.params.workOrderId);

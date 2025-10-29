@@ -24,6 +24,7 @@ import UsersPage from "@/pages/users";
 import EmployeesPage from "@/pages/employees";
 import DiagnosticsPage from "@/pages/diagnostics";
 import WorkOrdersPage from "@/pages/work-orders";
+import TestingValidationPage from "@/pages/testing-validation";
 import WorkshopsPage from "@/pages/workshops";
 import AreasPage from "@/pages/areas";
 import ConfigurationPage from "@/pages/configuration";
@@ -48,6 +49,7 @@ function Router() {
       <Route path="/reportes-fallas" component={IssueReportsPage} />
       <Route path="/diagnosticos" component={DiagnosticsPage} />
       <Route path="/ordenes-trabajo" component={WorkOrdersPage} />
+      <Route path="/prueba-validacion" component={TestingValidationPage} />
       <Route path="/empleados" component={EmployeesPage} />
       <Route path="/usuarios" component={UsersPage} />
       <Route path="/roles" component={RolesPage} />
