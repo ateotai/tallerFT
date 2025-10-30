@@ -8,6 +8,7 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { NotificationsDropdown } from "@/components/notifications-dropdown";
+import { UserProfileDropdown } from "@/components/user-profile-dropdown";
 import NotFound from "@/pages/not-found";
 import DashboardPage from "@/pages/dashboard";
 import VehiclesPage from "@/pages/vehicles";
@@ -79,6 +80,7 @@ function App() {
                   <div className="flex items-center gap-2">
                     <NotificationsDropdown />
                     <ThemeToggle />
+                    <UserProfileDropdown />
                   </div>
                 </header>
                 <main className="flex-1 overflow-auto">
