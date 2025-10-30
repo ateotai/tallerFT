@@ -46,13 +46,15 @@ function validateId(id: string): number | null {
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Login endpoint
+  const loginSchema = z.object({
+    username: z.string().min(1, "Usuario requerido"),
+    password: z.string().min(1, "Contraseña requerida"),
+  });
+
   app.post("/api/login", async (req, res) => {
     try {
-      const { username, password } = req.body;
-      
-      if (!username || !password) {
-        return res.status(400).json({ message: "Usuario y contraseña requeridos" });
-      }
+      const validatedData = loginSchema.parse(req.body);
+      const { username, password } = validatedData;
 
       const user = await authenticateUser(username, password);
       
@@ -85,6 +87,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       });
     } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ message: error.errors[0].message });
+      }
       console.error("Error during login:", error);
       res.status(500).json({ message: "Error al iniciar sesión" });
     }
@@ -96,6 +101,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (err) {
         return res.status(500).json({ message: "Error al cerrar sesión" });
       }
+      res.clearCookie("connect.sid", {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+      });
       res.json({ message: "Sesión cerrada exitosamente" });
     });
   });

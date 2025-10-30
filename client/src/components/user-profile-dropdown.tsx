@@ -1,4 +1,3 @@
-import { useState } from "react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,22 +10,41 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { LogOut, User, Settings } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import { useMutation } from "@tanstack/react-query";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 
 export function UserProfileDropdown() {
   const { toast } = useToast();
-  const [user] = useState({
-    name: "Administrador",
-    email: "admin@sistema.com",
-    role: "Administrador",
-    initials: "AD",
+  const { user: authUser } = useAuth();
+  
+  const displayName = authUser?.fullName || "Administrador";
+  const displayEmail = authUser?.email || "admin@sistema.com";
+  const displayRole = authUser?.role || "Administrador";
+  const displayInitials = authUser?.username?.substring(0, 2).toUpperCase() || "AD";
+
+  const logoutMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("POST", "/api/logout");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      toast({
+        title: "Sesión cerrada",
+        description: "Has cerrado sesión exitosamente",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "No se pudo cerrar la sesión",
+        variant: "destructive",
+      });
+    },
   });
 
   const handleLogout = () => {
-    toast({
-      title: "Sesión cerrada",
-      description: "Has cerrado sesión exitosamente",
-    });
-    // TODO: Implementar lógica de cierre de sesión
+    logoutMutation.mutate();
   };
 
   return (
@@ -39,9 +57,9 @@ export function UserProfileDropdown() {
           data-testid="button-user-profile"
         >
           <Avatar className="h-9 w-9">
-            <AvatarImage src="" alt={user.name} />
+            <AvatarImage src="" alt={displayName} />
             <AvatarFallback className="bg-primary text-primary-foreground">
-              {user.initials}
+              {displayInitials}
             </AvatarFallback>
           </Avatar>
         </Button>
@@ -49,9 +67,9 @@ export function UserProfileDropdown() {
       <DropdownMenuContent align="end" className="w-56">
         <DropdownMenuLabel>
           <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none">{user.name}</p>
+            <p className="text-sm font-medium leading-none">{displayName}</p>
             <p className="text-xs leading-none text-muted-foreground">
-              {user.email}
+              {displayEmail}
             </p>
           </div>
         </DropdownMenuLabel>
