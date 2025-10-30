@@ -9,6 +9,8 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { NotificationsDropdown } from "@/components/notifications-dropdown";
 import { UserProfileDropdown } from "@/components/user-profile-dropdown";
+import { useAuth } from "@/hooks/useAuth";
+import Landing from "@/pages/landing";
 import NotFound from "@/pages/not-found";
 import DashboardPage from "@/pages/dashboard";
 import VehiclesPage from "@/pages/vehicles";
@@ -61,36 +63,52 @@ function Router() {
   );
 }
 
-function App() {
+function AuthenticatedApp() {
   const style = {
     "--sidebar-width": "16rem",
     "--sidebar-width-icon": "3rem",
   };
 
   return (
+    <SidebarProvider style={style as React.CSSProperties}>
+      <div className="flex h-screen w-full">
+        <AppSidebar />
+        <div className="flex flex-col flex-1">
+          <header className="flex items-center justify-between p-4 border-b">
+            <SidebarTrigger data-testid="button-sidebar-toggle" />
+            <div className="flex items-center gap-2">
+              <NotificationsDropdown />
+              <ThemeToggle />
+              <UserProfileDropdown />
+            </div>
+          </header>
+          <main className="flex-1 overflow-auto">
+            <div className="max-w-7xl mx-auto p-6 sm:p-8">
+              <Router />
+            </div>
+          </main>
+        </div>
+      </div>
+    </SidebarProvider>
+  );
+}
+
+function AppContent() {
+  const { isAuthenticated, isLoading } = useAuth();
+
+  if (isLoading || !isAuthenticated) {
+    return <Landing />;
+  }
+
+  return <AuthenticatedApp />;
+}
+
+function App() {
+  return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <ThemeProvider defaultTheme="light">
-          <SidebarProvider style={style as React.CSSProperties}>
-            <div className="flex h-screen w-full">
-              <AppSidebar />
-              <div className="flex flex-col flex-1">
-                <header className="flex items-center justify-between p-4 border-b">
-                  <SidebarTrigger data-testid="button-sidebar-toggle" />
-                  <div className="flex items-center gap-2">
-                    <NotificationsDropdown />
-                    <ThemeToggle />
-                    <UserProfileDropdown />
-                  </div>
-                </header>
-                <main className="flex-1 overflow-auto">
-                  <div className="max-w-7xl mx-auto p-6 sm:p-8">
-                    <Router />
-                  </div>
-                </main>
-              </div>
-            </div>
-          </SidebarProvider>
+          <AppContent />
           <Toaster />
         </ThemeProvider>
       </TooltipProvider>

@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { setupAuth, isAuthenticated } from "./replitAuth";
 import { ZodError, z } from "zod";
 import {
   insertVehicleSchema,
@@ -44,6 +45,42 @@ function validateId(id: string): number | null {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Setup authentication
+  await setupAuth(app);
+
+  // Auth user endpoint
+  app.get("/api/auth/user", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const claims = user?.claims;
+      if (!claims) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const authUser = await storage.getAuthUser(claims.sub);
+      if (!authUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      res.json(authUser);
+    } catch (error) {
+      console.error("Error fetching auth user:", error);
+      res.status(500).json({ error: "Error al obtener usuario autenticado" });
+    }
+  });
+  
+  // Protect all other API routes with authentication
+  app.use('/api/*', (req, res, next) => {
+    // Skip protection for auth-related endpoints (already handled above or by setupAuth)
+    if (req.path.startsWith('/api/login') || 
+        req.path.startsWith('/api/callback') || 
+        req.path.startsWith('/api/logout') ||
+        req.path === '/api/auth/user') {
+      return next();
+    }
+    // Apply authentication middleware to all other API routes
+    return isAuthenticated(req, res, next);
+  });
+
+  // All routes below this point are protected
   app.get("/api/vehicle-types", async (req, res) => {
     try {
       const vehicleTypes = await storage.getVehicleTypes();

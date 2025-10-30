@@ -1,10 +1,36 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, serial, varchar, timestamp, integer, real, boolean, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, varchar, timestamp, integer, real, boolean, jsonb, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+// Auth tables for Replit Auth
+export const sessions = pgTable(
+  "sessions",
+  {
+    sid: varchar("sid").primaryKey(),
+    sess: jsonb("sess").notNull(),
+    expire: timestamp("expire").notNull(),
+  },
+  (table) => [index("IDX_session_expire").on(table.expire)],
+);
+
+export const authUsers = pgTable("auth_users", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  email: varchar("email").unique(),
+  firstName: varchar("first_name"),
+  lastName: varchar("last_name"),
+  profileImageUrl: varchar("profile_image_url"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export type UpsertAuthUser = typeof authUsers.$inferInsert;
+export type AuthUser = typeof authUsers.$inferSelect;
+
+// Domain users table (for internal system data and FK relationships)
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
+  authUserId: varchar("auth_user_id").unique(),
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
   email: text("email").notNull().unique(),
