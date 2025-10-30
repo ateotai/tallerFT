@@ -65,11 +65,7 @@ import type {
 } from "@shared/schema";
 
 export interface IStorage {
-  // Auth user operations (for Replit Auth)
-  getAuthUser(id: string): Promise<schema.AuthUser | undefined>;
-  upsertAuthUser(user: schema.UpsertAuthUser): Promise<schema.AuthUser>;
-  
-  // Domain user operations
+  // User operations
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
@@ -261,28 +257,7 @@ export interface IStorage {
 }
 
 export class DbStorage implements IStorage {
-  // Auth user operations (for Replit Auth)
-  async getAuthUser(id: string): Promise<schema.AuthUser | undefined> {
-    const result = await db.select().from(schema.authUsers).where(eq(schema.authUsers.id, id)).limit(1);
-    return result[0];
-  }
-
-  async upsertAuthUser(userData: schema.UpsertAuthUser): Promise<schema.AuthUser> {
-    const result = await db
-      .insert(schema.authUsers)
-      .values(userData)
-      .onConflictDoUpdate({
-        target: schema.authUsers.id,
-        set: {
-          ...userData,
-          updatedAt: new Date(),
-        },
-      })
-      .returning();
-    return result[0];
-  }
-  
-  // Domain user operations
+  // User operations
   async getUser(id: number): Promise<User | undefined> {
     const result = await db.select().from(schema.users).where(eq(schema.users.id, id)).limit(1);
     return result[0];
