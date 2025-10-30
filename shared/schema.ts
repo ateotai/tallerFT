@@ -3,7 +3,7 @@ import { pgTable, text, serial, varchar, timestamp, integer, real, boolean, json
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-// Auth tables for Replit Auth
+// Sessions table for authentication
 export const sessions = pgTable(
   "sessions",
   {
@@ -14,28 +14,15 @@ export const sessions = pgTable(
   (table) => [index("IDX_session_expire").on(table.expire)],
 );
 
-export const authUsers = pgTable("auth_users", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  email: varchar("email").unique(),
-  firstName: varchar("first_name"),
-  lastName: varchar("last_name"),
-  profileImageUrl: varchar("profile_image_url"),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-});
-
-export type UpsertAuthUser = typeof authUsers.$inferInsert;
-export type AuthUser = typeof authUsers.$inferSelect;
-
-// Domain users table (for internal system data and FK relationships)
+// Users table with local authentication
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
-  authUserId: varchar("auth_user_id").unique(),
   username: text("username").notNull().unique(),
-  password: text("password").notNull(),
+  passwordHash: text("password_hash").notNull(),
   email: text("email").notNull().unique(),
   fullName: text("full_name").notNull(),
   role: text("role").notNull().default("user"),
+  active: boolean("active").notNull().default(true),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
