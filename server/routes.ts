@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { setupAuth, isAuthenticated } from "./replitAuth";
+import { isAuthenticated, authenticateUser } from "./authMiddleware";
 import { ZodError, z } from "zod";
 import {
   insertVehicleSchema,
@@ -45,34 +45,77 @@ function validateId(id: string): number | null {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Setup authentication
-  await setupAuth(app);
+  // Login endpoint
+  app.post("/api/login", async (req, res) => {
+    try {
+      const { username, password } = req.body;
+      
+      if (!username || !password) {
+        return res.status(400).json({ message: "Usuario y contraseña requeridos" });
+      }
 
-  // Auth user endpoint
+      const user = await authenticateUser(username, password);
+      
+      if (!user) {
+        return res.status(401).json({ message: "Usuario o contraseña incorrectos" });
+      }
+
+      req.session.userId = user.id;
+      
+      res.json({
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        fullName: user.fullName,
+        role: user.role,
+      });
+    } catch (error) {
+      console.error("Error during login:", error);
+      res.status(500).json({ message: "Error al iniciar sesión" });
+    }
+  });
+
+  // Logout endpoint
+  app.post("/api/logout", (req, res) => {
+    req.session.destroy((err) => {
+      if (err) {
+        return res.status(500).json({ message: "Error al cerrar sesión" });
+      }
+      res.json({ message: "Sesión cerrada exitosamente" });
+    });
+  });
+
+  // Current user endpoint
   app.get("/api/auth/user", isAuthenticated, async (req, res) => {
     try {
-      const user = req.user as any;
-      const claims = user?.claims;
-      if (!claims) {
+      const userId = req.session.userId;
+      if (!userId) {
         return res.status(401).json({ message: "Unauthorized" });
       }
-      const authUser = await storage.getAuthUser(claims.sub);
-      if (!authUser) {
-        return res.status(404).json({ message: "User not found" });
+      
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "Usuario no encontrado" });
       }
-      res.json(authUser);
+      
+      res.json({
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        fullName: user.fullName,
+        role: user.role,
+      });
     } catch (error) {
-      console.error("Error fetching auth user:", error);
-      res.status(500).json({ error: "Error al obtener usuario autenticado" });
+      console.error("Error fetching current user:", error);
+      res.status(500).json({ error: "Error al obtener usuario actual" });
     }
   });
   
   // Protect all other API routes with authentication
   app.use('/api/*', (req, res, next) => {
-    // Skip protection for auth-related endpoints (already handled above or by setupAuth)
-    if (req.path.startsWith('/api/login') || 
-        req.path.startsWith('/api/callback') || 
-        req.path.startsWith('/api/logout') ||
+    // Skip protection for auth-related endpoints
+    if (req.path === '/api/login' || 
+        req.path === '/api/logout' ||
         req.path === '/api/auth/user') {
       return next();
     }
