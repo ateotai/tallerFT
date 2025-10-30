@@ -60,14 +60,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Usuario o contraseña incorrectos" });
       }
 
-      req.session.userId = user.id;
-      
-      res.json({
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        fullName: user.fullName,
-        role: user.role,
+      // Regenerate session to prevent session fixation attacks
+      req.session.regenerate((err) => {
+        if (err) {
+          console.error("Error regenerating session:", err);
+          return res.status(500).json({ message: "Error al iniciar sesión" });
+        }
+
+        req.session.userId = user.id;
+        
+        req.session.save((saveErr) => {
+          if (saveErr) {
+            console.error("Error saving session:", saveErr);
+            return res.status(500).json({ message: "Error al iniciar sesión" });
+          }
+
+          res.json({
+            id: user.id,
+            username: user.username,
+            email: user.email,
+            fullName: user.fullName,
+            role: user.role,
+          });
+        });
       });
     } catch (error) {
       console.error("Error during login:", error);
