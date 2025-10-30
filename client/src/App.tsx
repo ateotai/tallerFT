@@ -10,7 +10,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { NotificationsDropdown } from "@/components/notifications-dropdown";
 import { UserProfileDropdown } from "@/components/user-profile-dropdown";
 import { useAuth } from "@/hooks/useAuth";
-import Landing from "@/pages/landing";
+import Login from "@/pages/login";
 import NotFound from "@/pages/not-found";
 import DashboardPage from "@/pages/dashboard";
 import VehiclesPage from "@/pages/vehicles";
@@ -96,8 +96,19 @@ function AuthenticatedApp() {
 function AppContent() {
   const { isAuthenticated, isLoading } = useAuth();
 
-  if (isLoading || !isAuthenticated) {
-    return <Landing />;
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Cargando...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <Login />;
   }
 
   return <AuthenticatedApp />;
