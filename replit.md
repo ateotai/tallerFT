@@ -66,14 +66,20 @@ The system follows a Material Design-inspired aesthetic, optimized for productiv
 - **Inventory by Workshop**: Inventory items are now associated with specific workshops through a workshopId foreign key. Each workshop manages its own stock of parts and supplies independently.
 - **Notifications System**: Real-time notification system with dropdown in header, polling every 30 seconds, and automatic creation when reports, diagnostics, and work orders are created.
 - **Dashboard**: Real-time metrics and navigation cards for quick overview.
-- **Authentication**: Includes a `users` table for authentication and supports role-based access control. **Known Security Limitation**: userId is hardcoded in approval mutations (both diagnostics and work orders), allowing any user to approve without proper authentication. This is a system-wide limitation requiring full authentication implementation with session management and role validation.
+- **Authentication & User Interface**: 
+  - **User Profile Dropdown**: Header component with avatar, user information display (name, email, role), and menu options (Profile, Configuration, Logout)
+  - Includes a `users` table for authentication and supports role-based access control
+  - **Known Security Limitation**: userId is hardcoded in approval mutations (both diagnostics and work orders), allowing any user to approve without proper authentication. This is a system-wide limitation requiring full authentication implementation with session management and role validation.
 - **Roles & Permissions System**: Comprehensive role-based access control with granular permission management:
   - **Roles Management** (/roles): Full CRUD operations for system roles with active status tracking
   - **Permissions Assignment** (/permisos): Module-based permission matrix interface allowing assignment of specific permissions to roles
-  - **Permission Structure**: 63 permissions across 17 modules (Dashboard, Vehículos, Tareas Programadas, Categorías, Proveedores, Clientes, Inventario, Reportes de Fallas, Diagnósticos, Órdenes de Trabajo, Empleados, Usuarios, Talleres, Áreas, Configuración, Roles, Permisos)
-  - **Permission Actions**: Standard actions (view, create, edit, delete) plus special "approve" permission for Diagnósticos and Órdenes de Trabajo
-  - **Database Schema**: Many-to-many relationship between roles and permissions via role_permissions table
-  - **Seed Data**: Pre-populated "Administrador" role with all 63 permissions assigned
+  - **Permission Structure**: 133 permissions across 20 modules (Dashboard, Vehículos, Tareas Programadas, Categorías, Proveedores, Cotizaciones de Compra, Clientes, Inventario, Reportes, Reportes de Fallas, Evaluación y Diagnóstico, Órdenes de Trabajo, Prueba y Validación, Talleres, Áreas, Configuración, Empleados, Usuarios, Roles, Permisos)
+  - **Permission Actions**: Standard actions (view, create, edit, delete) plus special permissions:
+    - "approve" for Diagnósticos and Órdenes de Trabajo
+    - "activate" for Prueba y Validación (dar de alta vehículos)
+    - "assign" for Permisos
+  - **Database Schema**: Many-to-many relationship between roles and permissions via role_permissions table, permissions include name, module, and description fields
+  - **Seed Data**: Pre-populated "Administrador" role with all 133 permissions assigned via seed-permissions.ts script
   - **UI Design**: Accordion-organized permission matrix with checkboxes at role-permission intersections, collapsible "Roles y Permisos" subsection in sidebar under Administración
   - **Implementation**: React Query mutations for permission assignment/removal with optimistic updates and toast notifications
 - **Purchase Quotes (Cotizaciones de Compra)**: Complete supplier purchase quote management system:
