@@ -1,5 +1,6 @@
-import { db, sqlite } from "../db";
+import { db } from "../db";
 import { inventoryCategories } from "@shared/schema";
+import { sql } from "drizzle-orm";
 
 const categories = [
   {
@@ -25,33 +26,26 @@ const categories = [
 ];
 
 async function seed() {
-  console.log("Dropping and recreating inventory_categories table...");
-  
-  sqlite.exec(`
-    DROP TABLE IF EXISTS inventory_categories;
-    CREATE TABLE inventory_categories (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL UNIQUE,
-      description TEXT NOT NULL,
-      created_at INTEGER NOT NULL DEFAULT (unixepoch())
-    );
-  `);
-  
   console.log("Seeding inventory categories...");
-  
-  for (const category of categories) {
-    await db.insert(inventoryCategories).values(category);
-    console.log(`Created category: ${category.name}`);
+
+  // Check existing
+  const existing = await db.select().from(inventoryCategories);
+  if (existing.length > 0) {
+    console.log(`✓ Ya existen ${existing.length} categorías de inventario, se omite inserción`);
+    return;
   }
-  
-  console.log("Inventory categories seeding completed!");
+
+  await db
+    .insert(inventoryCategories)
+    .values(categories)
+    .onConflictDoNothing();
+
+  console.log(`✓ ${categories.length} categorías de inventario insertadas`);
 }
 
 seed()
+  .then(() => process.exit(0))
   .catch((error) => {
     console.error("Error seeding inventory categories:", error);
     process.exit(1);
-  })
-  .finally(() => {
-    process.exit(0);
   });

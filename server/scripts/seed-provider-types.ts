@@ -1,20 +1,11 @@
-import { db, sqlite } from "../db";
+import { db } from "../db";
 import { providerTypes } from "@shared/schema";
+import { sql } from "drizzle-orm";
 
 async function seedProviderTypes() {
   console.log("Iniciando seed de tipos de proveedores...");
 
-  sqlite.exec(`
-    CREATE TABLE IF NOT EXISTS provider_types (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL UNIQUE,
-      description TEXT NOT NULL,
-      created_at INTEGER NOT NULL DEFAULT (unixepoch())
-    )
-  `);
-  console.log("✓ Tabla provider_types creada/verificada");
-
-  const existingTypes = db.select().from(providerTypes).all();
+  const existingTypes = await db.select().from(providerTypes);
   
   if (existingTypes.length === 0) {
     const types = [
@@ -52,7 +43,10 @@ async function seedProviderTypes() {
       },
     ];
 
-    db.insert(providerTypes).values(types).run();
+    await db
+      .insert(providerTypes)
+      .values(types)
+      .onConflictDoNothing();
     console.log(`✓ ${types.length} tipos de proveedores insertados`);
   } else {
     console.log(`✓ Ya existen ${existingTypes.length} tipos de proveedores`);
@@ -61,7 +55,11 @@ async function seedProviderTypes() {
   console.log("¡Seed completado exitosamente!");
 }
 
-seedProviderTypes().catch((error) => {
-  console.error("Error en seed:", error);
-  process.exit(1);
-});
+seedProviderTypes()
+  .then(() => {
+    process.exit(0);
+  })
+  .catch((error) => {
+    console.error("Error en seed:", error);
+    process.exit(1);
+  });

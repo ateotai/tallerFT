@@ -1,9 +1,8 @@
 import express, { type Request, Response, NextFunction } from "express";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
-import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
-
+import "dotenv/config";
 const app = express();
 
 // Configure session
@@ -11,10 +10,18 @@ const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 week
 const pgStore = connectPg(session);
 const sessionStore = new pgStore({
   conString: process.env.DATABASE_URL,
-  createTableIfMissing: false,
+  createTableIfMissing: true,
   ttl: sessionTtl,
   tableName: "sessions",
 });
+
+// Allow overriding secure cookie behavior for local HTTP testing
+const secureCookieEnv = (process.env.SESSION_SECURE_COOKIE || "").toLowerCase();
+const secureCookie = secureCookieEnv === "true"
+  ? true
+  : secureCookieEnv === "false"
+    ? false
+    : process.env.NODE_ENV === "production";
 
 app.set("trust proxy", 1);
 app.use(session({
@@ -24,7 +31,7 @@ app.use(session({
   saveUninitialized: false,
   cookie: {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: secureCookie,
     sameSite: "lax",
     maxAge: sessionTtl,
   },
@@ -74,6 +81,8 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // Importar rutas dinámicamente después de cargar variables de entorno
+  const { registerRoutes } = await import("./routes");
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
@@ -98,11 +107,11 @@ app.use((req, res, next) => {
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
   const port = parseInt(process.env.PORT || '5000', 10);
+  const bindHost = process.env.BIND_HOST || process.env.HOST || "127.0.0.1";
   server.listen({
     port,
-    host: "0.0.0.0",
-    reusePort: true,
+    host: bindHost,
   }, () => {
-    log(`serving on port ${port}`);
+    log(`serving on ${bindHost}:${port}`);
   });
 })();

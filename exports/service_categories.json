@@ -1,0 +1,72 @@
+[
+  {
+    "id": 1,
+    "name": "Mantenimiento Preventivo",
+    "description": "Servicios de mantenimiento programado y preventivo",
+    "active": true,
+    "createdAt": "2025-10-31T23:44:52.300Z"
+  },
+  {
+    "id": 2,
+    "name": "Reparación de Motor",
+    "description": "Reparaciones y mantenimiento del motor",
+    "active": true,
+    "createdAt": "2025-10-31T23:44:53.236Z"
+  },
+  {
+    "id": 3,
+    "name": "Sistema Eléctrico",
+    "description": "Reparaciones del sistema eléctrico y electrónico",
+    "active": true,
+    "createdAt": "2025-10-31T23:44:53.715Z"
+  },
+  {
+    "id": 4,
+    "name": "Transmisión",
+    "description": "Servicios de transmisión y embrague",
+    "active": true,
+    "createdAt": "2025-10-31T23:44:54.199Z"
+  },
+  {
+    "id": 5,
+    "name": "Suspensión y Dirección",
+    "description": "Reparaciones de suspensión y sistema de dirección",
+    "active": true,
+    "createdAt": "2025-10-31T23:44:54.671Z"
+  },
+  {
+    "id": 6,
+    "name": "Frenos",
+    "description": "Servicios especializados del sistema de frenos",
+    "active": true,
+    "createdAt": "2025-10-31T23:44:55.142Z"
+  },
+  {
+    "id": 7,
+    "name": "Climatización",
+    "description": "Servicios de aire acondicionado y calefacción",
+    "active": true,
+    "createdAt": "2025-10-31T23:44:56.263Z"
+  },
+  {
+    "id": 8,
+    "name": "Carrocería y Pintura",
+    "description": "Servicios de carrocería, pintura y hojalatería",
+    "active": true,
+    "createdAt": "2025-10-31T23:44:57.381Z"
+  },
+  {
+    "id": 9,
+    "name": "Neumáticos",
+    "description": "Servicios relacionados con neumáticos",
+    "active": true,
+    "createdAt": "2025-10-31T23:44:57.908Z"
+  },
+  {
+    "id": 10,
+    "name": "Diagnóstico",
+    "description": "Servicios de diagnóstico y evaluación",
+    "active": true,
+    "createdAt": "2025-10-31T23:44:58.452Z"
+  }
+]

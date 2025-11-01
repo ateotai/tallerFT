@@ -31,7 +31,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { insertAreaSchema, type InsertArea, type Area, type Employee } from "@shared/schema";
+import { insertAreaSchema, type InsertArea, type Area, type Employee, type Workshop } from "@shared/schema";
 
 interface EditAreaDialogProps {
   area: Area;
@@ -46,12 +46,17 @@ export function EditAreaDialog({ area, open, onOpenChange }: EditAreaDialogProps
     queryKey: ["/api/employees"],
   });
 
+  const { data: workshops = [] } = useQuery<Workshop[]>({
+    queryKey: ["/api/workshops"],
+  });
+
   const form = useForm<InsertArea>({
     resolver: zodResolver(insertAreaSchema),
     defaultValues: {
       name: area.name,
       description: area.description || "",
       responsibleEmployeeId: area.responsibleEmployeeId ?? undefined,
+      workshopId: (area as any).workshopId ?? undefined,
       active: area.active,
     },
   });
@@ -61,6 +66,7 @@ export function EditAreaDialog({ area, open, onOpenChange }: EditAreaDialogProps
       name: area.name,
       description: area.description || "",
       responsibleEmployeeId: area.responsibleEmployeeId ?? undefined,
+      workshopId: (area as any).workshopId ?? undefined,
       active: area.active,
     });
   }, [area, form]);
@@ -129,6 +135,34 @@ export function EditAreaDialog({ area, open, onOpenChange }: EditAreaDialogProps
                       data-testid="textarea-description"
                     />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="workshopId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Taller</FormLabel>
+                  <Select
+                    onValueChange={(value) => field.onChange(Number(value))}
+                    value={field.value ? String(field.value) : undefined}
+                  >
+                    <FormControl>
+                      <SelectTrigger data-testid="select-edit-workshop">
+                        <SelectValue placeholder="Selecciona taller" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {workshops.map((workshop) => (
+                        <SelectItem key={workshop.id} value={String(workshop.id)}>
+                          {workshop.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}

@@ -1,10 +1,13 @@
 import { Wrench, LineChart, Bell, Shield, Users, Truck } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { useLocation } from "wouter";
 
 export default function Landing() {
+  const [, navigate] = useLocation();
   const handleLogin = () => {
-    window.location.href = "/api/login";
+    navigate("/login");
   };
 
   const features = [
@@ -47,6 +50,11 @@ export default function Landing() {
         
         <div className="relative max-w-7xl mx-auto px-6 py-24 sm:py-32">
           <div className="text-center space-y-8">
+            <img
+              src="/logo.png"
+              alt="MainSystem Car logo"
+              className="mx-auto h-20 w-auto select-none"
+            />
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border bg-background/50 backdrop-blur-sm">
               <Truck className="h-4 w-4 text-primary" />
               <span className="text-sm font-medium">Sistema Profesional</span>
@@ -72,8 +80,30 @@ export default function Landing() {
               >
                 Iniciar Sesión
               </Button>
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="lg" className="min-w-48" data-testid="button-video">
+                    Ver video de presentación
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-3xl">
+                  <DialogHeader>
+                    <DialogTitle>Presentación del Sistema</DialogTitle>
+                  </DialogHeader>
+                  <div className="aspect-video w-full rounded-md overflow-hidden">
+                    <iframe
+                      className="w-full h-full"
+                      src="https://www.youtube.com/embed/dQw4w9WgXcQ"
+                      title="Video de presentación del sistema"
+                      frameBorder="0"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                      allowFullScreen
+                    />
+                  </div>
+                </DialogContent>
+              </Dialog>
               <p className="text-sm text-muted-foreground">
-                Accede con tu cuenta de Replit
+                Accede con tu cuenta
               </p>
             </div>
           </div>
@@ -127,14 +157,38 @@ export default function Landing() {
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
               Comienza a usar el sistema ahora mismo y lleva el control total de tu flota.
             </p>
-            <Button 
-              size="lg" 
-              onClick={handleLogin}
-              className="min-w-48"
-              data-testid="button-login-footer"
-            >
-              Iniciar Sesión
-            </Button>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+              <Button 
+                size="lg" 
+                onClick={handleLogin}
+                className="min-w-48"
+                data-testid="button-login-footer"
+              >
+                Iniciar Sesión
+              </Button>
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="lg" className="min-w-48" data-testid="button-video-footer">
+                    Ver video de presentación
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-3xl">
+                  <DialogHeader>
+                    <DialogTitle>Presentación del Sistema</DialogTitle>
+                  </DialogHeader>
+                  <div className="aspect-video w-full rounded-md overflow-hidden">
+                    <iframe
+                      className="w-full h-full"
+                      src="https://www.youtube.com/embed/dQw4w9WgXcQ"
+                      title="Video de presentación del sistema"
+                      frameBorder="0"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                      allowFullScreen
+                    />
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
           </div>
         </div>
       </div>

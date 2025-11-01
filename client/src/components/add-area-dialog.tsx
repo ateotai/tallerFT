@@ -33,7 +33,7 @@ import { Switch } from "@/components/ui/switch";
 import { MapPin } from "lucide-react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { insertAreaSchema, type InsertArea, type Employee } from "@shared/schema";
+import { insertAreaSchema, type InsertArea, type Employee, type Workshop } from "@shared/schema";
 
 export function AddAreaDialog() {
   const [open, setOpen] = useState(false);
@@ -43,12 +43,17 @@ export function AddAreaDialog() {
     queryKey: ["/api/employees"],
   });
 
+  const { data: workshops = [] } = useQuery<Workshop[]>({
+    queryKey: ["/api/workshops"],
+  });
+
   const form = useForm<InsertArea>({
     resolver: zodResolver(insertAreaSchema),
     defaultValues: {
       name: "",
       description: "",
       responsibleEmployeeId: undefined,
+      workshopId: undefined as unknown as number,
       active: true,
     },
   });
@@ -124,6 +129,34 @@ export function AddAreaDialog() {
                       data-testid="textarea-description"
                     />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="workshopId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Taller</FormLabel>
+                  <Select
+                    onValueChange={(value) => field.onChange(Number(value))}
+                    value={field.value ? String(field.value) : undefined}
+                  >
+                    <FormControl>
+                      <SelectTrigger data-testid="select-workshop">
+                        <SelectValue placeholder="Selecciona taller" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {workshops.map((workshop) => (
+                        <SelectItem key={workshop.id} value={String(workshop.id)}>
+                          {workshop.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}

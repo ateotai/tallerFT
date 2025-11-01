@@ -307,6 +307,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Historial de vehículo por número económico o VIN
+  const vehicleHistoryQuerySchema = z.object({
+    economicNumber: z.string().min(1).optional(),
+    vin: z.string().min(1).optional(),
+  }).refine((data) => !!data.economicNumber || !!data.vin, {
+    message: "Debe proporcionar número económico o VIN",
+    path: ["economicNumber"],
+  });
+
+  app.get("/api/vehicle-history", async (req, res) => {
+    try {
+      const params = vehicleHistoryQuerySchema.parse(req.query);
+      const { economicNumber, vin } = params;
+
+      let vehicle = undefined as Awaited<ReturnType<typeof storage.getVehicle>> | undefined;
+      if (economicNumber) {
+        vehicle = await storage.getVehicleByEconomicNumber(economicNumber);
+      } else if (vin) {
+        vehicle = await storage.getVehicleByVin(vin);
+      }
+
+      if (!vehicle) {
+        return res.status(404).json({ error: "Vehículo no encontrado" });
+      }
+
+      const vehicleId = vehicle.id;
+      const reports = await storage.getReportsByVehicle(vehicleId);
+
+      const diagnosticsAll: any[] = [];
+      for (const report of reports) {
+        const d = await storage.getDiagnosticsByReport(report.id);
+        diagnosticsAll.push(...d);
+      }
+
+      const workOrders = await storage.getWorkOrdersByVehicle(vehicleId);
+      const workOrdersWithDetails = await Promise.all(
+        workOrders.map(async (wo) => {
+          const tasks = await storage.getWorkOrderTasks(wo.id);
+          const materials = await storage.getWorkOrderMaterials(wo.id);
+          return { ...wo, tasks, materials };
+        })
+      );
+
+      const services = await storage.getServicesByVehicle(vehicleId);
+
+      res.json({
+        vehicle,
+        reports,
+        diagnostics: diagnosticsAll,
+        workOrders: workOrdersWithDetails,
+        services,
+      });
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ error: "Parámetros inválidos", details: error.errors });
+      }
+      console.error("Error fetching vehicle history:", error);
+      res.status(500).json({ error: "Error al obtener historial de vehículo" });
+    }
+  });
+
   app.get("/api/services", async (req, res) => {
     try {
       const vehicleId = req.query.vehicleId ? validateId(req.query.vehicleId as string) : null;

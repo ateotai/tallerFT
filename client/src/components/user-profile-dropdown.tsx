@@ -13,10 +13,12 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import { useLocation } from "wouter";
 
 export function UserProfileDropdown() {
   const { toast } = useToast();
   const { user: authUser } = useAuth();
+  const [, navigate] = useLocation();
   
   const displayName = authUser?.fullName || "Administrador";
   const displayEmail = authUser?.email || "admin@sistema.com";
@@ -28,11 +30,13 @@ export function UserProfileDropdown() {
       await apiRequest("POST", "/api/logout");
     },
     onSuccess: () => {
+      queryClient.setQueryData(["/api/auth/user"], null);
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
       toast({
         title: "Sesión cerrada",
         description: "Has cerrado sesión exitosamente",
       });
+      navigate("/");
     },
     onError: () => {
       toast({

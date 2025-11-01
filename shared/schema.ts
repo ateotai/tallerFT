@@ -478,14 +478,19 @@ export const areas = pgTable("areas", {
   name: text("name").notNull().unique(),
   description: text("description"),
   responsibleEmployeeId: integer("responsible_employee_id").references(() => employees.id),
+  workshopId: integer("workshop_id").references(() => workshops.id),
   active: boolean("active").notNull().default(true),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
-export const insertAreaSchema = createInsertSchema(areas).omit({
-  id: true,
-  createdAt: true,
-});
+export const insertAreaSchema = createInsertSchema(areas)
+  .omit({
+    id: true,
+    createdAt: true,
+  })
+  .extend({
+    workshopId: z.number({ required_error: "Selecciona un taller" }),
+  });
 export type InsertArea = z.infer<typeof insertAreaSchema>;
 export type Area = typeof areas.$inferSelect;
 

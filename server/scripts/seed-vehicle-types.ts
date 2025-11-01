@@ -1,37 +1,11 @@
-import { db, sqlite } from "../db";
+import { db } from "../db";
 import { vehicleTypes } from "@shared/schema";
 
 async function seedVehicleTypes() {
   console.log("Iniciando seed de tipos de vehículos...");
 
-  // Crear tabla vehicle_types si no existe
-  sqlite.exec(`
-    CREATE TABLE IF NOT EXISTS vehicle_types (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL UNIQUE,
-      description TEXT NOT NULL,
-      created_at INTEGER NOT NULL DEFAULT (unixepoch())
-    )
-  `);
-  console.log("✓ Tabla vehicle_types creada/verificada");
-
-  // Verificar si la columna vehicle_type_id existe en vehicles
-  const tableInfo = sqlite.prepare("PRAGMA table_info(vehicles)").all() as any[];
-  const hasVehicleTypeId = tableInfo.some((col: any) => col.name === "vehicle_type_id");
-
-  if (!hasVehicleTypeId) {
-    // Agregar columna vehicle_type_id a vehicles
-    sqlite.exec(`
-      ALTER TABLE vehicles
-      ADD COLUMN vehicle_type_id INTEGER REFERENCES vehicle_types(id)
-    `);
-    console.log("✓ Columna vehicle_type_id agregada a vehicles");
-  } else {
-    console.log("✓ Columna vehicle_type_id ya existe en vehicles");
-  }
-
   // Verificar si ya hay datos
-  const existingTypes = db.select().from(vehicleTypes).all();
+  const existingTypes = await db.select().from(vehicleTypes);
   
   if (existingTypes.length === 0) {
     // Insertar tipos de vehículos
@@ -78,7 +52,10 @@ async function seedVehicleTypes() {
       },
     ];
 
-    db.insert(vehicleTypes).values(types).run();
+    await db
+      .insert(vehicleTypes)
+      .values(types)
+      .onConflictDoNothing();
     console.log(`✓ ${types.length} tipos de vehículos insertados`);
   } else {
     console.log(`✓ Ya existen ${existingTypes.length} tipos de vehículos`);
@@ -87,7 +64,9 @@ async function seedVehicleTypes() {
   console.log("¡Seed completado exitosamente!");
 }
 
-seedVehicleTypes().catch((error) => {
-  console.error("Error en seed:", error);
-  process.exit(1);
-});
+seedVehicleTypes()
+  .then(() => process.exit(0))
+  .catch((error) => {
+    console.error("Error en seed:", error);
+    process.exit(1);
+  });

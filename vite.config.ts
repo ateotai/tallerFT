@@ -36,5 +36,14 @@ export default defineConfig({
       strict: true,
       deny: ["**/.*"],
     },
+    // Proxy API requests to the Express backend when running
+    // the client-only Vite dev server (e.g., on port 5174).
+    // This ensures routes like /api/login work from the Vite origin.
+    proxy: {
+      "/api": {
+        target: "http://localhost:5000",
+        changeOrigin: true,
+      },
+    },
   },
 });

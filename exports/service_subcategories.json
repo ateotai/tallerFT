@@ -1,0 +1,402 @@
+[
+  {
+    "id": 1,
+    "categoryId": 1,
+    "name": "Cambio de Aceite",
+    "description": "Cambio de aceite de motor y filtro",
+    "active": true,
+    "createdAt": "2025-10-31T23:44:52.543Z"
+  },
+  {
+    "id": 2,
+    "categoryId": 1,
+    "name": "Revisión de Frenos",
+    "description": "Inspección y mantenimiento del sistema de frenos",
+    "active": true,
+    "createdAt": "2025-10-31T23:44:52.620Z"
+  },
+  {
+    "id": 3,
+    "categoryId": 1,
+    "name": "Alineación y Balanceo",
+    "description": "Alineación de ruedas y balanceo de neumáticos",
+    "active": true,
+    "createdAt": "2025-10-31T23:44:53.003Z"
+  },
+  {
+    "id": 4,
+    "categoryId": 1,
+    "name": "Revisión General",
+    "description": "Inspección completa del vehículo",
+    "active": true,
+    "createdAt": "2025-10-31T23:44:53.083Z"
+  },
+  {
+    "id": 5,
+    "categoryId": 1,
+    "name": "Cambio de Filtros",
+    "description": "Cambio de filtros de aire, combustible y cabina",
+    "active": true,
+    "createdAt": "2025-10-31T23:44:53.155Z"
+  },
+  {
+    "id": 6,
+    "categoryId": 2,
+    "name": "Reparación de Sistema de Enfriamiento",
+    "description": "Reparación del radiador y sistema de enfriamiento",
+    "active": true,
+    "createdAt": "2025-10-31T23:44:53.315Z"
+  },
+  {
+    "id": 7,
+    "categoryId": 2,
+    "name": "Reparación de Sistema de Combustible",
+    "description": "Reparación de bomba e inyectores",
+    "active": true,
+    "createdAt": "2025-10-31T23:44:53.395Z"
+  },
+  {
+    "id": 8,
+    "categoryId": 2,
+    "name": "Reparación de Sistema de Admisión",
+    "description": "Reparación de múltiple de admisión",
+    "active": true,
+    "createdAt": "2025-10-31T23:44:53.475Z"
+  },
+  {
+    "id": 9,
+    "categoryId": 2,
+    "name": "Overhaul de Motor",
+    "description": "Reconstrucción completa del motor",
+    "active": true,
+    "createdAt": "2025-10-31T23:44:53.551Z"
+  },
+  {
+    "id": 10,
+    "categoryId": 2,
+    "name": "Cambio de Correa de Distribución",
+    "description": "Sustitución de correa de distribución",
+    "active": true,
+    "createdAt": "2025-10-31T23:44:53.635Z"
+  },
+  {
+    "id": 11,
+    "categoryId": 3,
+    "name": "Reparación de Alternador",
+    "description": "Reparación o reemplazo del alternador",
+    "active": true,
+    "createdAt": "2025-10-31T23:44:53.791Z"
+  },
+  {
+    "id": 12,
+    "categoryId": 3,
+    "name": "Cambio de Batería",
+    "description": "Sustitución de batería",
+    "active": true,
+    "createdAt": "2025-10-31T23:44:53.871Z"
+  },
+  {
+    "id": 13,
+    "categoryId": 3,
+    "name": "Reparación de Sistema de Arranque",
+    "description": "Reparación del motor de arranque",
+    "active": true,
+    "createdAt": "2025-10-31T23:44:53.963Z"
+  },
+  {
+    "id": 14,
+    "categoryId": 3,
+    "name": "Diagnóstico Electrónico",
+    "description": "Escaneo y diagnóstico de fallas electrónicas",
+    "active": true,
+    "createdAt": "2025-10-31T23:44:54.044Z"
+  },
+  {
+    "id": 15,
+    "categoryId": 3,
+    "name": "Reparación de Luces",
+    "description": "Reparación del sistema de iluminación",
+    "active": true,
+    "createdAt": "2025-10-31T23:44:54.123Z"
+  },
+  {
+    "id": 16,
+    "categoryId": 4,
+    "name": "Cambio de Aceite de Transmisión",
+    "description": "Cambio de aceite y filtro de transmisión",
+    "active": true,
+    "createdAt": "2025-10-31T23:44:54.287Z"
+  },
+  {
+    "id": 17,
+    "categoryId": 4,
+    "name": "Reparación de Embrague",
+    "description": "Reparación o reemplazo del embrague",
+    "active": true,
+    "createdAt": "2025-10-31T23:44:54.359Z"
+  },
+  {
+    "id": 18,
+    "categoryId": 4,
+    "name": "Reparación de Transmisión Manual",
+    "description": "Reparación de transmisión manual",
+    "active": true,
+    "createdAt": "2025-10-31T23:44:54.439Z"
+  },
+  {
+    "id": 19,
+    "categoryId": 4,
+    "name": "Reparación de Transmisión Automática",
+    "description": "Reparación de transmisión automática",
+    "active": true,
+    "createdAt": "2025-10-31T23:44:54.515Z"
+  },
+  {
+    "id": 20,
+    "categoryId": 4,
+    "name": "Reparación de Cardán",
+    "description": "Reparación del eje cardán",
+    "active": true,
+    "createdAt": "2025-10-31T23:44:54.596Z"
+  },
+  {
+    "id": 21,
+    "categoryId": 5,
+    "name": "Cambio de Amortiguadores",
+    "description": "Sustitución de amortiguadores",
+    "active": true,
+    "createdAt": "2025-10-31T23:44:54.747Z"
+  },
+  {
+    "id": 22,
+    "categoryId": 5,
+    "name": "Reparación de Dirección Hidráulica",
+    "description": "Reparación del sistema de dirección asistida",
+    "active": true,
+    "createdAt": "2025-10-31T23:44:54.831Z"
+  },
+  {
+    "id": 23,
+    "categoryId": 5,
+    "name": "Cambio de Rótulas",
+    "description": "Sustitución de rótulas de suspensión",
+    "active": true,
+    "createdAt": "2025-10-31T23:44:54.907Z"
+  },
+  {
+    "id": 24,
+    "categoryId": 5,
+    "name": "Cambio de Terminales",
+    "description": "Sustitución de terminales de dirección",
+    "active": true,
+    "createdAt": "2025-10-31T23:44:54.987Z"
+  },
+  {
+    "id": 25,
+    "categoryId": 5,
+    "name": "Reparación de Cremallera",
+    "description": "Reparación de cremallera de dirección",
+    "active": true,
+    "createdAt": "2025-10-31T23:44:55.063Z"
+  },
+  {
+    "id": 26,
+    "categoryId": 6,
+    "name": "Cambio de Pastillas",
+    "description": "Sustitución de pastillas de freno",
+    "active": true,
+    "createdAt": "2025-10-31T23:44:55.227Z"
+  },
+  {
+    "id": 27,
+    "categoryId": 6,
+    "name": "Cambio de Discos",
+    "description": "Sustitución de discos de freno",
+    "active": true,
+    "createdAt": "2025-10-31T23:44:55.311Z"
+  },
+  {
+    "id": 28,
+    "categoryId": 6,
+    "name": "Rectificado de Discos",
+    "description": "Rectificado de discos de freno",
+    "active": true,
+    "createdAt": "2025-10-31T23:44:56.015Z"
+  },
+  {
+    "id": 29,
+    "categoryId": 6,
+    "name": "Cambio de Tambores",
+    "description": "Sustitución de tambores de freno",
+    "active": true,
+    "createdAt": "2025-10-31T23:44:56.095Z"
+  },
+  {
+    "id": 30,
+    "categoryId": 6,
+    "name": "Purga de Sistema de Frenos",
+    "description": "Purga y cambio de líquido de frenos",
+    "active": true,
+    "createdAt": "2025-10-31T23:44:56.183Z"
+  },
+  {
+    "id": 31,
+    "categoryId": 7,
+    "name": "Recarga de Aire Acondicionado",
+    "description": "Recarga de gas refrigerante",
+    "active": true,
+    "createdAt": "2025-10-31T23:44:56.647Z"
+  },
+  {
+    "id": 32,
+    "categoryId": 7,
+    "name": "Reparación de Compresor",
+    "description": "Reparación o reemplazo del compresor",
+    "active": true,
+    "createdAt": "2025-10-31T23:44:56.731Z"
+  },
+  {
+    "id": 33,
+    "categoryId": 7,
+    "name": "Reparación de Condensador",
+    "description": "Reparación del condensador de A/C",
+    "active": true,
+    "createdAt": "2025-10-31T23:44:56.807Z"
+  },
+  {
+    "id": 34,
+    "categoryId": 7,
+    "name": "Reparación de Evaporador",
+    "description": "Reparación del evaporador",
+    "active": true,
+    "createdAt": "2025-10-31T23:44:57.209Z"
+  },
+  {
+    "id": 35,
+    "categoryId": 7,
+    "name": "Reparación de Calefacción",
+    "description": "Reparación del sistema de calefacción",
+    "active": true,
+    "createdAt": "2025-10-31T23:44:57.289Z"
+  },
+  {
+    "id": 36,
+    "categoryId": 8,
+    "name": "Reparación de Abolladuras",
+    "description": "Reparación de golpes y abolladuras",
+    "active": true,
+    "createdAt": "2025-10-31T23:44:57.464Z"
+  },
+  {
+    "id": 37,
+    "categoryId": 8,
+    "name": "Pintura Completa",
+    "description": "Pintura completa del vehículo",
+    "active": true,
+    "createdAt": "2025-10-31T23:44:57.564Z"
+  },
+  {
+    "id": 38,
+    "categoryId": 8,
+    "name": "Pintura Parcial",
+    "description": "Pintura de áreas específicas",
+    "active": true,
+    "createdAt": "2025-10-31T23:44:57.653Z"
+  },
+  {
+    "id": 39,
+    "categoryId": 8,
+    "name": "Reparación de Parabrisas",
+    "description": "Reparación o cambio de cristales",
+    "active": true,
+    "createdAt": "2025-10-31T23:44:57.737Z"
+  },
+  {
+    "id": 40,
+    "categoryId": 8,
+    "name": "Pulido y Encerado",
+    "description": "Pulido y protección de pintura",
+    "active": true,
+    "createdAt": "2025-10-31T23:44:57.824Z"
+  },
+  {
+    "id": 41,
+    "categoryId": 9,
+    "name": "Cambio de Neumáticos",
+    "description": "Sustitución de neumáticos",
+    "active": true,
+    "createdAt": "2025-10-31T23:44:58.004Z"
+  },
+  {
+    "id": 42,
+    "categoryId": 9,
+    "name": "Rotación de Neumáticos",
+    "description": "Rotación de neumáticos",
+    "active": true,
+    "createdAt": "2025-10-31T23:44:58.101Z"
+  },
+  {
+    "id": 43,
+    "categoryId": 9,
+    "name": "Reparación de Pinchazos",
+    "description": "Reparación de neumáticos pinchados",
+    "active": true,
+    "createdAt": "2025-10-31T23:44:58.188Z"
+  },
+  {
+    "id": 44,
+    "categoryId": 9,
+    "name": "Alineación",
+    "description": "Alineación de ruedas",
+    "active": true,
+    "createdAt": "2025-10-31T23:44:58.277Z"
+  },
+  {
+    "id": 45,
+    "categoryId": 9,
+    "name": "Balanceo",
+    "description": "Balanceo de ruedas",
+    "active": true,
+    "createdAt": "2025-10-31T23:44:58.361Z"
+  },
+  {
+    "id": 46,
+    "categoryId": 10,
+    "name": "Diagnóstico General",
+    "description": "Diagnóstico completo del vehículo",
+    "active": true,
+    "createdAt": "2025-10-31T23:44:58.536Z"
+  },
+  {
+    "id": 47,
+    "categoryId": 10,
+    "name": "Escaneo de Computadora",
+    "description": "Escaneo del sistema electrónico",
+    "active": true,
+    "createdAt": "2025-10-31T23:44:58.632Z"
+  },
+  {
+    "id": 48,
+    "categoryId": 10,
+    "name": "Prueba de Compresión",
+    "description": "Prueba de compresión del motor",
+    "active": true,
+    "createdAt": "2025-10-31T23:44:58.708Z"
+  },
+  {
+    "id": 49,
+    "categoryId": 10,
+    "name": "Análisis de Gases",
+    "description": "Análisis de emisiones",
+    "active": true,
+    "createdAt": "2025-10-31T23:44:58.805Z"
+  },
+  {
+    "id": 50,
+    "categoryId": 10,
+    "name": "Inspección Pre-compra",
+    "description": "Inspección antes de compra",
+    "active": true,
+    "createdAt": "2025-10-31T23:44:58.880Z"
+  }
+]

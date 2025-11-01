@@ -1,0 +1,11 @@
+id,name,description,active,createdAt
+1,Mantenimiento Preventivo,Servicios de mantenimiento programado y preventivo,true,Fri Oct 31 2025 17:44:52 GMT-0600 (hora estándar central)
+2,Reparación de Motor,Reparaciones y mantenimiento del motor,true,Fri Oct 31 2025 17:44:53 GMT-0600 (hora estándar central)
+3,Sistema Eléctrico,Reparaciones del sistema eléctrico y electrónico,true,Fri Oct 31 2025 17:44:53 GMT-0600 (hora estándar central)
+4,Transmisión,Servicios de transmisión y embrague,true,Fri Oct 31 2025 17:44:54 GMT-0600 (hora estándar central)
+5,Suspensión y Dirección,Reparaciones de suspensión y sistema de dirección,true,Fri Oct 31 2025 17:44:54 GMT-0600 (hora estándar central)
+6,Frenos,Servicios especializados del sistema de frenos,true,Fri Oct 31 2025 17:44:55 GMT-0600 (hora estándar central)
+7,Climatización,Servicios de aire acondicionado y calefacción,true,Fri Oct 31 2025 17:44:56 GMT-0600 (hora estándar central)
+8,Carrocería y Pintura,"Servicios de carrocería, pintura y hojalatería",true,Fri Oct 31 2025 17:44:57 GMT-0600 (hora estándar central)
+9,Neumáticos,Servicios relacionados con neumáticos,true,Fri Oct 31 2025 17:44:57 GMT-0600 (hora estándar central)
+10,Diagnóstico,Servicios de diagnóstico y evaluación,true,Fri Oct 31 2025 17:44:58 GMT-0600 (hora estándar central)

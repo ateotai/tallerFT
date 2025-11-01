@@ -1,4 +1,4 @@
-import { Switch, Route } from "wouter";
+import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -11,6 +11,7 @@ import { NotificationsDropdown } from "@/components/notifications-dropdown";
 import { UserProfileDropdown } from "@/components/user-profile-dropdown";
 import { useAuth } from "@/hooks/useAuth";
 import Login from "@/pages/login";
+import Landing from "@/pages/landing";
 import NotFound from "@/pages/not-found";
 import DashboardPage from "@/pages/dashboard";
 import VehiclesPage from "@/pages/vehicles";
@@ -95,6 +96,7 @@ function AuthenticatedApp() {
 
 function AppContent() {
   const { isAuthenticated, isLoading } = useAuth();
+  const [location, navigate] = useLocation();
 
   if (isLoading) {
     return (
@@ -108,7 +110,17 @@ function AppContent() {
   }
 
   if (!isAuthenticated) {
-    return <Login />;
+    // Permitir rutas públicas '/' y '/login' cuando no autenticado
+    if (location !== "/" && location !== "/login") {
+      navigate("/");
+    }
+    return (
+      <Switch>
+        <Route path="/" component={Landing} />
+        <Route path="/login" component={Login} />
+        <Route component={Landing} />
+      </Switch>
+    );
   }
 
   return <AuthenticatedApp />;
