@@ -4,6 +4,7 @@ import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { Calendar, Eye, Settings } from "lucide-react";
 import type { Vehicle } from "@shared/schema";
 import vanImage from "@assets/generated_images/White_commercial_van_photo_54e80b21.png";
+import { useLocation } from "wouter";
 
 interface VehicleCardProps {
   vehicle: Vehicle;
@@ -17,6 +18,7 @@ const statusConfig = {
 
 export function VehicleCard({ vehicle }: VehicleCardProps) {
   const status = vehicle.status as keyof typeof statusConfig;
+  const [, navigate] = useLocation();
   
   return (
     <Card className="hover-elevate" data-testid={`card-vehicle-${vehicle.id}`}>
@@ -32,6 +34,11 @@ export function VehicleCard({ vehicle }: VehicleCardProps) {
       <CardContent className="p-6">
         <div className="flex items-start justify-between gap-2 mb-3">
           <div>
+            {vehicle.economicNumber && (
+              <div className="text-sm text-muted-foreground mb-1">
+                Nº Económico: <span className="font-mono font-semibold" data-testid={`text-economic-${vehicle.id}`}>{vehicle.economicNumber}</span>
+              </div>
+            )}
             <h3 className="font-semibold text-lg" data-testid={`text-vehicle-name-${vehicle.id}`}>
               {vehicle.brand} {vehicle.model}
             </h3>
@@ -66,7 +73,19 @@ export function VehicleCard({ vehicle }: VehicleCardProps) {
         </div>
       </CardContent>
       <CardFooter className="p-6 pt-0 flex gap-2">
-        <Button variant="outline" size="sm" className="flex-1" data-testid={`button-view-${vehicle.id}`}>
+        <Button
+          variant="outline"
+          size="sm"
+          className="flex-1"
+          data-testid={`button-view-${vehicle.id}`}
+          onClick={() => {
+            const params = new URLSearchParams();
+            params.set("tab", "history");
+            if (vehicle.economicNumber) params.set("economicNumber", String(vehicle.economicNumber));
+            if (vehicle.vin) params.set("vin", String(vehicle.vin));
+            navigate(`/vehiculos?${params.toString()}`);
+          }}
+        >
           <Eye className="h-4 w-4 mr-1" />
           Ver Detalles
         </Button>

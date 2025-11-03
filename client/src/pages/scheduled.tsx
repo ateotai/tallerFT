@@ -1,59 +1,77 @@
 import { ScheduledCalendar } from "@/components/scheduled-calendar";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import type { ScheduledMaintenance, Vehicle } from "@shared/schema";
+import { useMemo, useState } from "react";
+import { AddScheduledMaintenanceDialog } from "@/components/add-scheduled-maintenance-dialog";
 
 export default function ScheduledPage() {
-  //todo: remove mock functionality
-  const services = [
-    {
-      id: "1",
-      date: "24 Oct 2024",
-      time: "09:00",
-      vehiclePlate: "ABC-1234",
-      serviceType: "Cambio de Aceite",
-      status: "today" as const,
+  const [openDialog, setOpenDialog] = useState(false);
+
+  const { data: scheduled = [] } = useQuery<ScheduledMaintenance[]>({
+    queryKey: ["/api/scheduled-maintenance"],
+    queryFn: async () => {
+      const res = await apiRequest("GET", "/api/scheduled-maintenance");
+      return await res.json();
     },
-    {
-      id: "2",
-      date: "24 Oct 2024",
-      time: "14:00",
-      vehiclePlate: "DEF-5678",
-      serviceType: "Revisión General",
-      status: "today" as const,
+  });
+
+  const { data: vehicles = [] } = useQuery<Vehicle[]>({
+    queryKey: ["/api/vehicles"],
+    queryFn: async () => {
+      const res = await apiRequest("GET", "/api/vehicles");
+      return await res.json();
     },
-    {
-      id: "3",
-      date: "25 Oct 2024",
-      time: "10:00",
-      vehiclePlate: "GHI-9012",
-      serviceType: "Alineación y Balanceo",
-      status: "upcoming" as const,
-    },
-    {
-      id: "4",
-      date: "25 Oct 2024",
-      time: "15:30",
-      vehiclePlate: "JKL-3456",
-      serviceType: "Cambio de Filtros",
-      status: "upcoming" as const,
-    },
-    {
-      id: "5",
-      date: "26 Oct 2024",
-      time: "11:00",
-      vehiclePlate: "MNO-7890",
-      serviceType: "Revisión de Suspensión",
-      status: "upcoming" as const,
-    },
-    {
-      id: "6",
-      date: "22 Oct 2024",
-      time: "11:00",
-      vehiclePlate: "PQR-1122",
-      serviceType: "Cambio de Frenos",
-      status: "overdue" as const,
-    },
-  ];
+  });
+
+  const vehicleMap = useMemo(() => {
+    const map = new Map<number, Vehicle>();
+    vehicles.forEach((v) => map.set(v.id, v));
+    return map;
+  }, [vehicles]);
+
+  const services = useMemo(() => {
+    const formatterDate = new Intl.DateTimeFormat("es-MX", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+    const formatterTime = new Intl.DateTimeFormat("es-MX", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+
+    const today = new Date();
+    const isSameDay = (a: Date, b: Date) =>
+      a.getFullYear() === b.getFullYear() &&
+      a.getMonth() === b.getMonth() &&
+      a.getDate() === b.getDate();
+
+    return scheduled.map((item) => {
+      const due = item.nextDueDate ? new Date(item.nextDueDate as unknown as string) : new Date();
+      const dateLabel = formatterDate.format(due);
+      const timeLabel = formatterTime.format(due);
+      const vehicle = vehicleMap.get(item.vehicleId);
+      const plate = vehicle?.plate || "—";
+      const status: "upcoming" | "today" | "overdue" = isSameDay(due, today)
+        ? "today"
+        : due < today
+        ? "overdue"
+        : "upcoming";
+
+      return {
+        id: item.id.toString(),
+        date: dateLabel,
+        time: timeLabel,
+        vehiclePlate: plate,
+        serviceType: item.title,
+        status,
+        due,
+      } as const;
+    });
+  }, [scheduled, vehicleMap]);
 
   return (
     <div className="space-y-8">
@@ -64,13 +82,21 @@ export default function ScheduledPage() {
             Calendario de servicios y alertas automáticas
           </p>
         </div>
-        <Button data-testid="button-schedule-service">
+        <Button data-testid="button-schedule-service" onClick={() => setOpenDialog(true)}>
           <Plus className="h-4 w-4 mr-2" />
           Programar Servicio
         </Button>
       </div>
 
       <ScheduledCalendar services={services} />
+
+      <AddScheduledMaintenanceDialog
+        open={openDialog}
+        onOpenChange={(o) => setOpenDialog(o)}
+        onCreated={() => {
+          queryClient.invalidateQueries({ queryKey: ["/api/scheduled-maintenance"] });
+        }}
+      />
     </div>
   );
 }

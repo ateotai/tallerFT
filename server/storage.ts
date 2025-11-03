@@ -69,6 +69,7 @@ export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  updateUser(id: number, user: Partial<InsertUser>): Promise<User | undefined>;
   
   getVehicleTypes(): Promise<VehicleType[]>;
   getVehicleType(id: number): Promise<VehicleType | undefined>;
@@ -157,6 +158,7 @@ export interface IStorage {
   
   getEmployees(): Promise<Employee[]>;
   getEmployee(id: number): Promise<Employee | undefined>;
+  getEmployeeByUserId(userId: number): Promise<Employee | undefined>;
   createEmployee(employee: InsertEmployee): Promise<Employee>;
   updateEmployee(id: number, employee: Partial<InsertEmployee>): Promise<Employee | undefined>;
   deleteEmployee(id: number): Promise<boolean>;
@@ -204,6 +206,8 @@ export interface IStorage {
   
   getNotifications(): Promise<Notification[]>;
   getUnreadNotifications(): Promise<Notification[]>;
+  getNotificationsByUser(userId: number): Promise<Notification[]>;
+  getUnreadNotificationsByUser(userId: number): Promise<Notification[]>;
   getNotification(id: number): Promise<Notification | undefined>;
   createNotification(notification: InsertNotification): Promise<Notification>;
   markNotificationAsRead(id: number): Promise<Notification | undefined>;
@@ -272,6 +276,11 @@ export class DbStorage implements IStorage {
 
   async createUser(user: InsertUser): Promise<User> {
     const result = await db.insert(schema.users).values(user).returning();
+    return result[0];
+  }
+
+  async updateUser(id: number, user: Partial<InsertUser>): Promise<User | undefined> {
+    const result = await db.update(schema.users).set(user).where(eq(schema.users.id, id)).returning();
     return result[0];
   }
 
@@ -663,6 +672,11 @@ export class DbStorage implements IStorage {
     return result[0];
   }
 
+  async getEmployeeByUserId(userId: number): Promise<Employee | undefined> {
+    const result = await db.select().from(schema.employees).where(eq(schema.employees.userId, userId)).limit(1);
+    return result[0];
+  }
+
   async createEmployee(employee: InsertEmployee): Promise<Employee> {
     const result = await db.insert(schema.employees).values(employee).returning();
     return result[0];
@@ -891,6 +905,22 @@ export class DbStorage implements IStorage {
 
   async getUnreadNotifications(): Promise<Notification[]> {
     return await db.select().from(schema.notifications).where(eq(schema.notifications.read, false)).orderBy(schema.notifications.createdAt);
+  }
+
+  async getNotificationsByUser(userId: number): Promise<Notification[]> {
+    return await db
+      .select()
+      .from(schema.notifications)
+      .where(eq(schema.notifications.userId, userId))
+      .orderBy(schema.notifications.createdAt);
+  }
+
+  async getUnreadNotificationsByUser(userId: number): Promise<Notification[]> {
+    return await db
+      .select()
+      .from(schema.notifications)
+      .where(and(eq(schema.notifications.read, false), eq(schema.notifications.userId, userId)))
+      .orderBy(schema.notifications.createdAt);
   }
 
   async getNotification(id: number): Promise<Notification | undefined> {

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DashboardStats } from "@/components/dashboard-stats";
@@ -19,14 +19,20 @@ import type {
   WorkOrderTask,
   WorkOrderMaterial,
   Service,
+  CompanyConfiguration,
 } from "@shared/schema";
+import { useLocation } from "wouter";
 
 export default function VehiclesPage() {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [searchQuery, setSearchQuery] = useState("");
   const [economicNumber, setEconomicNumber] = useState("");
   const [vin, setVin] = useState("");
+  const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
   const [searchEnabled, setSearchEnabled] = useState(false);
+  const [activeTab, setActiveTab] = useState<string>("vehicles");
+  const [location, navigate] = useLocation();
 
   const { data: vehicles = [], isLoading: isLoadingVehicles } = useQuery<Vehicle[]>({
     queryKey: ["/api/vehicles"],
@@ -34,6 +40,10 @@ export default function VehiclesPage() {
 
   const { data: vehicleTypes = [], isLoading: isLoadingTypes } = useQuery<VehicleType[]>({
     queryKey: ["/api/vehicle-types"],
+  });
+
+  const { data: configuration } = useQuery<CompanyConfiguration>({
+    queryKey: ["/api/configuration"],
   });
 
   type VehicleHistoryResponse = {
@@ -59,12 +69,16 @@ export default function VehiclesPage() {
       "/api/vehicle-history",
       economicNumber.trim(),
       vin.trim(),
+      startDate.trim(),
+      endDate.trim(),
       searchEnabled,
     ],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (economicNumber.trim()) params.set("economicNumber", economicNumber.trim());
       if (vin.trim()) params.set("vin", vin.trim());
+      if (startDate.trim()) params.set("startDate", startDate.trim());
+      if (endDate.trim()) params.set("endDate", endDate.trim());
       const res = await fetch(`/api/vehicle-history?${params.toString()}`);
       if (!res.ok) {
         const msg = await res.text();
@@ -79,8 +93,66 @@ export default function VehiclesPage() {
     (v) =>
       v.brand.toLowerCase().includes(searchQuery.toLowerCase()) ||
       v.model.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      v.plate.toLowerCase().includes(searchQuery.toLowerCase())
+      v.plate.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (v.economicNumber
+        ? String(v.economicNumber).toLowerCase().includes(searchQuery.toLowerCase())
+        : false) ||
+      (v.vin ? v.vin.toLowerCase().includes(searchQuery.toLowerCase()) : false)
   );
+
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search || "");
+      const tab = params.get("tab");
+      const econ = params.get("economicNumber") || "";
+      const v = params.get("vin") || "";
+      const sd = params.get("startDate") || "";
+      const ed = params.get("endDate") || "";
+      if (tab) setActiveTab(tab);
+      if (econ) setEconomicNumber(econ);
+      if (v) setVin(v);
+      if (sd) setStartDate(sd);
+      if (ed) setEndDate(ed);
+      if (tab === "history" && (econ.trim() || v.trim())) {
+        setSearchEnabled(true);
+        // Deja que react-query dispare basado en enabled; adicionalmente forzamos un refetch
+        refetchHistory();
+      }
+    } catch (e) {
+      // Ignorar errores de parseo
+    }
+  }, [location]);
+
+  // Impresión: helpers para imprimir todo el historial o un solo reporte
+  const handlePrintAll = () => {
+    const root = document.getElementById("vehicle-history-content");
+    if (!root) {
+      window.print();
+      return;
+    }
+    root.classList.add("vehicle-print-content");
+    const cleanup = () => {
+      root.classList.remove("vehicle-print-content");
+      window.removeEventListener("afterprint", cleanup);
+    };
+    window.addEventListener("afterprint", cleanup);
+    window.print();
+  };
+
+  const handlePrintReport = (reportId: number) => {
+    const el = document.getElementById(`report-${reportId}`);
+    if (!el) {
+      window.print();
+      return;
+    }
+    el.classList.add("vehicle-print-content");
+    const cleanup = () => {
+      el.classList.remove("vehicle-print-content");
+      window.removeEventListener("afterprint", cleanup);
+    };
+    window.addEventListener("afterprint", cleanup);
+    window.print();
+  };
 
   return (
     <div className="space-y-8">
@@ -91,8 +163,8 @@ export default function VehiclesPage() {
         </p>
       </div>
 
-      <Tabs defaultValue="vehicles" className="space-y-6">
-        <TabsList>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <TabsList className="no-print">
           <TabsTrigger value="vehicles" data-testid="tab-vehicles">Vehículos</TabsTrigger>
           <TabsTrigger value="types" data-testid="tab-vehicle-types">Tipos de Vehículos</TabsTrigger>
           <TabsTrigger value="history" data-testid="tab-vehicle-history">Historial</TabsTrigger>
@@ -105,7 +177,7 @@ export default function VehiclesPage() {
             <div className="relative flex-1 max-w-md">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Buscar vehículos..."
+                placeholder="Buscar por número económico, VIN, placa, marca o modelo..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10"
@@ -175,7 +247,7 @@ export default function VehiclesPage() {
         </TabsContent>
 
         <TabsContent value="history" className="space-y-6">
-          <div className="flex justify-between items-center">
+          <div className="flex justify-between items-center no-print">
             <div>
               <h2 className="text-2xl font-semibold">Historial de Vehículo</h2>
               <p className="text-muted-foreground mt-1">
@@ -184,7 +256,7 @@ export default function VehiclesPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end no-print">
             <div className="space-y-2">
               <label className="text-sm font-medium" htmlFor="economicNumber">
                 Número económico
@@ -221,11 +293,38 @@ export default function VehiclesPage() {
                 onClick={() => {
                   setEconomicNumber("");
                   setVin("");
+                  setStartDate("");
+                  setEndDate("");
                   setSearchEnabled(false);
                 }}
               >
                 Limpiar
               </Button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end no-print">
+            <div className="space-y-2">
+              <label className="text-sm font-medium" htmlFor="startDate">
+                Fecha inicio del reporte
+              </label>
+              <Input
+                id="startDate"
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium" htmlFor="endDate">
+                Fecha fin del reporte
+              </label>
+              <Input
+                id="endDate"
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+              />
             </div>
           </div>
 
@@ -240,136 +339,239 @@ export default function VehiclesPage() {
               Cargando historial...
             </div>
           ) : history && searchEnabled ? (
-            <div className="space-y-6">
-              <div className="rounded-md border p-4">
-                <h3 className="text-lg font-semibold">Vehículo</h3>
-                <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
-                  <div>
-                    <span className="text-muted-foreground">Marca:</span> {history.vehicle.brand}
+            <div className="space-y-6 print-container" id="vehicle-history-content">
+              {/* Estilos de impresión: al imprimir solo se muestra vehicle-print-content */}
+              <style>{`
+                /* Ocultar encabezado de empresa en pantalla */
+                .company-print-header { display: none; }
+                @media print {
+                  body * { visibility: hidden; }
+                  .vehicle-print-content, .vehicle-print-content * { visibility: visible; }
+                  .vehicle-print-content { position: absolute; left: 0; top: 0; width: 100%; padding: 12mm; }
+                  @page { margin: 12mm; }
+                  /* Encabezado sólo para impresión de reporte individual */
+                  .report-print-header { display: none; }
+                  .vehicle-print-content.report-card .report-print-header {
+                    display: block;
+                    margin-bottom: 8mm;
+                    padding-bottom: 4mm;
+                    border-bottom: 1px solid #e5e7eb;
+                  }
+                  /* Encabezado de empresa optimizado a 2 renglones */
+                  .company-print-header {
+                    display: block;
+                    margin-bottom: 6mm;
+                    padding-bottom: 3mm;
+                    border-bottom: 1px solid #e5e7eb;
+                    font-size: 11px;
+                    line-height: 1.3;
+                  }
+                  .company-print-header .row1 {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 2px;
+                  }
+                  .company-print-header .row2 {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                  }
+                  .company-print-header .brand {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    font-weight: 600;
+                    font-size: 13px;
+                  }
+                  .company-print-header img { height: 32px; object-fit: contain; }
+                  .company-print-header .contact { color: #374151; }
+                  .company-print-header .meta-right { text-align: right; color: #6b7280; }
+                }
+              `}</style>
+              {/* Encabezado de empresa para historial completo */}
+              <div className="company-print-header">
+                <div className="row1">
+                  <div className="brand">
+                    {configuration?.logo ? (
+                      <img src={configuration.logo} alt="Logo" />
+                    ) : (
+                      <img src="/logo.png" alt="Logo" />
+                    )}
+                    {configuration?.companyName || "AutoCare Manager"}
                   </div>
-                  <div>
-                    <span className="text-muted-foreground">Modelo:</span> {history.vehicle.model}
+                  <div className="meta-right">
+                    <div>Historial completo</div>
+                    <div>Impreso: {new Date().toLocaleString()}</div>
                   </div>
-                  <div>
-                    <span className="text-muted-foreground">Placa:</span> {history.vehicle.plate}
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Número económico:</span> {history.vehicle.economicNumber}
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">VIN:</span> {history.vehicle.vin}
+                </div>
+                <div className="row2">
+                  <div className="contact">
+                    {[
+                      configuration?.companyAddress,
+                      configuration?.companyPhone && `Tel: ${configuration.companyPhone}`,
+                      configuration?.companyEmail,
+                      configuration?.taxId && `RFC: ${configuration.taxId}`
+                    ].filter(Boolean).join(" • ")}
                   </div>
                 </div>
               </div>
-
               <div className="rounded-md border p-4">
-                <h3 className="text-lg font-semibold">Reportes iniciales</h3>
+                <h3 className="text-lg font-semibold section-title">Vehículo</h3>
+                <div className="mt-2 text-sm space-y-1">
+                  <div className="flex flex-wrap gap-x-6 gap-y-1">
+                    <span><span className="text-muted-foreground">Marca:</span> {history.vehicle.brand}</span>
+                    <span><span className="text-muted-foreground">Modelo:</span> {history.vehicle.model}</span>
+                    <span><span className="text-muted-foreground">Placa:</span> {history.vehicle.plate}</span>
+                  </div>
+                  <div className="flex flex-wrap gap-x-6 gap-y-1">
+                    <span><span className="text-muted-foreground">Número económico:</span> {history.vehicle.economicNumber}</span>
+                    <span><span className="text-muted-foreground">VIN:</span> {history.vehicle.vin}</span>
+                  </div>
+                </div>
+              </div>
+              {/* Acciones: imprimir */}
+              <div className="flex justify-end no-print gap-2">
+                <Button variant="outline" onClick={handlePrintAll}>Imprimir historial (todo)</Button>
+              </div>
+
+              {/* Historial agrupado por reporte */}
+              <div className="rounded-md border p-4">
+                <h3 className="text-lg font-semibold section-title">Historial agrupado por reporte</h3>
                 {history.reports.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Sin reportes</p>
+                  <p className="text-sm text-muted-foreground">Sin reportes en el rango seleccionado</p>
                 ) : (
-                  <ul className="mt-2 space-y-2 text-sm">
-                    {history.reports.map((r) => (
-                      <li key={r.id} className="border rounded-md p-2">
-                        <div className="flex justify-between">
-                          <span className="font-medium">#{r.id}</span>
-                          <span className="text-muted-foreground">{new Date(r.createdAt as unknown as string).toLocaleString()}</span>
-                        </div>
-                        <div className="text-muted-foreground">{r.description}</div>
-                        <div className="text-xs">Estado: {r.status}</div>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
+                  <ul className="mt-3 space-y-4">
+                    {history.reports.map((r) => {
+                      const diagnosticsByReport = history.diagnostics.filter((d) => d.reportId === r.id);
+                      const workOrdersByReport = history.workOrders.filter((wo) =>
+                        diagnosticsByReport.some((d) => wo.diagnosticId === d.id)
+                      );
+                      return (
+                        <li key={r.id} id={`report-${r.id}`} className="border rounded-md p-3 report-card">
+                          {/* Encabezado compacto con datos del vehículo, visible solo al imprimir este reporte */}
+                          <div className="report-print-header">
+                            <div className="text-base font-semibold">Reporte de vehículo</div>
+                            <div className="mt-1 text-sm space-y-1">
+                              <div className="flex flex-wrap gap-x-6 gap-y-1">
+                                <span><span className="text-muted-foreground">Marca:</span> {history.vehicle.brand}</span>
+                                <span><span className="text-muted-foreground">Modelo:</span> {history.vehicle.model}</span>
+                                <span><span className="text-muted-foreground">Placa:</span> {history.vehicle.plate}</span>
+                              </div>
+                              <div className="flex flex-wrap gap-x-6 gap-y-1">
+                                <span><span className="text-muted-foreground">Número económico:</span> {history.vehicle.economicNumber}</span>
+                                <span><span className="text-muted-foreground">VIN:</span> {history.vehicle.vin}</span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex flex-wrap gap-x-4 gap-y-1 items-center">
+                            <span className="font-medium">Reporte #{r.id}</span>
+                            <span className="text-muted-foreground">Fecha: {new Date(r.createdAt as unknown as string).toLocaleString()}</span>
+                            <span className="text-xs">Estado: {r.status}</span>
+                            {r.resolved && r.resolvedDate && (
+                              <span className="text-xs">Alta: {new Date(r.resolvedDate as unknown as string).toLocaleString()}</span>
+                            )}
+                          </div>
+                          {/* Botón para imprimir solo este reporte */}
+                          <div className="flex justify-end mt-2 no-print">
+                            <Button size="sm" variant="outline" onClick={() => handlePrintReport(r.id)}>Imprimir este reporte</Button>
+                          </div>
+                          <div className="mt-1 text-muted-foreground">{r.description}</div>
 
-              <div className="rounded-md border p-4">
-                <h3 className="text-lg font-semibold">Diagnósticos</h3>
-                {history.diagnostics.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Sin diagnósticos</p>
-                ) : (
-                  <ul className="mt-2 space-y-2 text-sm">
-                    {history.diagnostics.map((d) => (
-                      <li key={d.id} className="border rounded-md p-2">
-                        <div className="flex justify-between">
-                          <span className="font-medium">#{d.id}</span>
-                          <span className="text-muted-foreground">{new Date(d.createdAt as unknown as string).toLocaleString()}</span>
-                        </div>
-                        <div className="text-xs">Severidad: {d.severity}</div>
-                        {d.approvedAt && (
-                          <div className="text-xs">Aprobado: {new Date(d.approvedAt as unknown as string).toLocaleString()}</div>
-                        )}
-                        <div className="text-muted-foreground">{d.technicalRecommendation}</div>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-
-              <div className="rounded-md border p-4">
-                <h3 className="text-lg font-semibold">Órdenes de trabajo</h3>
-                {history.workOrders.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Sin órdenes de trabajo</p>
-                ) : (
-                  <ul className="mt-2 space-y-3 text-sm">
-                    {history.workOrders.map((wo) => (
-                      <li key={wo.id} className="border rounded-md p-3">
-                        <div className="flex flex-wrap gap-x-4 gap-y-1 items-center">
-                          <span className="font-medium">OT #{wo.id}</span>
-                          {wo.startDate && (
-                            <span className="text-muted-foreground">Inicio: {new Date(wo.startDate as unknown as string).toLocaleString()}</span>
-                          )}
-                          {wo.completedDate && (
-                            <span className="text-muted-foreground">Fin: {new Date(wo.completedDate as unknown as string).toLocaleString()}</span>
-                          )}
-                          <span className="text-xs">Estado: {wo.status}</span>
-                          <span className="text-xs">Prioridad: {wo.priority}</span>
-                        </div>
-                        <div className="mt-1 text-muted-foreground">{wo.description}</div>
-
-                        <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
-                          <div>
-                            <h4 className="font-semibold">Trabajos realizados</h4>
-                            {wo.tasks.length === 0 ? (
-                              <p className="text-xs text-muted-foreground">Sin tareas</p>
+                          <div className="mt-3">
+                            <h4 className="font-semibold section-title">Diagnósticos</h4>
+                            {diagnosticsByReport.length === 0 ? (
+                              <p className="text-xs text-muted-foreground">Sin diagnósticos</p>
                             ) : (
-                              <ul className="mt-1 space-y-1">
-                                {wo.tasks.map((t) => (
-                                  <li key={t.id} className="text-xs">
-                                    <span className="font-medium">Tarea #{t.id}:</span> {t.notes || t.estimatedTime || "Trabajo"}
+                              <ul className="mt-1 space-y-2 text-sm print-list">
+                                {diagnosticsByReport.map((d) => (
+                                  <li key={d.id} className="border rounded-md p-2 subcard">
+                                    <div className="flex justify-between">
+                                      <span className="font-medium">#{d.id}</span>
+                                      <span className="text-muted-foreground">{new Date(d.createdAt as unknown as string).toLocaleString()}</span>
+                                    </div>
+                                    <div className="text-xs">Severidad: {d.severity}</div>
+                                    {d.approvedAt && (
+                                      <div className="text-xs">Aprobado: {new Date(d.approvedAt as unknown as string).toLocaleString()}</div>
+                                    )}
+                                    <div className="text-muted-foreground">{d.technicalRecommendation}</div>
                                   </li>
                                 ))}
                               </ul>
                             )}
                           </div>
-                          <div>
-                            <h4 className="font-semibold">Materiales usados</h4>
-                            {wo.materials.length === 0 ? (
-                              <p className="text-xs text-muted-foreground">Sin materiales</p>
+
+                          <div className="mt-4">
+                            <h4 className="font-semibold section-title">Órdenes de trabajo</h4>
+                            {workOrdersByReport.length === 0 ? (
+                              <p className="text-xs text-muted-foreground">Sin órdenes de trabajo</p>
                             ) : (
-                              <ul className="mt-1 space-y-1">
-                                {wo.materials.map((m) => (
-                                  <li key={m.id} className="text-xs">
-                                    <span className="font-medium">{m.description}</span> — Cantidad: {m.quantityNeeded} — Costo unitario: ${m.unitCost}
+                              <ul className="mt-2 space-y-3 text-sm print-list">
+                                {workOrdersByReport.map((wo) => (
+                                  <li key={wo.id} className="border rounded-md p-3 subcard">
+                                    <div className="flex flex-wrap gap-x-4 gap-y-1 items-center">
+                                      <span className="font-medium">OT #{wo.id}</span>
+                                      {wo.startDate && (
+                                        <span className="text-muted-foreground">Inicio: {new Date(wo.startDate as unknown as string).toLocaleString()}</span>
+                                      )}
+                                      {wo.completedDate && (
+                                        <span className="text-muted-foreground">Fin: {new Date(wo.completedDate as unknown as string).toLocaleString()}</span>
+                                      )}
+                                      <span className="text-xs">Estado: {wo.status}</span>
+                                      <span className="text-xs">Prioridad: {wo.priority}</span>
+                                    </div>
+                                    <div className="mt-1 text-muted-foreground">{wo.description}</div>
+
+                                    <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+                                      <div>
+                                        <h5 className="font-semibold">Trabajos realizados</h5>
+                                        {wo.tasks.length === 0 ? (
+                                          <p className="text-xs text-muted-foreground">Sin tareas</p>
+                                        ) : (
+                                          <ul className="mt-1 space-y-1">
+                                            {wo.tasks.map((t) => (
+                                              <li key={t.id} className="text-xs">
+                                                <span className="font-medium">Tarea #{t.id}:</span> {t.notes || t.estimatedTime || "Trabajo"}
+                                              </li>
+                                            ))}
+                                          </ul>
+                                        )}
+                                      </div>
+                                      <div>
+                                        <h5 className="font-semibold">Materiales usados</h5>
+                                        {wo.materials.length === 0 ? (
+                                          <p className="text-xs text-muted-foreground">Sin materiales</p>
+                                        ) : (
+                                          <ul className="mt-1 space-y-1">
+                                            {wo.materials.map((m) => (
+                                              <li key={m.id} className="text-xs">
+                                                <span className="font-medium">{m.description}</span> — Cantidad: {m.quantityNeeded} — Costo unitario: ${m.unitCost}
+                                              </li>
+                                            ))}
+                                          </ul>
+                                        )}
+                                      </div>
+                                    </div>
                                   </li>
                                 ))}
                               </ul>
                             )}
                           </div>
-                        </div>
-                      </li>
-                    ))}
+                        </li>
+                      );
+                    })}
                   </ul>
                 )}
               </div>
-
+              {/* Servicios generales del vehículo (no vinculados a reporte) */}
               <div className="rounded-md border p-4">
-                <h3 className="text-lg font-semibold">Servicios</h3>
+                <h3 className="text-lg font-semibold section-title">Servicios generales</h3>
                 {history.services.length === 0 ? (
                   <p className="text-sm text-muted-foreground">Sin servicios</p>
                 ) : (
                   <ul className="mt-2 space-y-2 text-sm">
                     {history.services.map((s) => (
-                      <li key={s.id} className="border rounded-md p-2">
+                      <li key={s.id} className="border rounded-md p-2 subcard">
                         <div className="flex justify-between">
                           <span className="font-medium">Servicio #{s.id}</span>
                           {s.completedDate && (

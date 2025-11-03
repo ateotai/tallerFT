@@ -248,14 +248,107 @@
 
 /**
  * Using the elevate system.
+ */
+
+/* ==== Print styles ==== */
+@media print {
+  /* Base reset for print */
+  html, body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Hide interactive controls and non-essential UI */
+  .no-print {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+
+  /* Container and layout */
+  .print-container {
+    padding: 12mm;
+    font-family: var(--font-sans);
+    font-size: 10pt;
+    line-height: 1.35;
+  }
+
+  /* Header */
+  .print-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    border-bottom: 1px solid #000;
+    padding-bottom: 8px;
+    margin-bottom: 16px;
+  }
+  .print-header .company-block {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .print-title {
+    font-size: 16pt;
+    font-weight: 700;
+    margin: 0;
+  }
+  .print-meta {
+    font-size: 9pt;
+    color: #111;
+  }
+
+  /* Sections and cards */
+  .section-title {
+    font-size: 12pt;
+    font-weight: 600;
+    border-bottom: 1px solid #333;
+    padding-bottom: 4px;
+    margin-top: 10px;
+    margin-bottom: 8px;
+  }
+  .report-card {
+    border: 1px solid #000;
+    border-radius: 4px;
+    padding: 8px;
+    margin-bottom: 10px;
+    page-break-inside: avoid;
+  }
+  .subcard {
+    border: 1px solid #444;
+    border-radius: 4px;
+    padding: 6px;
+    margin-top: 6px;
+    page-break-inside: avoid;
+  }
+
+  /* Tables and lists */
+  .print-list {
+    margin: 6px 0 10px 0;
+    padding-left: 18px;
+  }
+  .print-list li {
+    margin-bottom: 4px;
+  }
+
+  /* Page setup */
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+}
+/*
  * Automatic contrast adjustment.
  *
  * <element className="hover-elevate" />
  * <element className="active-elevate-2" />
  *
- * // Using the tailwind utility when a data attribute is "on"
+ * Using the tailwind utility when a data attribute is "on":
  * <element className="toggle-elevate data-[state=on]:toggle-elevated" />
- * // Or manually controlling the toggle state
+ * Or manually controlling the toggle state:
  * <element className="toggle-elevate toggle-elevated" />
  *
  * Elevation systems have to handle many states.
@@ -264,7 +357,7 @@
  * - focused or not (this is not handled with these utilities)
  *
  * Even without handling focused or not, this is six possible combinations that
- * need to be distinguished from eachother visually.
+ * need to be distinguished from each other visually.
  */
 @layer utilities {
 

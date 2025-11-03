@@ -26,6 +26,7 @@ import {
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { format } from "date-fns";
 import type { Report, Vehicle } from "@shared/schema";
 
@@ -52,7 +53,9 @@ export function IssueReportsTable({ reports }: IssueReportsTableProps) {
   const [reportToAssign, setReportToAssign] = useState<Report | null>(null);
   const { toast } = useToast();
   
-  const currentUserRole = "admin";
+  const { user } = useAuth();
+  const roleText = (user?.role || "").toLowerCase();
+  const currentUserRole = roleText;
 
   const { data: vehicles = [] } = useQuery<Vehicle[]>({
     queryKey: ["/api/vehicles"],
@@ -192,7 +195,7 @@ export function IssueReportsTable({ reports }: IssueReportsTableProps) {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
-                      {(currentUserRole === "admin" || currentUserRole === "supervisor") && report.status === "pending" && (
+                      {(currentUserRole === "admin" || currentUserRole === "administrador") && report.status === "pending" && (
                         <Button
                           variant="ghost"
                           size="icon"
@@ -202,7 +205,7 @@ export function IssueReportsTable({ reports }: IssueReportsTableProps) {
                           <UserPlus className="h-4 w-4" />
                         </Button>
                       )}
-                      {(currentUserRole === "admin" || currentUserRole === "supervisor") && report.resolved && (
+                      {(currentUserRole === "admin" || currentUserRole === "administrador" || currentUserRole === "supervisor") && report.resolved && (
                         <Button
                           variant="ghost"
                           size="icon"
@@ -214,7 +217,7 @@ export function IssueReportsTable({ reports }: IssueReportsTableProps) {
                           <RotateCcw className="h-4 w-4" />
                         </Button>
                       )}
-                      {(currentUserRole === "admin" || currentUserRole === "supervisor") && (
+                      {(currentUserRole === "admin" || currentUserRole === "administrador" || currentUserRole === "supervisor") && (
                         <>
                           <Button
                             variant="ghost"

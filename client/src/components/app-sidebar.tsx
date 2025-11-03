@@ -24,6 +24,9 @@ import {
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useAuth } from "@/hooks/useAuth";
+import type { Role, Permission, RolePermission } from "@shared/schema";
 import {
   Sidebar,
   SidebarContent,
@@ -161,6 +164,64 @@ export function AppSidebar() {
   const [companyOpen, setCompanyOpen] = useState(true);
   const [rolesPermissionsOpen, setRolesPermissionsOpen] = useState(true);
 
+  // Obtener usuario y permisos del rol
+  const { user } = useAuth();
+  const { data: roles = [] } = useQuery<Role[]>({ queryKey: ["/api/roles"] });
+  const { data: permissions = [] } = useQuery<Permission[]>({ queryKey: ["/api/permissions"] });
+  const currentRoleId = roles.find(r => r.name === user?.role)?.id;
+  const { data: rolePerms = [] } = useQuery<RolePermission[]>({
+    queryKey: ["/api/role-permissions", currentRoleId ?? ""],
+    enabled: !!currentRoleId,
+  });
+
+  const moduleByTitle: Record<string, string> = {
+    // Principales
+    "Dashboard": "Dashboard",
+    "Vehículos": "Vehículos",
+    "Tareas Programadas": "Tareas Programadas",
+    "Categorías": "Categorías",
+    "Proveedores": "Proveedores",
+    "Cotizaciones de Compra": "Cotizaciones de Compra",
+    "Clientes": "Clientes",
+    "Inventario": "Inventario",
+    "Reportes": "Reportes",
+    "Reportes de Fallas": "Reportes de Fallas",
+    // Servicio y Mantenimiento
+    "Evaluación y Diagnóstico": "Evaluación y Diagnóstico",
+    "Órdenes de Trabajo": "Órdenes de Trabajo",
+    "Prueba y Validación": "Prueba y Validación",
+    // Empresa
+    "Talleres": "Talleres",
+    "Áreas": "Áreas",
+    "Configuración": "Configuración",
+    // Administración
+    "Empleados": "Empleados",
+    "Usuarios": "Usuarios",
+    // Roles y Permisos
+    "Roles": "Roles",
+    "Permisos": "Permisos",
+  };
+
+  const allowedModules = new Set<string>();
+  if (permissions.length && rolePerms.length) {
+    for (const rp of rolePerms) {
+      const perm = permissions.find(p => p.id === rp.permissionId);
+      if (perm?.module) {
+        allowedModules.add(perm.module);
+      }
+    }
+  }
+
+  // Todos los usuarios autenticados deben poder ver "Reportes de Fallas"
+  // incluso si aún no tienen configurada la matriz de permisos.
+  allowedModules.add("Reportes de Fallas");
+  // Los mecánicos necesitan consultar el historial por vehículo.
+  // Habilitamos también el módulo "Vehículos" para todos los usuarios autenticados.
+  allowedModules.add("Vehículos");
+
+  const filterItemsByPermissions = (items: { title: string; url: string; icon: any }[]) =>
+    items.filter(item => allowedModules.has(moduleByTitle[item.title]));
+
   const isMaintenanceActive = maintenanceMenuItems.some(item => location === item.url);
   const isCompanyActive = companyMenuItems.some(item => location === item.url);
   const isRolesPermissionsActive = rolesPermissionsMenuItems.some(item => location === item.url);
@@ -183,7 +244,7 @@ export function AppSidebar() {
           <SidebarGroupLabel>Módulos Principales</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {mainMenuItems.map((item) => (
+              {filterItemsByPermissions(mainMenuItems).map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton
                     asChild
@@ -223,7 +284,7 @@ export function AppSidebar() {
                   </CollapsibleTrigger>
                   <CollapsibleContent>
                     <SidebarMenuSub>
-                      {maintenanceMenuItems.map((item) => (
+                      {filterItemsByPermissions(maintenanceMenuItems).map((item) => (
                         <SidebarMenuSubItem key={item.title}>
                           <SidebarMenuSubButton
                             asChild
@@ -267,7 +328,7 @@ export function AppSidebar() {
                   </CollapsibleTrigger>
                   <CollapsibleContent>
                     <SidebarMenuSub>
-                      {companyMenuItems.map((item) => (
+                      {filterItemsByPermissions(companyMenuItems).map((item) => (
                         <SidebarMenuSubItem key={item.title}>
                           <SidebarMenuSubButton
                             asChild
@@ -293,7 +354,7 @@ export function AppSidebar() {
           <SidebarGroupLabel>Administración</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {adminMenuItems.map((item) => (
+              {filterItemsByPermissions(adminMenuItems).map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton
                     asChild
@@ -326,7 +387,7 @@ export function AppSidebar() {
                   </CollapsibleTrigger>
                   <CollapsibleContent>
                     <SidebarMenuSub>
-                      {rolesPermissionsMenuItems.map((item) => (
+                      {filterItemsByPermissions(rolesPermissionsMenuItems).map((item) => (
                         <SidebarMenuSubItem key={item.title}>
                           <SidebarMenuSubButton
                             asChild

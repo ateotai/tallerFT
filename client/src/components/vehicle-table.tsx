@@ -31,6 +31,7 @@ import { EditVehicleDialog } from "@/components/edit-vehicle-dialog";
 import type { Vehicle } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useLocation } from "wouter";
 
 interface VehicleTableProps {
   vehicles: Vehicle[];
@@ -46,6 +47,7 @@ export function VehicleTable({ vehicles }: VehicleTableProps) {
   const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
   const [deletingVehicleId, setDeletingVehicleId] = useState<number | null>(null);
   const { toast } = useToast();
+  const [, navigate] = useLocation();
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
@@ -89,6 +91,11 @@ export function VehicleTable({ vehicles }: VehicleTableProps) {
                 <TableRow key={vehicle.id} data-testid={`row-vehicle-${vehicle.id}`}>
                   <TableCell>
                     <div>
+                      {vehicle.economicNumber && (
+                        <div className="text-xs text-muted-foreground mb-1">
+                          Nº Económico: <span className="font-mono font-semibold" data-testid={`text-economic-${vehicle.id}`}>{vehicle.economicNumber}</span>
+                        </div>
+                      )}
                       <div className="font-medium" data-testid={`text-vehicle-${vehicle.id}`}>
                         {vehicle.brand} {vehicle.model}
                       </div>
@@ -112,7 +119,18 @@ export function VehicleTable({ vehicles }: VehicleTableProps) {
                   <TableCell>Pendiente</TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
-                      <Button variant="ghost" size="sm" data-testid={`button-view-${vehicle.id}`}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        data-testid={`button-view-${vehicle.id}`}
+                        onClick={() => {
+                          const params = new URLSearchParams();
+                          params.set("tab", "history");
+                          if (vehicle.economicNumber) params.set("economicNumber", String(vehicle.economicNumber));
+                          if (vehicle.vin) params.set("vin", String(vehicle.vin));
+                          navigate(`/vehiculos?${params.toString()}`);
+                        }}
+                      >
                         <Eye className="h-4 w-4" />
                       </Button>
                       <Button variant="ghost" size="sm" data-testid={`button-schedule-${vehicle.id}`}>

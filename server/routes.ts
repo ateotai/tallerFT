@@ -1,7 +1,10 @@
 import type { Express } from "express";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { isAuthenticated, authenticateUser } from "./authMiddleware";
+import { isAuthenticated, authenticateUser, hashPassword } from "./authMiddleware";
 import { ZodError, z } from "zod";
 import {
   insertVehicleSchema,
@@ -45,6 +48,34 @@ function validateId(id: string): number | null {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Configure multer for company logo uploads
+  const uploadsDir = path.resolve(import.meta.dirname, "..", "uploads");
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+  }
+  const storageEngine = multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, uploadsDir),
+    filename: (_req, file, cb) => {
+      const ext = path.extname(file.originalname) || "";
+      const ts = Date.now();
+      cb(null, `company-logo-${ts}${ext}`);
+    },
+  });
+  const upload = multer({
+    storage: storageEngine,
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+    fileFilter: (_req, file, cb) => {
+      const allowed = [
+        "image/png",
+        "image/jpeg",
+        "image/jpg",
+        "image/webp",
+        "image/svg+xml",
+      ];
+      if (allowed.includes(file.mimetype)) cb(null, true);
+      else cb(new Error("Tipo de archivo no permitido"));
+    },
+  });
   // Login endpoint
   const loginSchema = z.object({
     username: z.string().min(1, "Usuario requerido"),
@@ -311,6 +342,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const vehicleHistoryQuerySchema = z.object({
     economicNumber: z.string().min(1).optional(),
     vin: z.string().min(1).optional(),
+    startDate: z.coerce.date().optional(),
+    endDate: z.coerce.date().optional(),
   }).refine((data) => !!data.economicNumber || !!data.vin, {
     message: "Debe proporcionar número económico o VIN",
     path: ["economicNumber"],
@@ -319,7 +352,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/vehicle-history", async (req, res) => {
     try {
       const params = vehicleHistoryQuerySchema.parse(req.query);
-      const { economicNumber, vin } = params;
+      const { economicNumber, vin, startDate, endDate } = params;
 
       let vehicle = undefined as Awaited<ReturnType<typeof storage.getVehicle>> | undefined;
       if (economicNumber) {
@@ -333,7 +366,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const vehicleId = vehicle.id;
-      const reports = await storage.getReportsByVehicle(vehicleId);
+      let reports = await storage.getReportsByVehicle(vehicleId);
+      // Filtrar por rango de fechas si se proporciona
+      if (startDate || endDate) {
+        reports = reports.filter((r) => {
+          const createdAt = r.createdAt ? new Date(r.createdAt as unknown as string) : undefined;
+          if (!createdAt) return false;
+          const afterStart = startDate ? createdAt >= startDate : true;
+          const beforeEnd = endDate ? createdAt <= endDate : true;
+          return afterStart && beforeEnd;
+        });
+      }
 
       const diagnosticsAll: any[] = [];
       for (const report of reports) {
@@ -1129,16 +1172,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/reports", async (req, res) => {
     try {
+      const currentUserId = req.session.userId;
+      const currentUser = currentUserId ? await storage.getUser(currentUserId) : undefined;
+      // Todos los roles deben poder ver todos los reportes de fallas,
+      // por lo que eliminamos la restricción de visibilidad por rol.
+
       const vehicleId = req.query.vehicleId ? validateId(req.query.vehicleId as string) : null;
       const userId = req.query.userId ? validateId(req.query.userId as string) : null;
-      
+
       if (req.query.vehicleId && vehicleId === null) {
         return res.status(400).json({ error: "vehicleId inválido" });
       }
       if (req.query.userId && userId === null) {
         return res.status(400).json({ error: "userId inválido" });
       }
-      
+
       let reports;
       if (vehicleId) {
         reports = await storage.getReportsByVehicle(vehicleId);
@@ -1147,7 +1195,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else {
         reports = await storage.getReports();
       }
-      
+
       res.json(reports);
     } catch (error) {
       console.error("Error fetching reports:", error);
@@ -1404,8 +1452,90 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Create user
+  app.post("/api/users", async (req, res) => {
+    try {
+      const createUserSchema = z.object({
+        username: z.string().min(3, "Usuario muy corto"),
+        password: z.string().min(6, "Contraseña muy corta"),
+        email: z.string().email("Email inválido"),
+        fullName: z.string().min(3, "Nombre muy corto"),
+        role: z.string().optional().default("user"),
+        active: z.boolean().optional().default(true),
+      });
+      const data = createUserSchema.parse(req.body);
+
+      const passwordHash = await hashPassword(data.password);
+      const user = await storage.createUser({
+        username: data.username,
+        passwordHash,
+        email: data.email,
+        fullName: data.fullName,
+        role: data.role ?? "user",
+        active: data.active ?? true,
+      });
+      res.status(201).json(user);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ error: "Datos inválidos", details: error.errors });
+      }
+      console.error("Error creating user:", error);
+      res.status(500).json({ error: "Error al crear usuario" });
+    }
+  });
+
+  // Update user
+  app.put("/api/users/:id", async (req, res) => {
+    try {
+      const id = validateId(req.params.id);
+      if (id === null) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+
+      const updateUserSchema = z.object({
+        username: z.string().min(3).optional(),
+        password: z.string().min(6).optional(),
+        email: z.string().email().optional(),
+        fullName: z.string().min(3).optional(),
+        role: z.string().optional(),
+        active: z.boolean().optional(),
+      });
+      const data = updateUserSchema.parse(req.body);
+
+      const updateData: any = {};
+      if (data.username !== undefined) updateData.username = data.username;
+      if (data.email !== undefined) updateData.email = data.email;
+      if (data.fullName !== undefined) updateData.fullName = data.fullName;
+      if (data.role !== undefined) updateData.role = data.role;
+      if (data.active !== undefined) updateData.active = data.active;
+      if (data.password !== undefined) {
+        updateData.passwordHash = await hashPassword(data.password);
+      }
+
+      const user = await storage.updateUser(id, updateData);
+      if (!user) {
+        return res.status(404).json({ error: "Usuario no encontrado" });
+      }
+      res.json(user);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ error: "Datos inválidos", details: error.errors });
+      }
+      console.error("Error updating user:", error);
+      res.status(500).json({ error: "Error al actualizar usuario" });
+    }
+  });
+
   app.post("/api/reports/:id/assign", async (req, res) => {
     try {
+      // Solo administrador puede asignar reportes
+      const currentUserId = req.session.userId;
+      const currentUser = currentUserId ? await storage.getUser(currentUserId) : undefined;
+      const roleText = (currentUser?.role || '').toLowerCase();
+      if (!currentUser || (roleText !== 'admin' && roleText !== 'administrador')) {
+        return res.status(403).json({ error: "Solo el administrador puede asignar reportes" });
+      }
+
       const id = validateId(req.params.id);
       if (id === null) {
         return res.status(400).json({ error: "ID inválido" });
@@ -1448,16 +1578,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/diagnostics", async (req, res) => {
     try {
+      const currentUserId = req.session.userId;
+      const currentUser = currentUserId ? await storage.getUser(currentUserId) : undefined;
+      const isPrivileged = currentUser && ["admin", "supervisor"].includes(currentUser.role.toLowerCase());
+
       const reportId = req.query.reportId ? validateId(req.query.reportId as string) : null;
       const employeeId = req.query.employeeId ? validateId(req.query.employeeId as string) : null;
-      
+
       if (req.query.reportId && reportId === null) {
         return res.status(400).json({ error: "reportId inválido" });
       }
       if (req.query.employeeId && employeeId === null) {
         return res.status(400).json({ error: "employeeId inválido" });
       }
-      
+
+      // Si NO es admin/supervisor, devolver diagnósticos vinculados al empleado del usuario
+      if (!isPrivileged && currentUser) {
+        const employee = await storage.getEmployeeByUserId(currentUser.id);
+        if (!employee) {
+          return res.json([]);
+        }
+        const diagnostics = await storage.getDiagnosticsByEmployee(employee.id);
+        return res.json(diagnostics);
+      }
+
       let diagnostics;
       if (reportId) {
         diagnostics = await storage.getDiagnosticsByReport(reportId);
@@ -1580,16 +1724,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/work-orders", async (req, res) => {
     try {
+      const currentUserId = req.session.userId;
+      const currentUser = currentUserId ? await storage.getUser(currentUserId) : undefined;
+      const isPrivileged = currentUser && ["admin", "supervisor"].includes(currentUser.role.toLowerCase());
+
       const vehicleId = req.query.vehicleId ? validateId(req.query.vehicleId as string) : null;
       const employeeId = req.query.employeeId ? validateId(req.query.employeeId as string) : null;
-      
+
       if (req.query.vehicleId && vehicleId === null) {
         return res.status(400).json({ error: "vehicleId inválido" });
       }
       if (req.query.employeeId && employeeId === null) {
         return res.status(400).json({ error: "employeeId inválido" });
       }
-      
+
+      // Si NO es admin/supervisor, devolver órdenes asignadas al empleado vinculado al usuario
+      if (!isPrivileged && currentUser) {
+        const employee = await storage.getEmployeeByUserId(currentUser.id);
+        if (!employee) {
+          return res.json([]);
+        }
+        const workOrders = await storage.getWorkOrdersByEmployee(employee.id);
+        return res.json(workOrders);
+      }
+
       let workOrders;
       if (vehicleId) {
         workOrders = await storage.getWorkOrdersByVehicle(vehicleId);
@@ -1979,9 +2137,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/notifications", async (req, res) => {
     try {
       const unreadOnly = req.query.unreadOnly === "true";
-      const notifications = unreadOnly 
-        ? await storage.getUnreadNotifications() 
-        : await storage.getNotifications();
+
+      const currentUserId = req.session.userId;
+      const currentUser = currentUserId ? await storage.getUser(currentUserId) : undefined;
+      const isPrivileged = currentUser && ["admin", "supervisor"].includes(currentUser.role.toLowerCase());
+
+      let notifications;
+      if (!isPrivileged && currentUser) {
+        notifications = unreadOnly
+          ? await storage.getUnreadNotificationsByUser(currentUser.id)
+          : await storage.getNotificationsByUser(currentUser.id);
+      } else {
+        notifications = unreadOnly 
+          ? await storage.getUnreadNotifications() 
+          : await storage.getNotifications();
+      }
+
       res.json(notifications);
     } catch (error) {
       console.error("Error fetching notifications:", error);
@@ -2267,6 +2438,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       console.error("Error updating configuration:", error);
       res.status(500).json({ error: "Error al actualizar configuración" });
+    }
+  });
+
+  // Upload company logo via multipart/form-data
+  app.post("/api/configuration/logo", upload.single("logo"), async (req, res) => {
+    try {
+      const file = req.file;
+      if (!file) {
+        return res.status(400).json({ error: "Archivo de logo requerido" });
+      }
+      const publicUrl = `/uploads/${file.filename}`;
+      // Optionally update current configuration's logo if exists
+      const existing = await storage.getCompanyConfiguration();
+      if (existing?.id) {
+        await storage.updateCompanyConfiguration(existing.id, { logo: publicUrl });
+      }
+      res.status(201).json({ url: publicUrl });
+    } catch (error) {
+      console.error("Error uploading logo:", error);
+      res.status(500).json({ error: "Error al subir logo" });
     }
   });
 

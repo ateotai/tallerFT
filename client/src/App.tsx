@@ -1,4 +1,5 @@
 import { Switch, Route, useLocation } from "wouter";
+import { useEffect } from "react";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -98,6 +99,15 @@ function AppContent() {
   const { isAuthenticated, isLoading } = useAuth();
   const [location, navigate] = useLocation();
 
+  // Evitar actualizar estado durante render: navegar como efecto
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      if (location !== "/" && location !== "/login") {
+        navigate("/", { replace: true });
+      }
+    }
+  }, [isLoading, isAuthenticated, location, navigate]);
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -111,9 +121,6 @@ function AppContent() {
 
   if (!isAuthenticated) {
     // Permitir rutas públicas '/' y '/login' cuando no autenticado
-    if (location !== "/" && location !== "/login") {
-      navigate("/");
-    }
     return (
       <Switch>
         <Route path="/" component={Landing} />

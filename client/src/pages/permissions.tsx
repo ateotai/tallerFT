@@ -131,7 +131,17 @@ export default function PermissionsPage() {
     }
   };
 
-  const groupedPermissions = groupPermissionsByModule(permissions);
+  // Deduplicar permisos por nombre+módulo para evitar filas repetidas
+  const uniquePermissions: Permission[] = (() => {
+    const map = new Map<string, Permission>();
+    for (const p of permissions) {
+      const key = `${p.name}|${p.module}`;
+      if (!map.has(key)) map.set(key, p);
+    }
+    return Array.from(map.values());
+  })();
+
+  const groupedPermissions = groupPermissionsByModule(uniquePermissions);
   const moduleNames = Object.keys(groupedPermissions).sort();
 
   return (

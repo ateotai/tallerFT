@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, Clock } from "lucide-react";
+import { Calendar as DayCalendar } from "@/components/ui/calendar";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 
@@ -11,6 +12,7 @@ interface ScheduledService {
   vehiclePlate: string;
   serviceType: string;
   status: "upcoming" | "today" | "overdue";
+  due: Date;
 }
 
 interface ScheduledCalendarProps {
@@ -25,6 +27,12 @@ const statusConfig = {
 
 export function ScheduledCalendar({ services }: ScheduledCalendarProps) {
   const [view, setView] = useState<"list" | "calendar">("list");
+  const [selected, setSelected] = useState<Date | undefined>(new Date());
+
+  const isSameDay = (a: Date, b: Date) =>
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate();
 
   // Group services by date
   const groupedServices = services.reduce((acc, service) => {
@@ -97,9 +105,61 @@ export function ScheduledCalendar({ services }: ScheduledCalendarProps) {
             </div>
           ))
         ) : (
-          <div className="text-center py-12 text-muted-foreground">
-            <Calendar className="h-12 w-12 mx-auto mb-3 opacity-50" />
-            <p>Vista de calendario próximamente</p>
+          <div className="space-y-6">
+            <DayCalendar
+              mode="single"
+              selected={selected}
+              onSelect={(date) => setSelected(date || selected)}
+            />
+
+            <div>
+              <div className="flex items-center gap-2 text-sm font-medium mb-2">
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+                <span>
+                  {selected
+                    ? selected.toLocaleDateString("es-MX", {
+                        day: "2-digit",
+                        month: "short",
+                        year: "numeric",
+                      })
+                    : "Selecciona una fecha"}
+                </span>
+              </div>
+
+              <div className="space-y-2 pl-6">
+                {services.filter((s) => selected && isSameDay(s.due, selected)).length === 0 ? (
+                  <div className="text-muted-foreground">No hay servicios para esta fecha</div>
+                ) : (
+                  services
+                    .filter((s) => selected && isSameDay(s.due, selected))
+                    .map((service) => (
+                      <div
+                        key={service.id}
+                        className="flex items-center justify-between gap-4 p-3 rounded-md border hover-elevate"
+                      >
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">{service.serviceType}</span>
+                            <Badge
+                              variant="outline"
+                              className={statusConfig[service.status].className}
+                            >
+                              {statusConfig[service.status].label}
+                            </Badge>
+                          </div>
+                          <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                              <Clock className="h-3 w-3" />
+                              {service.time}
+                            </span>
+                            <span className="font-mono">{service.vehiclePlate}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                )}
+              </div>
+            </div>
           </div>
         )}
       </CardContent>

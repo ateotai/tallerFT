@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Search, Plus, MoreHorizontal } from "lucide-react";
+import { Search, MoreHorizontal } from "lucide-react";
 import { useState } from "react";
 import {
   DropdownMenu,
@@ -18,59 +18,53 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import { AddUserDialog } from "@/components/add-user-dialog";
+import { EditUserDialog } from "@/components/edit-user-dialog";
+import type { User } from "@shared/schema";
+import { useToast } from "@/hooks/use-toast";
 
 export default function UsersPage() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
+  const { toast } = useToast();
 
-  //todo: remove mock functionality
-  const users = [
-    {
-      id: "1",
-      name: "Juan Pérez",
-      email: "juan.perez@empresa.com",
-      role: "Administrador",
-      status: "active",
-      lastActive: "Hace 2 horas",
-    },
-    {
-      id: "2",
-      name: "María García",
-      email: "maria.garcia@empresa.com",
-      role: "Supervisor",
-      status: "active",
-      lastActive: "Hace 5 min",
-    },
-    {
-      id: "3",
-      name: "Carlos López",
-      email: "carlos.lopez@empresa.com",
-      role: "Mecánico",
-      status: "active",
-      lastActive: "En línea",
-    },
-    {
-      id: "4",
-      name: "Ana Martínez",
-      email: "ana.martinez@empresa.com",
-      role: "Consulta",
-      status: "inactive",
-      lastActive: "Hace 2 días",
-    },
-  ];
+  const { data: users = [] } = useQuery<User[]>({
+    queryKey: ["/api/users"],
+  });
 
-  const roleColors = {
+  const deactivateMutation = useMutation({
+    mutationFn: async (user: User) => {
+      return await apiRequest("PUT", `/api/users/${user.id}`, { active: false });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      toast({ title: "Usuario desactivado" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message || "No se pudo desactivar", variant: "destructive" });
+    },
+  });
+
+  const roleColors: Record<string, string> = {
     Administrador: "border-red-600 text-red-600",
     Supervisor: "border-blue-600 text-blue-600",
     Mecánico: "border-green-600 text-green-600",
     Consulta: "border-gray-600 text-gray-600",
+    user: "border-gray-600 text-gray-600",
   };
 
-  const filteredUsers = users.filter(
-    (u) =>
-      u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      u.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      u.role.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredUsers = users.filter((u) => {
+    const q = searchQuery.toLowerCase();
+    return (
+      (u.fullName || "").toLowerCase().includes(q) ||
+      (u.email || "").toLowerCase().includes(q) ||
+      (u.username || "").toLowerCase().includes(q) ||
+      (u.role || "").toLowerCase().includes(q)
+    );
+  });
 
   const getInitials = (name: string) => {
     return name
@@ -101,10 +95,7 @@ export default function UsersPage() {
             data-testid="input-search-users"
           />
         </div>
-        <Button data-testid="button-add-user">
-          <Plus className="h-4 w-4 mr-2" />
-          Agregar Usuario
-        </Button>
+        <AddUserDialog />
       </div>
 
       <div className="border rounded-md">
@@ -125,16 +116,16 @@ export default function UsersPage() {
                 <TableCell>
                   <div className="flex items-center gap-3">
                     <Avatar>
-                      <AvatarFallback>{getInitials(user.name)}</AvatarFallback>
+                      <AvatarFallback>{getInitials(user.fullName)}</AvatarFallback>
                     </Avatar>
-                    <span className="font-medium" data-testid={`text-name-${user.id}`}>{user.name}</span>
+                    <span className="font-medium" data-testid={`text-name-${user.id}`}>{user.fullName}</span>
                   </div>
                 </TableCell>
                 <TableCell data-testid={`text-email-${user.id}`}>{user.email}</TableCell>
                 <TableCell>
                   <Badge
                     variant="outline"
-                    className={roleColors[user.role as keyof typeof roleColors]}
+                    className={roleColors[user.role] || "border-gray-600 text-gray-600"}
                   >
                     {user.role}
                   </Badge>
@@ -142,17 +133,14 @@ export default function UsersPage() {
                 <TableCell>
                   <Badge
                     variant="outline"
-                    className={
-                      user.status === "active"
-                        ? "border-green-600 text-green-600"
-                        : "border-gray-600 text-gray-600"
-                    }
+                    className={user.active ? "border-green-600 text-green-600" : "border-gray-600 text-gray-600"}
                   >
-                    {user.status === "active" ? "Activo" : "Inactivo"}
+                    {user.active ? "Activo" : "Inactivo"}
                   </Badge>
                 </TableCell>
                 <TableCell className="text-sm text-muted-foreground">
-                  {user.lastActive}
+                  {/* createdAt no se muestra como última actividad, pero puede servir */}
+                  {user.createdAt ? new Date(user.createdAt as any).toLocaleDateString() : ""}
                 </TableCell>
                 <TableCell className="text-right">
                   <DropdownMenu>
@@ -162,10 +150,10 @@ export default function UsersPage() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem>Editar</DropdownMenuItem>
-                      <DropdownMenuItem>Cambiar Rol</DropdownMenuItem>
-                      <DropdownMenuItem>Restablecer Contraseña</DropdownMenuItem>
-                      <DropdownMenuItem className="text-destructive">
+                      <DropdownMenuItem onClick={() => { setEditingUser(user); setEditOpen(true); }}>Editar</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => { setEditingUser(user); setEditOpen(true); }}>Cambiar Rol</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => { setEditingUser(user); setEditOpen(true); }}>Restablecer Contraseña</DropdownMenuItem>
+                      <DropdownMenuItem className="text-destructive" onClick={() => deactivateMutation.mutate(user)}>
                         Desactivar
                       </DropdownMenuItem>
                     </DropdownMenuContent>
@@ -176,6 +164,7 @@ export default function UsersPage() {
           </TableBody>
         </Table>
       </div>
+      <EditUserDialog user={editingUser} open={editOpen} onOpenChange={setEditOpen} />
     </div>
   );
 }

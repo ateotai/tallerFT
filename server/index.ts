@@ -1,4 +1,6 @@
 import express, { type Request, Response, NextFunction } from "express";
+import path from "path";
+import fs from "fs";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { setupVite, serveStatic, log } from "./vite";
@@ -49,6 +51,13 @@ app.use(express.json({
   }
 }));
 app.use(express.urlencoded({ limit: '50mb', extended: false }));
+
+// Serve uploaded files statically under /uploads
+const uploadsDir = path.resolve(import.meta.dirname, "..", "uploads");
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+app.use('/uploads', express.static(uploadsDir));
 
 app.use((req, res, next) => {
   const start = Date.now();

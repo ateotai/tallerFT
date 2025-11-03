@@ -116,6 +116,31 @@ export default function ConfigurationPage() {
     },
   });
 
+  const uploadLogoMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData();
+      formData.append("logo", file);
+      const res = await fetch("/api/configuration/logo", {
+        method: "POST",
+        body: formData,
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "No se pudo subir el logo");
+      }
+      const data = await res.json();
+      return data as { url: string };
+    },
+    onSuccess: (data) => {
+      form.setValue("logo", data.url, { shouldDirty: true });
+      queryClient.invalidateQueries({ queryKey: ["/api/configuration"] });
+      toast({ title: "Logo subido", description: "Se actualizó el logo de la empresa" });
+    },
+    onError: (error: Error) => {
+      toast({ variant: "destructive", title: "Error al subir logo", description: error.message });
+    },
+  });
+
   const onSubmit = (data: InsertCompanyConfiguration) => {
     saveMutation.mutate(data);
   };
@@ -248,26 +273,38 @@ export default function ConfigurationPage() {
                 />
               </div>
 
-              <FormField
-                control={form.control}
-                name="logo"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>URL del Logo</FormLabel>
-                    <FormControl>
-                      <Input
-                        data-testid="input-logo"
-                        placeholder="https://ejemplo.com/logo.png"
-                        {...field}
+              <FormItem>
+                <FormLabel>Logo de la Empresa</FormLabel>
+                <div className="flex items-start gap-4">
+                  <div className="w-32 h-32 border rounded flex items-center justify-center bg-muted">
+                    {form.watch("logo") ? (
+                      <img
+                        src={form.watch("logo")}
+                        alt="Logo"
+                        className="max-w-full max-h-full object-contain"
                       />
-                    </FormControl>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">Sin logo</span>
+                    )}
+                  </div>
+                  <div className="flex-1 space-y-2">
+                    <Input
+                      type="file"
+                      accept="image/png,image/jpeg,image/jpg,image/webp,image/svg+xml"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          uploadLogoMutation.mutate(file);
+                        }
+                      }}
+                    />
                     <FormDescription>
-                      URL de la imagen del logo de la empresa
+                      Suba una imagen del logo (PNG, JPG, WEBP o SVG, máx. 5MB)
                     </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                  </div>
+                </div>
+                <FormMessage />
+              </FormItem>
 
               <div className="border-t pt-6">
                 <h3 className="text-lg font-semibold mb-4">Preferencias del Sistema</h3>

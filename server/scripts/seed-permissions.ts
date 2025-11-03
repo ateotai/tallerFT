@@ -127,7 +127,8 @@ async function seedPermissions() {
         module: perm.module,
         description: perm.description,
       })
-      .onConflictDoNothing();
+      // Evitar duplicados basados en nombre+módulo
+      .onConflictDoNothing({ target: [permissions.name, permissions.module] });
   }
 
   console.log(`✓ ${permissionsList.length} permissions seeded successfully!`);

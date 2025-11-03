@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, serial, varchar, timestamp, integer, real, boolean, jsonb, index } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, varchar, timestamp, integer, real, boolean, jsonb, index, uniqueIndex } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -191,10 +191,14 @@ export const scheduledMaintenance = pgTable("scheduled_maintenance", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
-export const insertScheduledMaintenanceSchema = createInsertSchema(scheduledMaintenance).omit({
-  id: true,
-  createdAt: true,
-});
+export const insertScheduledMaintenanceSchema = createInsertSchema(scheduledMaintenance)
+  .omit({
+    id: true,
+    createdAt: true,
+  })
+  .extend({
+    nextDueDate: z.coerce.date(),
+  });
 export type InsertScheduledMaintenance = z.infer<typeof insertScheduledMaintenanceSchema>;
 export type ScheduledMaintenance = typeof scheduledMaintenance.$inferSelect;
 
@@ -531,13 +535,17 @@ export const insertRoleSchema = createInsertSchema(roles).omit({
 export type InsertRole = z.infer<typeof insertRoleSchema>;
 export type Role = typeof roles.$inferSelect;
 
-export const permissions = pgTable("permissions", {
-  id: serial("id").primaryKey(),
-  name: text("name").notNull(),
-  module: text("module").notNull(),
-  description: text("description"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+export const permissions = pgTable(
+  "permissions",
+  {
+    id: serial("id").primaryKey(),
+    name: text("name").notNull(),
+    module: text("module").notNull(),
+    description: text("description"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex("UQ_permissions_name_module").on(table.name, table.module)]
+);
 
 export const insertPermissionSchema = createInsertSchema(permissions).omit({
   id: true,
