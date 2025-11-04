@@ -1580,7 +1580,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const currentUserId = req.session.userId;
       const currentUser = currentUserId ? await storage.getUser(currentUserId) : undefined;
-      const isPrivileged = currentUser && ["admin", "supervisor"].includes(currentUser.role.toLowerCase());
+      const roleText = (currentUser?.role || "").toLowerCase();
+      const isPrivileged = ["admin", "administrador", "supervisor"].includes(roleText);
+      const includeApproved = (String(req.query.includeApproved || '').toLowerCase() === 'true') || (req.query.includeApproved === '1');
 
       const reportId = req.query.reportId ? validateId(req.query.reportId as string) : null;
       const employeeId = req.query.employeeId ? validateId(req.query.employeeId as string) : null;
@@ -1592,25 +1594,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "employeeId inválido" });
       }
 
+      // Log de contexto
+      console.log('[diagnostics:list] context', { userId: currentUserId, role: currentUser?.role, isPrivileged, includeApproved, reportId, employeeId });
+
       // Si NO es admin/supervisor, devolver diagnósticos vinculados al empleado del usuario
       if (!isPrivileged && currentUser) {
-        const employee = await storage.getEmployeeByUserId(currentUser.id);
+        // Intentar primeramente por vínculo directo userId -> empleado
+        let employee = await storage.getEmployeeByUserId(currentUser.id);
+
+        // Fallback: si no hay vínculo por userId, intentar mapear por nombre completo o email
+        if (!employee) {
+          const employees = await storage.getEmployees();
+          const fullName = (currentUser.fullName || "").trim().toLowerCase();
+          const [firstCandidate, ...rest] = fullName.split(" ");
+          const lastCandidate = rest.join(" ");
+          employee = employees.find(e => (
+            (e.firstName || "").trim().toLowerCase() === firstCandidate &&
+            (e.lastName || "").trim().toLowerCase() === lastCandidate
+          )) || employees.find(e => (
+            (e.email || "").trim().toLowerCase() === (currentUser.email || "").trim().toLowerCase()
+          ));
+        }
+
         if (!employee) {
           return res.json([]);
         }
         const diagnostics = await storage.getDiagnosticsByEmployee(employee.id);
-        return res.json(diagnostics);
+        console.log('[diagnostics:list] non-privileged employee', employee.id, 'rawCount', diagnostics.length);
+        // Ocultar diagnósticos ya aprobados para la tabla (pendientes solamente)
+        const filtered = diagnostics.filter(d => !d.approvedAt);
+        console.log('[diagnostics:list] non-privileged filteredCount', filtered.length);
+        return res.json(filtered);
       }
 
       let diagnostics;
       if (reportId) {
         diagnostics = await storage.getDiagnosticsByReport(reportId);
+        console.log('[diagnostics:list] by report', reportId, 'rawCount', diagnostics.length);
       } else if (employeeId) {
         diagnostics = await storage.getDiagnosticsByEmployee(employeeId);
+        console.log('[diagnostics:list] by employee', employeeId, 'rawCount', diagnostics.length);
       } else {
         diagnostics = await storage.getDiagnostics();
+        console.log('[diagnostics:list] all rawCount', diagnostics.length);
       }
-      res.json(diagnostics);
+      // Por defecto ocultar aprobados; permitir incluirlos con includeApproved
+      const filtered = includeApproved ? diagnostics : diagnostics.filter(d => !d.approvedAt);
+      console.log('[diagnostics:list] includeApproved', includeApproved, 'filteredCount', filtered.length);
+      res.json(filtered);
     } catch (error) {
       console.error("Error fetching diagnostics:", error);
       res.status(500).json({ error: "Error al obtener diagnósticos" });
@@ -1631,6 +1662,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching diagnostic:", error);
       res.status(500).json({ error: "Error al obtener diagnóstico" });
+    }
+  });
+
+  // Ruta de depuración: devolver todos los diagnósticos sin filtros
+  app.get("/api/diagnostics_debug_all", async (req, res) => {
+    try {
+      const diagnostics = await storage.getDiagnostics();
+      res.json({ count: diagnostics.length, diagnostics });
+    } catch (error) {
+      console.error("Error fetching diagnostics_debug_all:", error);
+      res.status(500).json({ error: "Error al obtener diagnósticos (debug)" });
     }
   });
 
@@ -1726,7 +1768,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const currentUserId = req.session.userId;
       const currentUser = currentUserId ? await storage.getUser(currentUserId) : undefined;
-      const isPrivileged = currentUser && ["admin", "supervisor"].includes(currentUser.role.toLowerCase());
+      const roleText = (currentUser?.role || '').toLowerCase();
+      const isAdmin = roleText === 'admin' || roleText === 'administrador';
+      const isPrivileged = isAdmin || roleText === 'supervisor';
 
       const vehicleId = req.query.vehicleId ? validateId(req.query.vehicleId as string) : null;
       const employeeId = req.query.employeeId ? validateId(req.query.employeeId as string) : null;
@@ -1738,13 +1782,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "employeeId inválido" });
       }
 
-      // Si NO es admin/supervisor, devolver órdenes asignadas al empleado vinculado al usuario
+      // Si NO es admin/supervisor, devolver órdenes asignadas al empleado del usuario
+      // Se intenta primero por vínculo directo userId -> empleado y se agrega fallback por nombre/email
       if (!isPrivileged && currentUser) {
-        const employee = await storage.getEmployeeByUserId(currentUser.id);
+        let employee = await storage.getEmployeeByUserId(currentUser.id);
+
+        if (!employee) {
+          const employees = await storage.getEmployees();
+          const fullName = (currentUser.fullName || "").trim().toLowerCase();
+          const [firstCandidate, ...rest] = fullName.split(" ");
+          const lastCandidate = rest.join(" ");
+          employee = employees.find(e => (
+            (e.firstName || "").trim().toLowerCase() === firstCandidate &&
+            (e.lastName || "").trim().toLowerCase() === lastCandidate
+          )) || employees.find(e => (
+            (e.email || "").trim().toLowerCase() === (currentUser.email || "").trim().toLowerCase()
+          ));
+        }
+
         if (!employee) {
           return res.json([]);
         }
-        const workOrders = await storage.getWorkOrdersByEmployee(employee.id);
+        let workOrders = await storage.getWorkOrdersByEmployee(employee.id);
+        // Ocultamos órdenes en validación o validadas para usuarios que no son admin
+        if (!isAdmin) {
+          workOrders = workOrders.filter(wo => wo.status !== "awaiting_validation" && wo.status !== "validated" && wo.status !== "completed");
+        }
         return res.json(workOrders);
       }
 
@@ -1755,6 +1818,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         workOrders = await storage.getWorkOrdersByEmployee(employeeId);
       } else {
         workOrders = await storage.getWorkOrders();
+      }
+      // Ocultamos órdenes en validación o validadas para usuarios que no son admin
+      if (!isAdmin) {
+        workOrders = workOrders.filter(wo => wo.status !== "awaiting_validation" && wo.status !== "validated" && wo.status !== "completed");
       }
       res.json(workOrders);
     } catch (error) {
@@ -1871,6 +1938,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Validar orden de trabajo (solo administrador)
+  app.post("/api/work-orders/:id/validate", async (req, res) => {
+    try {
+      const id = validateId(req.params.id);
+      if (id === null) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+
+      const currentUserId = req.session.userId;
+      const currentUser = currentUserId ? await storage.getUser(currentUserId) : undefined;
+      const roleText = (currentUser?.role || '').toLowerCase();
+      if (!currentUser || (roleText !== 'admin' && roleText !== 'administrador')) {
+        return res.status(403).json({ error: "Solo el administrador puede validar órdenes de trabajo" });
+      }
+
+      const workOrder = await storage.validateWorkOrder(id, currentUser.id);
+      if (!workOrder) {
+        return res.status(404).json({ error: "Orden de trabajo no encontrada" });
+      }
+
+      await storage.createNotification({
+        title: "Orden de trabajo validada",
+        message: `La orden de trabajo #${id} ha sido validada por administración`,
+        type: "work_order",
+      });
+
+      res.json(workOrder);
+    } catch (error) {
+      console.error("Error validating work order:", error);
+      res.status(500).json({ error: "Error al validar orden de trabajo" });
+    }
+  });
+
   app.post("/api/work-orders/:id/activate-vehicle", async (req, res) => {
     try {
       const id = validateId(req.params.id);
@@ -1883,8 +1983,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Orden de trabajo no encontrada" });
       }
       
-      if (workOrder.status !== "completed") {
-        return res.status(400).json({ error: "La orden de trabajo debe estar completada para dar de alta el vehículo" });
+      if (workOrder.status !== "validated") {
+        return res.status(400).json({ error: "La orden de trabajo debe estar validada por administración para dar de alta el vehículo" });
       }
       
       const vehicle = await storage.getVehicle(workOrder.vehicleId);

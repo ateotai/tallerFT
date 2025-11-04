@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -34,11 +34,13 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Plus } from "lucide-react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { insertDiagnosticSchema, type InsertDiagnostic, type Report, type Employee } from "@shared/schema";
 
 export function AddDiagnosticDialog() {
   const [open, setOpen] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const { data: reports = [] } = useQuery<Report[]>({
     queryKey: ["/api/reports"],
@@ -48,7 +50,28 @@ export function AddDiagnosticDialog() {
     queryKey: ["/api/employees"],
   });
 
-  const assignedReports = reports.filter(r => r.status === "diagnostico");
+  const roleText = (user?.role || "").toLowerCase();
+  const isPrivileged = roleText === "admin" || roleText === "administrador" || roleText === "supervisor";
+  // Identificar empleado actual con fallback por nombre completo y correo
+  const currentEmployee = (() => {
+    if (!user) return undefined;
+    const byUserId = employees.find(e => e.userId === user.id);
+    if (byUserId) return byUserId;
+    const full = (user.fullName || "").trim().toLowerCase();
+    const [firstCandidate, ...rest] = full.split(" ");
+    const lastCandidate = rest.join(" ");
+    const byName = employees.find(e => (
+      (e.firstName || "").trim().toLowerCase() === firstCandidate &&
+      (e.lastName || "").trim().toLowerCase() === lastCandidate
+    ));
+    if (byName) return byName;
+    const byEmail = employees.find(e => (e.email || "").trim().toLowerCase() === (user.email || "").trim().toLowerCase());
+    return byEmail;
+  })();
+
+  const assignedReports = reports.filter(r =>
+    r.status === "diagnostico" && (isPrivileged || (currentEmployee && r.assignedToEmployeeId === currentEmployee.id))
+  );
 
   const form = useForm<InsertDiagnostic>({
     resolver: zodResolver(insertDiagnosticSchema),
@@ -88,6 +111,12 @@ export function AddDiagnosticDialog() {
       });
     },
   });
+
+  useEffect(() => {
+    if (!isPrivileged && currentEmployee && !form.getValues("employeeId")) {
+      form.setValue("employeeId", currentEmployee.id);
+    }
+  }, [isPrivileged, currentEmployee, form]);
 
   const onSubmit = (data: InsertDiagnostic) => {
     mutation.mutate(data);
@@ -150,12 +179,12 @@ export function AddDiagnosticDialog() {
                       value={field.value?.toString()}
                     >
                       <FormControl>
-                        <SelectTrigger data-testid="select-employee">
+                        <SelectTrigger data-testid="select-employee" disabled={!isPrivileged}>
                           <SelectValue placeholder="Selecciona mecánico" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {employees.map((employee) => (
+                        {(isPrivileged ? employees : employees.filter(e => e.id === currentEmployee?.id)).map((employee) => (
                           <SelectItem key={employee.id} value={employee.id.toString()}>
                             {employee.firstName} {employee.lastName}
                           </SelectItem>

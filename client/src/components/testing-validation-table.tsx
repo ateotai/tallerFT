@@ -20,7 +20,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Eye, CheckCircle2 } from "lucide-react";
+import { Eye, CheckCircle2, ClipboardCheck } from "lucide-react";
 import { ViewWorkOrderDialog } from "./view-work-order-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -35,6 +35,7 @@ interface TestingValidationTableProps {
 export function TestingValidationTable({ workOrders }: TestingValidationTableProps) {
   const [viewingWorkOrder, setViewingWorkOrder] = useState<WorkOrder | null>(null);
   const [activatingVehicle, setActivatingVehicle] = useState<WorkOrder | null>(null);
+  const [activatedIds, setActivatedIds] = useState<Set<number>>(new Set());
   const { toast } = useToast();
 
   const { data: vehicles = [] } = useQuery<Vehicle[]>({
@@ -58,13 +59,51 @@ export function TestingValidationTable({ workOrders }: TestingValidationTablePro
         title: "Vehículo dado de alta",
         description: "El vehículo ha sido activado y está listo para su uso operativo",
       });
+      if (activatingVehicle) {
+        setActivatedIds((prev) => new Set(prev).add(activatingVehicle.id));
+      }
       setActivatingVehicle(null);
     },
-    onError: () => {
+    onError: (error: unknown) => {
+      const msg = error instanceof Error ? error.message : String(error);
+      let description = "No se pudo dar de alta el vehículo";
+      try {
+        const body = msg.split(":").slice(1).join(":").trim();
+        const parsed = JSON.parse(body);
+        description = parsed.error || description;
+      } catch {}
       toast({
         variant: "destructive",
         title: "Error",
-        description: "No se pudo dar de alta el vehículo",
+        description,
+      });
+    },
+  });
+
+  const validateWorkOrderMutation = useMutation({
+    mutationFn: async (workOrderId: number) => {
+      const response = await apiRequest("POST", `/api/work-orders/${workOrderId}/validate`);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/work-orders"] });
+      toast({
+        title: "Orden validada",
+        description: "La orden fue validada por administración",
+      });
+    },
+    onError: (error: unknown) => {
+      const msg = error instanceof Error ? error.message : String(error);
+      let description = "No se pudo validar la orden";
+      try {
+        const body = msg.split(":").slice(1).join(":").trim();
+        const parsed = JSON.parse(body);
+        description = parsed.error || description;
+      } catch {}
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description,
       });
     },
   });
@@ -139,10 +178,26 @@ export function TestingValidationTable({ workOrders }: TestingValidationTablePro
                     onClick={() => setActivatingVehicle(workOrder)}
                     data-testid={`button-activate-${workOrder.id}`}
                     className="gap-2"
+                    disabled={workOrder.status !== "validated" || activatedIds.has(workOrder.id)}
+                    title={workOrder.status !== "validated" ? "Validar por administración antes de dar de alta" : activatedIds.has(workOrder.id) ? "Vehículo ya dado de alta" : undefined}
                   >
                     <CheckCircle2 className="h-4 w-4" />
                     Dar de Alta
                   </Button>
+                  {workOrder.status === "awaiting_validation" && (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => validateWorkOrderMutation.mutate(workOrder.id)}
+                      data-testid={`button-validate-${workOrder.id}`}
+                      className="gap-2"
+                      disabled={validateWorkOrderMutation.isPending}
+                      title="Validar orden de trabajo"
+                    >
+                      <ClipboardCheck className="h-4 w-4" />
+                      Validar
+                    </Button>
+                  )}
                 </div>
               </TableCell>
             </TableRow>

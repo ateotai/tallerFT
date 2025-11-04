@@ -33,6 +33,8 @@ export default function VehiclesPage() {
   const [searchEnabled, setSearchEnabled] = useState(false);
   const [activeTab, setActiveTab] = useState<string>("vehicles");
   const [location, navigate] = useLocation();
+  // Capturar el query string actual para que el efecto reaccione cuando cambie
+  const urlSearch = typeof window !== "undefined" ? window.location.search : "";
 
   const { data: vehicles = [], isLoading: isLoadingVehicles } = useQuery<Vehicle[]>({
     queryKey: ["/api/vehicles"],
@@ -102,7 +104,7 @@ export default function VehiclesPage() {
 
   useEffect(() => {
     try {
-      const params = new URLSearchParams(window.location.search || "");
+      const params = new URLSearchParams(urlSearch || "");
       const tab = params.get("tab");
       const econ = params.get("economicNumber") || "";
       const v = params.get("vin") || "";
@@ -114,14 +116,13 @@ export default function VehiclesPage() {
       if (sd) setStartDate(sd);
       if (ed) setEndDate(ed);
       if (tab === "history" && (econ.trim() || v.trim())) {
+        // Habilitar búsqueda; dejar que react-query dispare basado en 'enabled'
         setSearchEnabled(true);
-        // Deja que react-query dispare basado en enabled; adicionalmente forzamos un refetch
-        refetchHistory();
       }
     } catch (e) {
       // Ignorar errores de parseo
     }
-  }, [location]);
+  }, [location, urlSearch]);
 
   // Impresión: helpers para imprimir todo el historial o un solo reporte
   const handlePrintAll = () => {
@@ -282,8 +283,8 @@ export default function VehiclesPage() {
             <div className="flex gap-2 md:justify-end">
               <Button
                 onClick={() => {
+                  // Habilitar la búsqueda; react-query ejecutará el query al cumplir 'enabled'
                   setSearchEnabled(true);
-                  refetchHistory();
                 }}
               >
                 Buscar

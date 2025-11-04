@@ -28,7 +28,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { format } from "date-fns";
-import type { Report, Vehicle } from "@shared/schema";
+import type { Report, Vehicle, Employee } from "@shared/schema";
 
 interface IssueReportsTableProps {
   reports: Report[];
@@ -60,6 +60,15 @@ export function IssueReportsTable({ reports }: IssueReportsTableProps) {
   const { data: vehicles = [] } = useQuery<Vehicle[]>({
     queryKey: ["/api/vehicles"],
   });
+  const { data: employees = [] } = useQuery<Employee[]>({
+    queryKey: ["/api/employees"],
+  });
+
+  const getEmployeeName = (employeeId?: number | null) => {
+    if (!employeeId) return "Sin asignar";
+    const emp = employees.find(e => e.id === employeeId);
+    return emp ? `${emp.firstName} ${emp.lastName}` : "Desconocido";
+  };
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
@@ -115,9 +124,11 @@ export function IssueReportsTable({ reports }: IssueReportsTableProps) {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead>N° de Reporte</TableHead>
               <TableHead>Vehículo</TableHead>
               <TableHead>Descripción</TableHead>
               <TableHead>Estado</TableHead>
+              <TableHead>Asignado a</TableHead>
               <TableHead>Resolución</TableHead>
               <TableHead>Archivos</TableHead>
               <TableHead>Fecha</TableHead>
@@ -127,26 +138,27 @@ export function IssueReportsTable({ reports }: IssueReportsTableProps) {
           <TableBody>
             {reports.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center text-muted-foreground">
+                <TableCell colSpan={9} className="text-center text-muted-foreground">
                   No hay reportes registrados
                 </TableCell>
               </TableRow>
             ) : (
               reports.map((report) => (
                 <TableRow key={report.id} data-testid={`report-row-${report.id}`}>
+                  <TableCell className="font-medium">#{report.id}</TableCell>
                   <TableCell className="font-medium">
                     {getVehicleInfo(report.vehicleId)}
                   </TableCell>
-                  <TableCell className="max-w-md">
-                    <div className="space-y-1">
-                      <p className="text-sm line-clamp-2">{report.description}</p>
-                      {report.notes && (
-                        <p className="text-xs text-muted-foreground line-clamp-1">
-                          Notas: {report.notes}
-                        </p>
-                      )}
-                    </div>
-                  </TableCell>
+                <TableCell className="max-w-md">
+                  <div className="space-y-1">
+                    <p className="text-sm line-clamp-2">{report.description}</p>
+                    {report.notes && (
+                      <p className="text-xs text-muted-foreground line-clamp-1">
+                        Notas: {report.notes}
+                      </p>
+                    )}
+                  </div>
+                </TableCell>
                   <TableCell>
                     <Badge
                       variant="outline"
@@ -156,6 +168,9 @@ export function IssueReportsTable({ reports }: IssueReportsTableProps) {
                       {statusLabels[report.status as keyof typeof statusLabels]}
                     </Badge>
                   </TableCell>
+                <TableCell>
+                  <span className="text-sm">{getEmployeeName(report.assignedToEmployeeId)}</span>
+                </TableCell>
                   <TableCell data-testid={`resolved-status-${report.id}`}>
                     {report.resolved ? (
                       <div className="space-y-1">

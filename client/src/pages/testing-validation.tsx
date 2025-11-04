@@ -9,8 +9,11 @@ export default function TestingValidationPage() {
   const { data: workOrders = [], isLoading, error } = useQuery<WorkOrder[]>({
     queryKey: ["/api/work-orders"],
   });
-
-  const completedWorkOrders = workOrders.filter(wo => wo.status === "completed");
+  // Con la nueva lógica, las OT "completed" pasan a "awaiting_validation" automáticamente,
+  // y administración puede marcarlas como "validated". Ambas deben mostrarse aquí.
+  const awaitingValidationWorkOrders = workOrders.filter(wo => wo.status === "awaiting_validation");
+  const validatedWorkOrders = workOrders.filter(wo => wo.status === "validated");
+  const completedWorkOrders = [...awaitingValidationWorkOrders, ...validatedWorkOrders];
 
   if (error) {
     return (
@@ -46,30 +49,30 @@ export default function TestingValidationPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Card data-testid="card-completed-work-orders">
             <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">OT Completadas</CardTitle>
+              <CardTitle className="text-sm font-medium">OT Completadas (pendientes de validación)</CardTitle>
               <ClipboardCheck className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-green-600" data-testid="stat-completed">
-                {completedWorkOrders.length}
+                {awaitingValidationWorkOrders.length}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                Pendientes de validación
+                Ordenes esperando validación administrativa
               </p>
             </CardContent>
           </Card>
 
           <Card data-testid="card-ready-for-use">
             <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Listos para Alta</CardTitle>
+              <CardTitle className="text-sm font-medium">Listos para Alta (validados)</CardTitle>
               <ClipboardCheck className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-blue-600" data-testid="stat-ready">
-                {completedWorkOrders.length}
+                {validatedWorkOrders.length}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                Vehículos por dar de alta
+                Vehículos validados por administración y listos para alta
               </p>
             </CardContent>
           </Card>

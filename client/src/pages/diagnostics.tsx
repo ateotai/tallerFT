@@ -2,64 +2,86 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Search, Stethoscope } from "lucide-react";
 import { DiagnosticsTable } from "@/components/diagnostics-table";
 import { AddDiagnosticDialog } from "@/components/add-diagnostic-dialog";
-import type { Diagnostic } from "@shared/schema";
+import { IssueReportsTable } from "@/components/issue-reports-table";
+import { useAuth } from "@/hooks/useAuth";
+import type { Diagnostic, Report, Employee } from "@shared/schema";
 
 export default function DiagnosticsPage() {
   const [searchQuery, setSearchQuery] = useState("");
-  
-  const currentUserRole = "admin";
 
+  const { user } = useAuth();
+  const roleText = (user?.role || "").toLowerCase();
+  const isPrivileged = ["admin", "administrador", "supervisor"].includes(roleText);
+
+  const diagnosticsPath = isPrivileged ? "/api/diagnostics?includeApproved=1" : "/api/diagnostics";
   const { data: diagnostics = [], isLoading } = useQuery<Diagnostic[]>({
-    queryKey: ["/api/diagnostics"],
+    queryKey: [diagnosticsPath],
   });
 
-  const filteredDiagnostics = diagnostics.filter((diagnostic) =>
-    (diagnostic.diagnosis || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (diagnostic.recommendations && diagnostic.recommendations.toLowerCase().includes(searchQuery.toLowerCase()))
+  const { data: reports = [] } = useQuery<Report[]>({ queryKey: ["/api/reports"] });
+  const { data: employees = [] } = useQuery<Employee[]>({ queryKey: ["/api/employees"] });
+  // Identificar empleado actual: por userId y con fallback por nombre/email
+  const currentEmployee = (() => {
+    if (!user) return undefined;
+    const byUserId = employees.find(e => e.userId === user.id);
+    if (byUserId) return byUserId;
+    const full = (user.fullName || "").trim().toLowerCase();
+    const [firstCandidate, ...rest] = full.split(" ");
+    const lastCandidate = rest.join(" ");
+    const byName = employees.find(e => (
+      (e.firstName || "").trim().toLowerCase() === firstCandidate &&
+      (e.lastName || "").trim().toLowerCase() === lastCandidate
+    ));
+    if (byName) return byName;
+    const byEmail = employees.find(e => (e.email || "").trim().toLowerCase() === (user.email || "").trim().toLowerCase());
+    return byEmail;
+  })();
+
+  const assignedReports = reports.filter(r =>
+    r.status === "diagnostico" && (isPrivileged || (currentEmployee && r.assignedToEmployeeId === currentEmployee.id))
   );
+
+  const filteredDiagnostics = diagnostics.filter((d) =>
+    // Mostrar solo diagnósticos no aprobados
+    !d.approvedAt && (
+      (d.possibleCause || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (d.technicalRecommendation && d.technicalRecommendation.toLowerCase().includes(searchQuery.toLowerCase()))
+    )
+  );
+
+  const pendingDiagnosticsCount = diagnostics.filter(d => !d.approvedAt).length;
 
   return (
     <div className="space-y-8">
       <div>
         <h1 className="text-3xl font-bold mb-2">Evaluación y Diagnóstico</h1>
-        <p className="text-muted-foreground">
-          Diagnósticos técnicos de reportes asignados
-        </p>
+        <p className="text-muted-foreground">Diagnósticos técnicos y reportes asignados</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Diagnósticos
-            </CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Total Diagnósticos</CardTitle>
             <Stethoscope className="h-5 w-5 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-4xl font-bold" data-testid="stat-total-diagnostics">
-              {diagnostics.length}
-            </div>
-            <p className="text-xs text-muted-foreground mt-2">Diagnósticos registrados</p>
+            <div className="text-4xl font-bold" data-testid="stat-total-diagnostics">{pendingDiagnosticsCount}</div>
+            <p className="text-xs text-muted-foreground mt-2">Diagnósticos pendientes</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              {currentUserRole === "admin" ? "Todos los Diagnósticos" : "Mis Diagnósticos"}
-            </CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">{isPrivileged ? "Todos los Diagnósticos" : "Mis Diagnósticos"}</CardTitle>
             <Stethoscope className="h-5 w-5 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-4xl font-bold text-purple-600 dark:text-purple-400" data-testid="stat-filtered-diagnostics">
-              {filteredDiagnostics.length}
-            </div>
-            <p className="text-xs text-muted-foreground mt-2">
-              {currentUserRole === "admin" ? "Visibles actualmente" : "Asignados a mí"}
-            </p>
+            <div className="text-4xl font-bold text-purple-600 dark:text-purple-400" data-testid="stat-filtered-diagnostics">{filteredDiagnostics.length}</div>
+            <p className="text-xs text-muted-foreground mt-2">{isPrivileged ? "Visibles actualmente" : "Asignados a mí"}</p>
           </CardContent>
         </Card>
       </div>
@@ -78,13 +100,31 @@ export default function DiagnosticsPage() {
         <AddDiagnosticDialog />
       </div>
 
-      {isLoading ? (
-        <div className="text-center py-12 text-muted-foreground">
-          Cargando diagnósticos...
-        </div>
-      ) : (
-        <DiagnosticsTable diagnostics={filteredDiagnostics} />
-      )}
+      <Tabs defaultValue="diagnosticos">
+        <TabsList>
+          <TabsTrigger value="diagnosticos">Diagnósticos</TabsTrigger>
+          <TabsTrigger value="asignados">Reportes asignados</TabsTrigger>
+        </TabsList>
+        <TabsContent value="diagnosticos" className="mt-4">
+          {isLoading ? (
+            <div className="text-center py-12 text-muted-foreground">Cargando diagnósticos...</div>
+          ) : (
+            <DiagnosticsTable diagnostics={filteredDiagnostics} />
+          )}
+        </TabsContent>
+        <TabsContent value="asignados" className="mt-4">
+          <div className="space-y-2">
+            <p className="text-muted-foreground">
+              {isPrivileged ? "Reportes en diagnóstico asignados a todos los mecánicos" : "Reportes en diagnóstico asignados a mí"}
+            </p>
+            {assignedReports.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">No hay reportes asignados</div>
+            ) : (
+              <IssueReportsTable reports={assignedReports} />
+            )}
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

@@ -625,7 +625,7 @@ export class DbStorage implements IStorage {
 
   async resolveReport(id: number): Promise<Report | undefined> {
     const result = await db.update(schema.reports)
-      .set({ resolved: true, resolvedDate: new Date() })
+      .set({ resolved: true, resolvedDate: new Date(), status: "resolved" })
       .where(eq(schema.reports.id, id))
       .returning();
     return result[0];
@@ -812,7 +812,24 @@ export class DbStorage implements IStorage {
   }
 
   async updateWorkOrder(id: number, workOrder: Partial<InsertWorkOrder>): Promise<WorkOrder | undefined> {
-    const result = await db.update(schema.workOrders).set({ ...workOrder, updatedAt: new Date() }).where(eq(schema.workOrders.id, id)).returning();
+    const now = new Date();
+    const nextValues: Partial<InsertWorkOrder> = { ...workOrder };
+
+    // Si la orden se marca como 'completed', pasa automáticamente a 'awaiting_validation'
+    if (nextValues.status === "completed") {
+      nextValues.status = "awaiting_validation";
+      // si no hay fecha de completado, la establecemos ahora
+      if (!nextValues.completedDate) {
+        // @ts-ignore: campo existe en tabla
+        (nextValues as any).completedDate = now as any;
+      }
+    }
+
+    const result = await db
+      .update(schema.workOrders)
+      .set({ ...nextValues, updatedAt: now })
+      .where(eq(schema.workOrders.id, id))
+      .returning();
     return result[0];
   }
 
@@ -830,6 +847,15 @@ export class DbStorage implements IStorage {
         approvedAt: approvedAt,
         startDate: approvedAt,
       })
+      .where(eq(schema.workOrders.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async validateWorkOrder(id: number, userId: number): Promise<WorkOrder | undefined> {
+    const result = await db
+      .update(schema.workOrders)
+      .set({ status: "validated", updatedAt: new Date() })
       .where(eq(schema.workOrders.id, id))
       .returning();
     return result[0];
