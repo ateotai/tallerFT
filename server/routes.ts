@@ -16,6 +16,7 @@ import {
   insertProviderSchema,
   insertProviderTypeSchema,
   insertClientSchema,
+  insertClientBranchSchema,
   insertInventoryCategorySchema,
   insertInventorySchema,
   insertInventoryMovementSchema,
@@ -36,6 +37,8 @@ import {
   insertRolePermissionSchema,
   insertPurchaseQuoteSchema,
   insertPurchaseQuoteItemSchema,
+  insertChecklistSchema,
+  insertChecklistTemplateSchema,
 } from "@shared/schema";
 
 function validateId(id: string): number | null {
@@ -48,6 +51,25 @@ function validateId(id: string): number | null {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Ensure essential permissions for newly added modules exist
+  try {
+    const existing = await storage.getPermissions();
+    const key = (p: any) => `${(p.name||'').trim()}|${(p.module||'').trim()}`;
+    const existingKeys = new Set(existing.map(key));
+    const required = [
+      { name: "Ver checklists", module: "Checklists", description: "Listado y visualización de checklists" },
+      { name: "Crear checklist", module: "Checklists", description: "Registro de nuevos checklists" },
+      { name: "Ver historial de checklists", module: "Checklists", description: "Historial y búsqueda de checklists" },
+      { name: "Administrar plantillas", module: "Checklists", description: "Crear, editar y activar/desactivar plantillas" },
+    ];
+    for (const r of required) {
+      if (!existingKeys.has(`${r.name}|${r.module}`)) {
+        await storage.createPermission(r as any);
+      }
+    }
+  } catch (err) {
+    console.error("ensure permissions error:", err);
+  }
   // Configure multer for company logo uploads
   const uploadsDir = path.resolve(import.meta.dirname, "..", "uploads");
   if (!fs.existsSync(uploadsDir)) {
@@ -55,10 +77,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }
   const storageEngine = multer.diskStorage({
     destination: (_req, _file, cb) => cb(null, uploadsDir),
-    filename: (_req, file, cb) => {
+    filename: (req, file, cb) => {
       const ext = path.extname(file.originalname) || "";
       const ts = Date.now();
-      cb(null, `company-logo-${ts}${ext}`);
+      const match = req.path.match(/\/api\/vehicles\/(\d+)\/image/);
+      if (match) {
+        const vid = match[1];
+        cb(null, `vehicle-${vid}-${ts}${ext}`);
+      } else {
+        cb(null, `company-logo-${ts}${ext}`);
+      }
     },
   });
   const upload = multer({
@@ -74,6 +102,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       ];
       if (allowed.includes(file.mimetype)) cb(null, true);
       else cb(new Error("Tipo de archivo no permitido"));
+    },
+  });
+
+  // Multer for inventory import (CSV from Excel)
+  const importUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 2 * 1024 * 1024 },
+    fileFilter: (_req, file, cb) => {
+      const allowed = [
+        "text/csv",
+        "application/vnd.ms-excel",
+        "application/octet-stream",
+      ];
+      if (allowed.includes(file.mimetype)) cb(null, true);
+      else cb(new Error("Formato no soportado. Usa CSV exportado desde Excel"));
     },
   });
   // Login endpoint
@@ -269,6 +312,191 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Vehículos: plantilla CSV para importación masiva (solo admin)
+  app.get("/api/vehicles/template", async (req, res) => {
+    try {
+      const userId = req.session.userId;
+      const currentUser = userId ? await storage.getUser(userId) : undefined;
+      if (!currentUser) return res.status(401).json({ error: "No autenticado" });
+      const roleText = (currentUser.role || '').toLowerCase();
+      const isAdmin = roleText === 'admin' || roleText === 'administrador';
+      if (!isAdmin) return res.status(403).json({ error: "No autorizado" });
+
+      const header = [
+        "plate",
+        "brand",
+        "model",
+        "year",
+        "vin",
+        "economicNumber",
+        "color",
+        "mileage",
+        "fuelType",
+        "status",
+        "clientName",
+        "branchName",
+        "vehicleTypeName",
+        "assignedArea",
+      ];
+      const explanation = [
+        "Placa única (obligatorio)",
+        "Marca (obligatorio)",
+        "Modelo (obligatorio)",
+        "Año numérico (obligatorio)",
+        "VIN (opcional)",
+        "Número económico (obligatorio)",
+        "Color (opcional)",
+        "Kilometraje numérico (obligatorio)",
+        "Tipo de combustible (obligatorio)",
+        "Estatus (opcional, ej. active)",
+        "Nombre del cliente (opcional)",
+        "Nombre de la sucursal (opcional)",
+        "Nombre del tipo de vehículo (opcional)",
+        "Área asignada (opcional)",
+      ];
+      const sep = ";";
+      const bom = "\ufeff";
+      const csv = bom + [header.join(sep), explanation.join(sep)].join("\r\n");
+      res.setHeader("Content-Type", "text/csv; charset=utf-8");
+      res.setHeader("Content-Disposition", "attachment; filename=plantilla_vehiculos.csv");
+      res.send(csv);
+    } catch (error) {
+      console.error("Error generating vehicles template:", error);
+      res.status(500).json({ error: "Error al generar plantilla" });
+    }
+  });
+
+  // Vehículos: importación masiva desde CSV (solo admin)
+  app.post("/api/vehicles/import", importUpload.single("file"), async (req, res) => {
+    try {
+      const userId = req.session.userId;
+      const currentUser = userId ? await storage.getUser(userId) : undefined;
+      if (!currentUser) return res.status(401).json({ error: "No autenticado" });
+      const roleText = (currentUser.role || '').toLowerCase();
+      const isAdmin = roleText === 'admin' || roleText === 'administrador';
+      if (!isAdmin) return res.status(403).json({ error: "No autorizado" });
+
+      if (!req.file || !req.file.buffer) {
+        return res.status(400).json({ error: "Archivo no recibido" });
+      }
+
+      let content = req.file.buffer.toString("utf-8");
+      if (content.charCodeAt(0) === 0xFEFF) content = content.slice(1);
+      const lines = content.split(/\r\n|\n/).filter((l) => l.trim().length > 0);
+      if (lines.length < 2) return res.status(400).json({ error: "CSV sin datos" });
+      const detectedSep = lines[0].includes(";") ? ";" : ",";
+      const parseCsvLine = (line: string): string[] => {
+        const result: string[] = [];
+        let cur = "";
+        let inQuotes = false;
+        for (let i = 0; i < line.length; i++) {
+          const ch = line[i];
+          if (ch === '"') {
+            if (inQuotes && line[i + 1] === '"') { cur += '"'; i++; }
+            else inQuotes = !inQuotes;
+          } else if (ch === detectedSep && !inQuotes) {
+            result.push(cur); cur = "";
+          } else {
+            cur += ch;
+          }
+        }
+        result.push(cur);
+        return result.map((v) => v.trim());
+      };
+
+      const header = parseCsvLine(lines[0]).map((h) => h.trim());
+      const expected = [
+        "plate","brand","model","year","vin","economicNumber","color","mileage","fuelType","status","clientName","branchName","vehicleTypeName","assignedArea"
+      ];
+      const matchesHeader = expected.every((e, idx) => (header[idx] || "").toLowerCase() === e.toLowerCase());
+      const startIdx = matchesHeader ? 1 : 0;
+      // Skip explanation row if present (non-numeric in year/mileage)
+      let dataStart = startIdx;
+      if (lines[dataStart]) {
+        const cols = parseCsvLine(lines[dataStart]);
+        if (cols[3] && isNaN(Number(cols[3]))) dataStart++;
+      }
+
+      const clients = await storage.getClients();
+      const branches = await storage.getClientBranches();
+      const vehicleTypes = await storage.getVehicleTypes();
+
+      const summary = { created: 0, updated: 0, errors: [] as Array<{ row: number; error: string }> };
+
+      for (let li = dataStart; li < lines.length; li++) {
+        const row = parseCsvLine(lines[li]);
+        if (row.length === 1 && row[0] === "") continue;
+        const [plate, brand, model, yearStr, vin, economicNumber, color, mileageStr, fuelType, status, clientName, branchName, vehicleTypeName, assignedArea] = row;
+        const rowNum = li + 1;
+        if (!plate) { summary.errors.push({ row: rowNum, error: "Falta placa" }); continue; }
+        if (!brand) { summary.errors.push({ row: rowNum, error: "Falta marca" }); continue; }
+        if (!model) { summary.errors.push({ row: rowNum, error: "Falta modelo" }); continue; }
+        if (!economicNumber) { summary.errors.push({ row: rowNum, error: "Falta número económico" }); continue; }
+        const year = Number(yearStr ?? "");
+        if (!Number.isFinite(year)) { summary.errors.push({ row: rowNum, error: "Año inválido" }); continue; }
+        const mileage = Number(mileageStr ?? "");
+        if (!Number.isFinite(mileage)) { summary.errors.push({ row: rowNum, error: "Kilometraje inválido" }); continue; }
+        if (!fuelType) { summary.errors.push({ row: rowNum, error: "Falta tipo de combustible" }); continue; }
+        const clientId = clientName ? (clients.find(c => (c.name || '').toLowerCase() === (clientName||'').toLowerCase())?.id ?? null) : null;
+        const branchId = branchName ? (branches.find(b => (b.name || '').toLowerCase() === (branchName||'').toLowerCase())?.id ?? null) : null;
+        const vehicleTypeId = vehicleTypeName ? (vehicleTypes.find(t => (t.name || '').toLowerCase() === (vehicleTypeName||'').toLowerCase())?.id ?? null) : null;
+
+        const existing = await storage.getVehicleByPlate(plate);
+        if (existing) {
+          const updated = await storage.updateVehicle(existing.id, {
+            brand,
+            model,
+            year,
+            vin: vin || existing.vin,
+            economicNumber: economicNumber || existing.economicNumber,
+            color: color || existing.color,
+            mileage,
+            fuelType,
+            status: status || existing.status,
+            clientId,
+            branchId,
+            vehicleTypeId,
+            assignedArea: assignedArea || existing.assignedArea,
+          });
+          if (updated) summary.updated++;
+          else summary.errors.push({ row: rowNum, error: "No se pudo actualizar" });
+        } else {
+          try {
+            const validated = insertVehicleSchema.parse({
+              plate,
+              brand,
+              model,
+              year,
+              vin: vin || null,
+              economicNumber: economicNumber || null,
+              color: color || null,
+              mileage,
+              fuelType,
+              status: status || "active",
+              clientId,
+              branchId,
+              vehicleTypeId,
+              assignedArea: assignedArea || null,
+              imageUrl: null,
+              assignedEmployeeId: null,
+              assignedUserId: null,
+            } as any);
+            await storage.createVehicle(validated);
+            summary.created++;
+          } catch (err) {
+            const msg = err instanceof ZodError ? "Datos inválidos" : "Error al crear";
+            summary.errors.push({ row: rowNum, error: msg });
+          }
+        }
+      }
+
+      return res.json(summary);
+    } catch (error) {
+      console.error("Error importing vehicles:", error);
+      res.status(500).json({ error: "Error al importar vehículos" });
+    }
+  });
+
   app.get("/api/vehicles/:id", async (req, res) => {
     try {
       const id = validateId(req.params.id);
@@ -321,6 +549,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/vehicles/:id/image", upload.single("image"), async (req, res) => {
+    try {
+      const id = validateId(req.params.id);
+      if (id === null) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      const file = req.file as Express.Multer.File | undefined;
+      if (!file) {
+        return res.status(400).json({ error: "Archivo requerido" });
+      }
+      const publicUrl = `/uploads/${file.filename}`;
+      const vehicle = await storage.updateVehicle(id, { imageUrl: publicUrl });
+      if (!vehicle) {
+        return res.status(404).json({ error: "Vehículo no encontrado" });
+      }
+      res.json({ url: publicUrl, vehicle });
+    } catch (error) {
+      console.error("Error uploading vehicle image:", error);
+      res.status(500).json({ error: "Error al subir imagen" });
+    }
+  });
+
   app.delete("/api/vehicles/:id", async (req, res) => {
     try {
       const id = validateId(req.params.id);
@@ -335,6 +585,317 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting vehicle:", error);
       res.status(500).json({ error: "Error al eliminar vehículo" });
+    }
+  });
+
+  // Checklists module
+  app.get("/api/checklists", async (req, res) => {
+    try {
+      const userId = req.session.userId;
+      const currentUser = userId ? await storage.getUser(userId) : undefined;
+      if (!currentUser) return res.status(401).json({ error: "No autenticado" });
+
+      const all = await storage.getChecklists();
+      let filtered = all;
+
+      const roleText = (currentUser.role || '').toLowerCase();
+      const isAdmin = roleText === 'admin' || roleText === 'administrador';
+      if (!isAdmin) {
+        const assignedVehicle = await storage.getVehicleAssignedToUser(currentUser.id);
+        const lowerName = (currentUser.fullName || "").toLowerCase();
+        filtered = all.filter((c) => {
+          const byAssignedVehicle = assignedVehicle ? c.vehicleId === assignedVehicle.id : false;
+          const byDriverName = (String(c.driverName || "").toLowerCase().includes(lowerName));
+          const byHandoverUser = c.handoverUserId === currentUser.id;
+          const byInspectorName = (String(c.inspectorName || "").toLowerCase().includes(lowerName));
+          return byAssignedVehicle || byDriverName || byInspectorName || byHandoverUser;
+        });
+      }
+
+      const type = typeof req.query.type === "string" ? String(req.query.type).toLowerCase() : "";
+      if (type === "express" || type === "completo") {
+        filtered = filtered.filter((c) => (c.type || "").toLowerCase() === type);
+      }
+
+      const economicNumber = typeof req.query.economicNumber === "string" ? String(req.query.economicNumber).trim().toLowerCase() : "";
+      if (economicNumber) {
+        filtered = filtered.filter((c) => String(c.economicNumber || "").toLowerCase().includes(economicNumber));
+      }
+
+      const startParam = typeof req.query.start === "string" ? req.query.start : undefined;
+      const endParam = typeof req.query.end === "string" ? req.query.end : undefined;
+      const startDate = startParam ? new Date(startParam) : undefined;
+      const endDate = endParam ? new Date(endParam) : undefined;
+      if (endDate) endDate.setHours(23,59,59,999);
+      if (startDate || endDate) {
+        filtered = filtered.filter((c) => {
+          const created = c.createdAt ? new Date(c.createdAt as unknown as string) : undefined;
+          if (!created) return false;
+          const after = startDate ? created >= startDate : true;
+          const before = endDate ? created <= endDate : true;
+          return after && before;
+        });
+      }
+
+      res.json(filtered);
+    } catch (error) {
+      console.error("Error fetching checklists:", error);
+      res.status(500).json({ error: "Error al obtener checklists" });
+    }
+  });
+
+  app.get("/api/checklists/:id", async (req, res) => {
+    try {
+      const id = validateId(req.params.id);
+      if (id === null) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      const checklist = await storage.getChecklist(id);
+      if (!checklist) {
+        return res.status(404).json({ error: "Checklist no encontrado" });
+      }
+      res.json(checklist);
+    } catch (error) {
+      console.error("Error fetching checklist:", error);
+      res.status(500).json({ error: "Error al obtener checklist" });
+    }
+  });
+
+  app.post("/api/checklists", async (req, res) => {
+    try {
+      const validatedData = insertChecklistSchema.parse(req.body);
+      const userId = req.session.userId;
+      const user = userId ? await storage.getUser(userId) : undefined;
+      if (!user) return res.status(401).json({ error: "No autenticado" });
+      if (validatedData.type === "completo" && user.role !== "admin") {
+        return res.status(403).json({ error: "Solo administradores pueden crear checklist completo" });
+      }
+      const checklist = await storage.createChecklist(validatedData);
+      // Asignar folio si no viene
+      if (!checklist.folio) {
+        const withFolio = await storage.updateChecklist(checklist.id, { folio: `CL-${checklist.id}` });
+        res.status(201).json(withFolio ?? checklist);
+      } else {
+        res.status(201).json(checklist);
+      }
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ error: "Datos inválidos", details: error.errors });
+      }
+      console.error("Error creating checklist:", error);
+      res.status(500).json({ error: "Error al crear checklist" });
+    }
+  });
+
+  app.put("/api/checklists/:id", async (req, res) => {
+    try {
+      const id = validateId(req.params.id);
+      if (id === null) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      const validatedData = insertChecklistSchema.partial().parse(req.body);
+      const userId = req.session.userId;
+      const user = userId ? await storage.getUser(userId) : undefined;
+      if (!user) return res.status(401).json({ error: "No autenticado" });
+      if (validatedData.type === "completo" && user.role !== "admin") {
+        return res.status(403).json({ error: "Solo administradores pueden asignar checklist completo" });
+      }
+      const checklist = await storage.updateChecklist(id, validatedData);
+      if (!checklist) {
+        return res.status(404).json({ error: "Checklist no encontrado" });
+      }
+      res.json(checklist);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ error: "Datos inválidos", details: error.errors });
+      }
+      console.error("Error updating checklist:", error);
+      res.status(500).json({ error: "Error al actualizar checklist" });
+    }
+  });
+
+  // Assigned vehicle for current user
+  app.get("/api/users/me/assigned-vehicle", async (req, res) => {
+    try {
+      const userId = req.session.userId;
+      if (!userId) return res.status(401).json({ error: "No autenticado" });
+      const vehicle = await storage.getVehicleAssignedToUser(userId);
+      if (!vehicle) return res.status(404).json({ error: "Sin vehículo asignado" });
+      res.json(vehicle);
+    } catch (error) {
+      console.error("Error fetching assigned vehicle:", error);
+      res.status(500).json({ error: "Error al obtener vehículo asignado" });
+    }
+  });
+
+  app.delete("/api/checklists/:id", async (req, res) => {
+    try {
+      const id = validateId(req.params.id);
+      if (id === null) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      const deleted = await storage.deleteChecklist(id);
+      if (!deleted) {
+        return res.status(404).json({ error: "Checklist no encontrado" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting checklist:", error);
+      res.status(500).json({ error: "Error al eliminar checklist" });
+    }
+  });
+
+  // Checklist Templates
+  app.get("/api/checklist-templates", async (req, res) => {
+    try {
+      const list = await storage.getChecklistTemplates();
+      const activeOnly = req.query.activeOnly === "true";
+      const unique = req.query.unique === "true";
+
+      let filtered = activeOnly ? list.filter((t) => t.active) : list;
+
+      if (unique) {
+        const pickMap = new Map<string, typeof filtered[number]>();
+        for (const t of filtered) {
+          const key = `${t.name}|${t.type}`;
+          const current = pickMap.get(key);
+          if (!current) {
+            pickMap.set(key, t);
+            continue;
+          }
+          const currActive = !!current.active;
+          const tActive = !!t.active;
+          const currUpdated = current.updatedAt ? new Date(current.updatedAt as unknown as string).getTime() : 0;
+          const tUpdated = t.updatedAt ? new Date(t.updatedAt as unknown as string).getTime() : 0;
+          const preferT = (!currActive && tActive) || (currActive === tActive && tUpdated > currUpdated);
+          if (preferT) pickMap.set(key, t);
+        }
+        filtered = Array.from(pickMap.values());
+      }
+
+      const withRoles = await Promise.all(
+        filtered.map(async (tpl) => {
+          const roleIds = await storage.getChecklistTemplateRoles(tpl.id as number);
+          let roleNames: string[] = [];
+          if (!roleIds.length) {
+            const allRoles = await storage.getRoles();
+            const operario = allRoles.find((r) => (r.name || "").toLowerCase().includes("operario"));
+            if (operario) {
+              await storage.updateChecklistTemplate(tpl.id as number, {}, [operario.id]);
+              roleIds.push(operario.id);
+            }
+            roleNames = roleIds.map((id) => allRoles.find((r) => r.id === id)?.name).filter(Boolean) as string[];
+          } else {
+            const allRoles = await storage.getRoles();
+            roleNames = roleIds.map((id) => allRoles.find((r) => r.id === id)?.name).filter(Boolean) as string[];
+          }
+          return { ...tpl, roleIds, roleNames };
+        })
+      );
+      res.set("Cache-Control", "no-store");
+      res.set("Pragma", "no-cache");
+      res.json(withRoles);
+    } catch (error) {
+      console.error("Error fetching checklist templates:", error);
+      res.status(500).json({ error: "Error al obtener plantillas" });
+    }
+  });
+
+  app.get("/api/checklist-templates/:id", async (req, res) => {
+    try {
+      const id = validateId(req.params.id);
+      if (id === null) return res.status(400).json({ error: "ID inválido" });
+      const tpl = await storage.getChecklistTemplate(id);
+      if (!tpl) return res.status(404).json({ error: "Plantilla no encontrada" });
+      const roleIds = await storage.getChecklistTemplateRoles(id);
+      let roleNames: string[] = [];
+      const allRoles = await storage.getRoles();
+      if (!roleIds.length) {
+        const operario = allRoles.find((r) => (r.name || "").toLowerCase().includes("operario"));
+        if (operario) {
+          await storage.updateChecklistTemplate(id, {}, [operario.id]);
+          roleIds.push(operario.id);
+        }
+      }
+      roleNames = roleIds.map((rid) => allRoles.find((r) => r.id === rid)?.name).filter(Boolean) as string[];
+      res.set("Cache-Control", "no-store");
+      res.set("Pragma", "no-cache");
+      res.json({ ...tpl, roleIds, roleNames });
+    } catch (error) {
+      console.error("Error fetching checklist template:", error);
+      res.status(500).json({ error: "Error al obtener plantilla" });
+    }
+  });
+
+  app.get("/api/checklist-templates/by-role/:role", async (req, res) => {
+    try {
+      const role = req.params.role;
+      const tpl = await storage.getChecklistTemplateByRole(role);
+      if (!tpl) return res.status(404).json({ error: "No hay plantilla para el rol" });
+      res.json(tpl);
+    } catch (error) {
+      console.error("Error fetching checklist template by role:", error);
+      res.status(500).json({ error: "Error al obtener plantilla por rol" });
+    }
+  });
+
+  app.post("/api/checklist-templates", async (req, res) => {
+    try {
+      const body = req.body as any;
+      const roles = Array.isArray(body.roleIds) ? body.roleIds.map((r: any) => Number(r)).filter((n: any) => Number.isInteger(n)) : [];
+      const validated = insertChecklistTemplateSchema.parse({
+        name: body.name,
+        description: body.description,
+        type: body.type,
+        sections: body.sections,
+        active: body.active,
+      });
+      const created = await storage.createChecklistTemplate(validated, roles);
+      res.status(201).json(created);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ error: "Datos inválidos", details: error.errors });
+      }
+      console.error("Error creating checklist template:", error);
+      res.status(500).json({ error: "Error al crear plantilla" });
+    }
+  });
+
+  app.put("/api/checklist-templates/:id", async (req, res) => {
+    try {
+      const id = validateId(req.params.id);
+      if (id === null) return res.status(400).json({ error: "ID inválido" });
+      const body = req.body as any;
+      const roles = Array.isArray(body.roleIds) ? body.roleIds.map((r: any) => Number(r)).filter((n: any) => Number.isInteger(n)) : undefined;
+      const validated = insertChecklistTemplateSchema.partial().parse({
+        name: body.name,
+        description: body.description,
+        type: body.type,
+        sections: body.sections,
+        active: body.active,
+      });
+      const updated = await storage.updateChecklistTemplate(id, validated, roles);
+      if (!updated) return res.status(404).json({ error: "Plantilla no encontrada" });
+      res.json(updated);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ error: "Datos inválidos", details: error.errors });
+      }
+      console.error("Error updating checklist template:", error);
+      res.status(500).json({ error: "Error al actualizar plantilla" });
+    }
+  });
+
+  app.delete("/api/checklist-templates/:id", async (req, res) => {
+    try {
+      const id = validateId(req.params.id);
+      if (id === null) return res.status(400).json({ error: "ID inválido" });
+      const ok = await storage.deleteChecklistTemplate(id);
+      if (!ok) return res.status(404).json({ error: "Plantilla no encontrada" });
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting checklist template:", error);
+      res.status(500).json({ error: "Error al eliminar plantilla" });
     }
   });
 
@@ -992,6 +1553,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Clientes: plantilla CSV para importación masiva (solo admin)
+  app.get("/api/clients/template", async (req, res) => {
+    try {
+      const userId = req.session.userId;
+      const currentUser = userId ? await storage.getUser(userId) : undefined;
+      if (!currentUser) return res.status(401).json({ error: "No autenticado" });
+      const roleText = (currentUser.role || '').toLowerCase();
+      const isAdmin = roleText === 'admin' || roleText === 'administrador';
+      if (!isAdmin) return res.status(403).json({ error: "No autorizado" });
+
+      const header = [
+        "name",
+        "company",
+        "phone",
+        "email",
+        "address",
+        "status",
+      ];
+      const explanation = [
+        "Nombre (obligatorio)",
+        "Empresa (opcional)",
+        "Teléfono (obligatorio)",
+        "Email (obligatorio)",
+        "Dirección (obligatorio)",
+        "Estatus (opcional, ej. active/inactive)",
+      ];
+      const sep = ";";
+      const bom = "\ufeff";
+      const csv = bom + [header.join(sep), explanation.join(sep)].join("\r\n");
+      res.setHeader("Content-Type", "text/csv; charset=utf-8");
+      res.setHeader("Content-Disposition", "attachment; filename=plantilla_clientes.csv");
+      res.send(csv);
+    } catch (error) {
+      console.error("Error generating clients template:", error);
+      res.status(500).json({ error: "Error al generar plantilla" });
+    }
+  });
+
   app.get("/api/clients/:id", async (req, res) => {
     try {
       const id = validateId(req.params.id);
@@ -1020,6 +1619,182 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       console.error("Error creating client:", error);
       res.status(500).json({ error: "Error al crear cliente" });
+    }
+  });
+
+  // Clientes: importación masiva desde CSV (solo admin)
+  app.post("/api/clients/import", importUpload.single("file"), async (req, res) => {
+    try {
+      const userId = req.session.userId;
+      const currentUser = userId ? await storage.getUser(userId) : undefined;
+      if (!currentUser) return res.status(401).json({ error: "No autenticado" });
+      const roleText = (currentUser.role || '').toLowerCase();
+      const isAdmin = roleText === 'admin' || roleText === 'administrador';
+      if (!isAdmin) return res.status(403).json({ error: "No autorizado" });
+
+      if (!req.file || !req.file.buffer) {
+        return res.status(400).json({ error: "Archivo no recibido" });
+      }
+
+      let content = req.file.buffer.toString("utf-8");
+      if (content.charCodeAt(0) === 0xFEFF) content = content.slice(1);
+      const lines = content.split(/\r\n|\n/).filter((l) => l.trim().length > 0);
+      if (lines.length < 2) return res.status(400).json({ error: "CSV sin datos" });
+      const detectedSep = lines[0].includes(";") ? ";" : ",";
+      const parseCsvLine = (line: string): string[] => {
+        const result: string[] = [];
+        let cur = "";
+        let inQuotes = false;
+        for (let i = 0; i < line.length; i++) {
+          const ch = line[i];
+          if (ch === '"') {
+            if (inQuotes && line[i + 1] === '"') { cur += '"'; i++; }
+            else inQuotes = !inQuotes;
+          } else if (ch === detectedSep && !inQuotes) {
+            result.push(cur); cur = "";
+          } else {
+            cur += ch;
+          }
+        }
+        result.push(cur);
+        return result.map((v) => v.trim());
+      };
+
+      const header = parseCsvLine(lines[0]).map((h) => h.trim().toLowerCase());
+      const expected = ["name","company","phone","email","address","status"];
+      const matchesHeader = expected.every((e, idx) => (header[idx] || "") === e);
+      const startIdx = matchesHeader ? 1 : 0;
+      let dataStart = startIdx;
+      if (lines[dataStart]) {
+        const cols = parseCsvLine(lines[dataStart]);
+        if (cols[0] && /obligatorio/i.test(cols[0])) dataStart++;
+      }
+
+      const existingClients = await storage.getClients();
+      const summary = { created: 0, updated: 0, errors: [] as Array<{ row: number; error: string }> };
+
+      for (let li = dataStart; li < lines.length; li++) {
+        const row = parseCsvLine(lines[li]);
+        if (row.length === 1 && row[0] === "") continue;
+        const [name, company, phone, email, address, status] = row;
+        const rowNum = li + 1;
+        if (!name) { summary.errors.push({ row: rowNum, error: "Falta nombre" }); continue; }
+        if (!phone) { summary.errors.push({ row: rowNum, error: "Falta teléfono" }); continue; }
+        if (!email) { summary.errors.push({ row: rowNum, error: "Falta email" }); continue; }
+        if (!address) { summary.errors.push({ row: rowNum, error: "Falta dirección" }); continue; }
+
+        const matchByEmail = existingClients.find(c => (c.email || '').toLowerCase() === (email || '').toLowerCase());
+        const matchByName = existingClients.find(c => (c.name || '').toLowerCase() === (name || '').toLowerCase());
+        const existing = matchByEmail || matchByName;
+
+        if (existing) {
+          const updated = await storage.updateClient(existing.id, {
+            name,
+            company: company || existing.company,
+            phone,
+            email,
+            address,
+            status: (status || existing.status || 'active'),
+          });
+          if (updated) summary.updated++;
+          else summary.errors.push({ row: rowNum, error: "No se pudo actualizar" });
+        } else {
+          try {
+            const validated = insertClientSchema.parse({
+              name,
+              company: company || null,
+              phone,
+              email,
+              address,
+              status: status || 'active',
+            } as any);
+            await storage.createClient(validated);
+            summary.created++;
+          } catch (err) {
+            const msg = err instanceof ZodError ? "Datos inválidos" : "Error al crear";
+            summary.errors.push({ row: rowNum, error: msg });
+          }
+        }
+      }
+
+      return res.json(summary);
+    } catch (error) {
+      console.error("Error importing clients:", error);
+      res.status(500).json({ error: "Error al importar clientes" });
+    }
+  });
+
+  app.get("/api/client-branches", async (req, res) => {
+    try {
+      const clientIdParam = req.query.clientId as string | undefined;
+      if (clientIdParam) {
+        const clientId = validateId(clientIdParam);
+        if (clientId === null) return res.status(400).json({ error: "clientId inválido" });
+        const branches = await storage.getClientBranchesByClient(clientId);
+        return res.json(branches);
+      }
+      const branches = await storage.getClientBranches();
+      res.json(branches);
+    } catch (error) {
+      console.error("Error fetching client branches:", error);
+      res.status(500).json({ error: "Error al obtener sucursales" });
+    }
+  });
+
+  app.get("/api/client-branches/:id", async (req, res) => {
+    try {
+      const id = validateId(req.params.id);
+      if (id === null) return res.status(400).json({ error: "ID inválido" });
+      const branch = await storage.getClientBranch(id);
+      if (!branch) return res.status(404).json({ error: "Sucursal no encontrada" });
+      res.json(branch);
+    } catch (error) {
+      console.error("Error fetching client branch:", error);
+      res.status(500).json({ error: "Error al obtener sucursal" });
+    }
+  });
+
+  app.post("/api/client-branches", async (req, res) => {
+    try {
+      const validatedData = insertClientBranchSchema.parse(req.body);
+      const branch = await storage.createClientBranch(validatedData);
+      res.status(201).json(branch);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ error: "Datos inválidos", details: error.errors });
+      }
+      console.error("Error creating client branch:", error);
+      res.status(500).json({ error: "Error al crear sucursal" });
+    }
+  });
+
+  app.put("/api/client-branches/:id", async (req, res) => {
+    try {
+      const id = validateId(req.params.id);
+      if (id === null) return res.status(400).json({ error: "ID inválido" });
+      const validatedData = insertClientBranchSchema.partial().parse(req.body);
+      const branch = await storage.updateClientBranch(id, validatedData);
+      if (!branch) return res.status(404).json({ error: "Sucursal no encontrada" });
+      res.json(branch);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ error: "Datos inválidos", details: error.errors });
+      }
+      console.error("Error updating client branch:", error);
+      res.status(500).json({ error: "Error al actualizar sucursal" });
+    }
+  });
+
+  app.delete("/api/client-branches/:id", async (req, res) => {
+    try {
+      const id = validateId(req.params.id);
+      if (id === null) return res.status(400).json({ error: "ID inválido" });
+      const deleted = await storage.deleteClientBranch(id);
+      if (!deleted) return res.status(404).json({ error: "Sucursal no encontrada" });
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting client branch:", error);
+      res.status(500).json({ error: "Error al eliminar sucursal" });
     }
   });
 
@@ -1063,11 +1838,178 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/inventory", async (req, res) => {
     try {
-      const items = await storage.getInventoryItems();
+      const partCondition = typeof req.query.partCondition === "string" ? req.query.partCondition : undefined;
+      const items = await storage.getInventoryItems(partCondition);
       res.json(items);
     } catch (error) {
       console.error("Error fetching inventory:", error);
       res.status(500).json({ error: "Error al obtener inventario" });
+    }
+  });
+
+  // Download inventory import template (CSV)
+  app.get("/api/inventory/template", async (req, res) => {
+    try {
+      const userId = req.session.userId;
+      const currentUser = userId ? await storage.getUser(userId) : undefined;
+      if (!currentUser) return res.status(401).json({ error: "No autenticado" });
+      const roleText = (currentUser.role || '').toLowerCase();
+      const isAdmin = roleText === 'admin' || roleText === 'administrador';
+      if (!isAdmin) return res.status(403).json({ error: "No autorizado" });
+      const header = [
+        "partNumber",
+        "name",
+        "partCondition",
+        "categoryName",
+        "quantity",
+        "minQuantity",
+        "maxQuantity",
+        "unitPrice",
+        "location",
+        "workshopName",
+        "notes",
+      ];
+      const explanation = [
+        "SKU único (obligatorio)",
+        "Nombre del artículo (obligatorio)",
+        "Nuevo|En uso|Remanofacturado",
+        "Nombre de la categoría (opcional)",
+        "Cantidad numérica (obligatorio)",
+        "Stock mínimo (opcional)",
+        "Stock máximo (opcional)",
+        "Precio unitario (obligatorio)",
+        "Ubicación (opcional)",
+        "Nombre del taller (opcional)",
+        "Nota (opcional)",
+      ];
+      const sep = ";";
+      const bom = "\ufeff";
+      const csv = bom + [header.join(sep), explanation.join(sep)].join("\r\n");
+      res.setHeader("Content-Type", "text/csv; charset=utf-8");
+      res.setHeader("Content-Disposition", "attachment; filename=plantilla_inventario.csv");
+      res.send(csv);
+    } catch (error) {
+      console.error("Error generating template:", error);
+      res.status(500).json({ error: "Error al generar plantilla" });
+    }
+  });
+
+  // Import inventory from CSV (admin only)
+  app.post("/api/inventory/import", importUpload.single("file"), async (req, res) => {
+    try {
+      const userId = req.session.userId;
+      const currentUser = userId ? await storage.getUser(userId) : undefined;
+      if (!currentUser) return res.status(401).json({ error: "No autenticado" });
+      const roleText = (currentUser.role || '').toLowerCase();
+      const isAdmin = roleText === 'admin' || roleText === 'administrador';
+      if (!isAdmin) return res.status(403).json({ error: "No autorizado" });
+
+      if (!req.file || !req.file.buffer) {
+        return res.status(400).json({ error: "Archivo no recibido" });
+      }
+
+      let content = req.file.buffer.toString("utf-8");
+      if (content.charCodeAt(0) === 0xFEFF) content = content.slice(1);
+      // Simple CSV parsing supporting quotes
+      const lines = content.split(/\r\n|\n/).filter((l) => l.trim().length > 0);
+      if (lines.length < 2) {
+        return res.status(400).json({ error: "CSV sin datos" });
+      }
+      const detectedSep = lines[0].includes(";") ? ";" : ",";
+      const parseCsvLine = (line: string): string[] => {
+        const result: string[] = [];
+        let cur = "";
+        let inQuotes = false;
+        for (let i = 0; i < line.length; i++) {
+          const ch = line[i];
+          if (ch === '"') {
+            if (inQuotes && line[i + 1] === '"') { cur += '"'; i++; }
+            else inQuotes = !inQuotes;
+          } else if (ch === detectedSep && !inQuotes) {
+            result.push(cur); cur = "";
+          } else {
+            cur += ch;
+          }
+        }
+        result.push(cur);
+        return result.map((v) => v.trim());
+      };
+
+      const header = parseCsvLine(lines[0]).map((h) => h.trim());
+      const expected = [
+        "partNumber","name","partCondition","categoryName","quantity","minQuantity","maxQuantity","unitPrice","location","workshopName","notes"
+      ];
+      const matchesHeader = expected.every((e, idx) => (header[idx] || "").toLowerCase() === e.toLowerCase());
+      const startIdx = matchesHeader ? 1 : 0; // allow files without header if user removed it
+      // Skip explanation row if present (contains non-numeric in quantity column)
+      let dataStart = startIdx;
+      if (lines[dataStart]) {
+        const cols = parseCsvLine(lines[dataStart]);
+        if (cols[4] && isNaN(Number(cols[4]))) dataStart++;
+      }
+
+      const categories = await storage.getInventoryCategories();
+      const workshops = await storage.getWorkshops();
+
+      const summary = { created: 0, updated: 0, errors: [] as Array<{ row: number; error: string }> };
+
+      for (let li = dataStart; li < lines.length; li++) {
+        const row = parseCsvLine(lines[li]);
+        if (row.length === 1 && row[0] === "") continue;
+        const [partNumber, name, partCondition, categoryName, quantityStr, minStr, maxStr, unitPriceStr, location, workshopName, notes] = row;
+        const rowNum = li + 1;
+        if (!partNumber) { summary.errors.push({ row: rowNum, error: "Falta partNumber" }); continue; }
+        if (!name) { summary.errors.push({ row: rowNum, error: "Falta nombre" }); continue; }
+        const quantity = Number(quantityStr ?? "");
+        const unitPrice = Number(unitPriceStr ?? "");
+        if (!Number.isFinite(quantity)) { summary.errors.push({ row: rowNum, error: "Cantidad inválida" }); continue; }
+        if (!Number.isFinite(unitPrice)) { summary.errors.push({ row: rowNum, error: "Precio inválido" }); continue; }
+        const minQuantity = Number(minStr ?? "0");
+        const maxQuantity = Number(maxStr ?? "0");
+        const categoryId = categoryName ? (categories.find(c => (c.name || '').toLowerCase() === (categoryName||'').toLowerCase())?.id ?? null) : null;
+        const workshopId = workshopName ? (workshops.find(w => (w.name || '').toLowerCase() === (workshopName||'').toLowerCase())?.id ?? null) : null;
+        const normalizedCondition = (partCondition || "Nuevo").trim();
+        const cond = ["Nuevo","En uso","Remanofacturado"].includes(normalizedCondition) ? normalizedCondition as any : "Nuevo";
+
+        const existing = await storage.getInventoryItemByPartNumber(partNumber);
+        if (existing) {
+          // Only update quantities; keep other fields unless provided
+          const updated = await storage.updateInventoryItem(existing.id, {
+            quantity,
+            minQuantity: Number.isFinite(minQuantity) ? minQuantity : existing.minQuantity,
+            maxQuantity: Number.isFinite(maxQuantity) ? maxQuantity : existing.maxQuantity,
+          });
+          if (updated) summary.updated++;
+          else summary.errors.push({ row: rowNum, error: "No se pudo actualizar" });
+        } else {
+          try {
+            const validated = insertInventorySchema.parse({
+              name,
+              categoryId,
+              partNumber,
+              quantity,
+              minQuantity: Number.isFinite(minQuantity) ? minQuantity : 0,
+              maxQuantity: Number.isFinite(maxQuantity) ? maxQuantity : 0,
+              unitPrice,
+              location: location || null,
+              providerId: null,
+              workshopId,
+              partCondition: cond,
+              notes: notes || null,
+            } as any);
+            await storage.createInventoryItem(validated);
+            summary.created++;
+          } catch (err) {
+            const msg = err instanceof ZodError ? "Datos inválidos" : "Error al crear";
+            summary.errors.push({ row: rowNum, error: msg });
+          }
+        }
+      }
+
+      return res.json(summary);
+    } catch (error) {
+      console.error("Error importing inventory:", error);
+      res.status(500).json({ error: "Error al importar inventario" });
     }
   });
 
@@ -1452,6 +2394,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/users/:id", async (req, res) => {
+    try {
+      const id = validateId(req.params.id);
+      if (id === null) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      const user = await storage.getUser(id);
+      if (!user) {
+        return res.status(404).json({ error: "Usuario no encontrado" });
+      }
+      res.json(user);
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      res.status(500).json({ error: "Error al obtener usuario" });
+    }
+  });
+
   // Create user
   app.post("/api/users", async (req, res) => {
     try {
@@ -1761,6 +2720,181 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error approving diagnostic:", error);
       res.status(500).json({ error: "Error al aprobar diagnóstico" });
+    }
+  });
+
+  app.get("/api/analytics/overview", async (req, res) => {
+    try {
+      const userId = req.session.userId;
+      const currentUser = userId ? await storage.getUser(userId) : undefined;
+      if (!currentUser) {
+        return res.status(401).json({ error: "No autenticado" });
+      }
+
+      const period = typeof req.query.period === "string" ? req.query.period : "6months";
+      const vehicleParam = typeof req.query.vehicle === "string" ? req.query.vehicle : "all";
+      const dateFromParam = typeof req.query.dateFrom === "string" ? req.query.dateFrom : "";
+      const dateToParam = typeof req.query.dateTo === "string" ? req.query.dateTo : "";
+
+      const now = new Date();
+      let start = new Date(now);
+      let end = new Date(now);
+      if (period === "custom" && dateFromParam && dateToParam) {
+        start = new Date(dateFromParam);
+        end = new Date(dateToParam);
+      } else {
+        if (period === "1week") start.setDate(start.getDate() - 7);
+        else if (period === "1month") start.setMonth(start.getMonth() - 1);
+        else if (period === "3months") start.setMonth(start.getMonth() - 3);
+        else if (period === "6months") start.setMonth(start.getMonth() - 6);
+        else if (period === "1year") start.setFullYear(start.getFullYear() - 1);
+      }
+      end.setHours(23, 59, 59, 999);
+
+      const services = await storage.getServices();
+      const vehicles = await storage.getVehicles();
+      const categories = await storage.getServiceCategories();
+      const providers = await storage.getProviders();
+      const workOrders = await storage.getWorkOrders();
+
+      const plateByVehicleId = new Map<number, string>();
+      const vehicleMetaById = new Map<number, { name: string; plate: string }>();
+      for (const v of vehicles) {
+        plateByVehicleId.set(v.id, v.plate || "");
+        const name = `${v.brand} ${v.model}`.trim();
+        vehicleMetaById.set(v.id, { name, plate: v.plate || "" });
+      }
+      const categoryNameById = new Map<number, string>();
+      for (const c of categories) categoryNameById.set(c.id, c.name || "");
+      const providerNameById = new Map<number, string>();
+      for (const p of providers) providerNameById.set(p.id, p.name || "");
+
+      const inRangeServices = services.filter((s) => {
+        const d = (s.completedDate ?? s.scheduledDate ?? s.createdAt) as Date | null;
+        if (!d) return false;
+        const t = d.getTime();
+        return t >= start.getTime() && t <= end.getTime();
+      }).filter((s) => {
+        if (vehicleParam === "all") return true;
+        const plate = plateByVehicleId.get(s.vehicleId) || "";
+        return plate === vehicleParam;
+      });
+
+      let totalCost = 0;
+      for (const s of inRangeServices) totalCost += Number(s.cost || 0);
+      const totalServices = inRangeServices.length;
+      const avgCost = totalServices > 0 ? Math.round((totalCost / totalServices) * 100) / 100 : 0;
+
+      const pendingStatuses = new Set(["awaiting_approval", "in_progress", "awaiting_validation"]);
+      const inRangeWorkOrders = workOrders.filter((wo) => {
+        const d = (wo.completedDate ?? wo.startDate ?? wo.createdAt) as Date | null;
+        if (!d) return false;
+        const t = d.getTime();
+        return t >= start.getTime() && t <= end.getTime();
+      }).filter((wo) => {
+        if (vehicleParam === "all") return true;
+        const plate = plateByVehicleId.get(wo.vehicleId) || "";
+        return plate === vehicleParam;
+      });
+      const pendingServices = inRangeWorkOrders.filter((wo) => pendingStatuses.has((wo.status || "").toLowerCase())).length;
+
+      const monthNames = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+      const monthlyMapCost = new Map<string, number>();
+      const monthlyMapCount = new Map<string, number>();
+      const cursor = new Date(start.getFullYear(), start.getMonth(), 1);
+      const limit = new Date(end.getFullYear(), end.getMonth(), 1);
+      while (cursor <= limit) {
+        const k = `${cursor.getFullYear()}-${cursor.getMonth() + 1}`;
+        monthlyMapCost.set(k, 0);
+        monthlyMapCount.set(k, 0);
+        cursor.setMonth(cursor.getMonth() + 1);
+      }
+      for (const s of inRangeServices) {
+        const d = (s.completedDate ?? s.scheduledDate ?? s.createdAt) as Date;
+        const k = `${d.getFullYear()}-${d.getMonth() + 1}`;
+        monthlyMapCost.set(k, (monthlyMapCost.get(k) || 0) + Number(s.cost || 0));
+        monthlyMapCount.set(k, (monthlyMapCount.get(k) || 0) + 1);
+      }
+      const monthlyCost = Array.from(monthlyMapCost.entries()).map(([k, v]) => {
+        const parts = k.split("-");
+        const y = Number(parts[0]);
+        const m = Number(parts[1]) - 1;
+        return { name: monthNames[m], value: Math.round(v * 100) / 100, y, m };
+      }).sort((a, b) => (a.y === b.y ? a.m - b.m : a.y - b.y)).map(({ name, value }) => ({ name, value }));
+      const monthlyServices = Array.from(monthlyMapCount.entries()).map(([k, v]) => {
+        const parts = k.split("-");
+        const y = Number(parts[0]);
+        const m = Number(parts[1]) - 1;
+        return { name: monthNames[m], value: v, y, m };
+      }).sort((a, b) => (a.y === b.y ? a.m - b.m : a.y - b.y)).map(({ name, value }) => ({ name, value }));
+
+      const serviceTypeCount = new Map<string, number>();
+      for (const s of inRangeServices) {
+        const n = categoryNameById.get(s.categoryId) || "Sin categoría";
+        serviceTypeCount.set(n, (serviceTypeCount.get(n) || 0) + 1);
+      }
+      const serviceType = Array.from(serviceTypeCount.entries()).map(([name, count]) => ({ name, value: count }));
+
+      const providerCost = new Map<string, number>();
+      for (const s of inRangeServices) {
+        const n = s.providerId ? (providerNameById.get(s.providerId) || "Proveedor") : "Sin proveedor";
+        providerCost.set(n, (providerCost.get(n) || 0) + Number(s.cost || 0));
+      }
+      const providersAgg = Array.from(providerCost.entries()).map(([name, value]) => ({ name, value: Math.round(value * 100) / 100 }));
+
+      const vehicleAgg = new Map<number, { services: number; total: number; last: Date | null }>();
+      for (const s of inRangeServices) {
+        const prev = vehicleAgg.get(s.vehicleId) || { services: 0, total: 0, last: null };
+        const d = (s.completedDate ?? s.scheduledDate ?? s.createdAt) as Date;
+        const last = prev.last && prev.last.getTime() > d.getTime() ? prev.last : d;
+        vehicleAgg.set(s.vehicleId, { services: prev.services + 1, total: prev.total + Number(s.cost || 0), last });
+      }
+      const vehicleDetails = Array.from(vehicleAgg.entries()).map(([vid, v]) => {
+        const meta = vehicleMetaById.get(vid) || { name: "", plate: "" };
+        const avg = v.services > 0 ? Math.round((v.total / v.services) * 100) / 100 : 0;
+        const lastStr = v.last ? `${v.last.getDate().toString().padStart(2, "0")} ${monthNames[v.last.getMonth()]} ${v.last.getFullYear()}` : "";
+        return { id: String(vid), vehicle: meta.name, plate: meta.plate, services: v.services, totalCost: Math.round(v.total * 100) / 100, avgCost: avg, lastService: lastStr };
+      }).sort((a, b) => b.totalCost - a.totalCost);
+
+      let topVehicle = null as null | { vehicle: string; plate: string; totalCost: number };
+      if (vehicleDetails.length > 0) {
+        const t = vehicleDetails[0];
+        topVehicle = { vehicle: t.vehicle, plate: t.plate, totalCost: t.totalCost };
+      }
+      let mostFrequentService = null as null | { name: string; count: number };
+      if (serviceType.length > 0) {
+        const s = [...serviceType].sort((a, b) => b.value - a.value)[0];
+        mostFrequentService = { name: s.name, count: s.value };
+      }
+      let mostActiveMonth = null as null | { name: string; value: number };
+      if (monthlyCost.length > 0) {
+        const m = [...monthlyCost].sort((a, b) => b.value - a.value)[0];
+        mostActiveMonth = { name: m.name, value: m.value };
+      }
+
+      res.json({
+        summary: {
+          totalCost: Math.round(totalCost * 100) / 100,
+          totalServices,
+          avgCost,
+          pendingServices,
+        },
+        charts: {
+          monthlyCost,
+          monthlyServices,
+          serviceType,
+          providers: providersAgg,
+        },
+        table: vehicleDetails,
+        highlights: {
+          topVehicle,
+          mostFrequentService,
+          mostActiveMonth,
+        },
+      });
+    } catch (error) {
+      console.error("analytics overview error:", error);
+      res.status(500).json({ error: "Error al generar reporte" });
     }
   });
 

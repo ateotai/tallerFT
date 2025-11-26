@@ -9,7 +9,8 @@ import { VehicleTypesTable } from "@/components/vehicle-types-table";
 import { AddVehicleTypeDialog } from "@/components/add-vehicle-type-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Grid, List } from "lucide-react";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import { Search, Grid, List, Upload, Download } from "lucide-react";
 import type {
   Vehicle,
   VehicleType,
@@ -20,8 +21,23 @@ import type {
   WorkOrderMaterial,
   Service,
   CompanyConfiguration,
+  Client,
+  ClientBranch,
 } from "@shared/schema";
 import { useLocation } from "wouter";
+import { useMutation } from "@tanstack/react-query";
+import { queryClient } from "@/lib/queryClient";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import type { User } from "@shared/schema";
 
 export default function VehiclesPage() {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
@@ -32,6 +48,7 @@ export default function VehiclesPage() {
   const [endDate, setEndDate] = useState<string>("");
   const [searchEnabled, setSearchEnabled] = useState(false);
   const [activeTab, setActiveTab] = useState<string>("vehicles");
+  const [groupBy, setGroupBy] = useState<"none" | "client" | "type" | "branch">("none");
   const [location, navigate] = useLocation();
   // Capturar el query string actual para que el efecto reaccione cuando cambie
   const urlSearch = typeof window !== "undefined" ? window.location.search : "";
@@ -47,6 +64,87 @@ export default function VehiclesPage() {
   const { data: configuration } = useQuery<CompanyConfiguration>({
     queryKey: ["/api/configuration"],
   });
+
+  const { data: clients = [] } = useQuery<Client[]>({ queryKey: ["/api/clients"] });
+  const { data: branches = [] } = useQuery<ClientBranch[]>({ queryKey: ["/api/client-branches"] });
+
+  const { data: currentUser } = useQuery<User>({ queryKey: ["/api/auth/user"] });
+  const isAdmin = ((currentUser?.role || "").toLowerCase() === "admin" || (currentUser?.role || "").toLowerCase() === "administrador");
+  const [importSummary, setImportSummary] = useState<null | { created: number; updated: number; errors: Array<{ row: number; error: string }> }>(null);
+  const [importOpen, setImportOpen] = useState(false);
+
+  const importMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const form = new FormData();
+      form.append("file", file);
+      const res = await fetch("/api/vehicles/import", { method: "POST", body: form, credentials: "include" });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || "Error al importar");
+      }
+      return await res.json();
+    },
+    onSuccess: async (summary) => {
+      setImportSummary(summary);
+      setImportOpen(true);
+      await queryClient.invalidateQueries({ queryKey: ["/api/vehicles"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/vehicle-types"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/clients"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/client-branches"] });
+    },
+    onError: (error: Error) => {
+      console.error("Error de importación:", error);
+      alert("Error de importación: " + error.message);
+    },
+  });
+
+  const downloadTemplate = async () => {
+    const res = await fetch("/api/vehicles/template", { credentials: "include" });
+    if (!res.ok) {
+      alert("Error: No se pudo descargar la plantilla");
+      return;
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "plantilla_vehiculos.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const exportCsv = () => {
+    const header = [
+      "Placa","Marca","Modelo","Año","VIN","Número económico","Color","Kilometraje","Combustible","Estatus","Cliente","Sucursal","Tipo de vehículo","Área asignada"
+    ];
+    const rows = filteredVehicles.map((v) => [
+      v.plate,
+      v.brand,
+      v.model,
+      String(v.year),
+      v.vin ?? "",
+      v.economicNumber ?? "",
+      v.color ?? "",
+      String(v.mileage),
+      v.fuelType,
+      v.status,
+      v.clientId ? (clients.find(c => c.id === v.clientId)?.name ?? "") : "",
+      v.branchId ? (branches.find(b => b.id === v.branchId)?.name ?? "") : "",
+      v.vehicleTypeId ? (vehicleTypes.find(t => t.id === v.vehicleTypeId)?.name ?? "") : "",
+      v.assignedArea ?? "",
+    ]);
+    const escape = (s: string) => '"' + s.replace(/"/g,'""') + '"';
+    const sep = ";";
+    const bom = "\ufeff";
+    const csv = bom + [header.map(escape).join(sep), ...rows.map(r => r.map(escape).join(sep))].join("\r\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "vehiculos.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   type VehicleHistoryResponse = {
     vehicle: Vehicle;
@@ -204,7 +302,46 @@ export default function VehiclesPage() {
                   <List className="h-4 w-4" />
                 </Button>
               </div>
+              <Select value={groupBy} onValueChange={(v) => setGroupBy(v as any)}>
+                <SelectTrigger className="w-48" data-testid="select-group-by">
+                  <SelectValue placeholder="Agrupar por" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Sin agrupación</SelectItem>
+                  <SelectItem value="client">Cliente</SelectItem>
+                  <SelectItem value="type">Tipo de vehículo</SelectItem>
+                  <SelectItem value="branch">Sucursal</SelectItem>
+                </SelectContent>
+              </Select>
               <AddVehicleDialog />
+              {isAdmin && (
+                <div className="flex items-center gap-2 ml-2">
+                  <Button variant="outline" size="sm" onClick={downloadTemplate} data-testid="button-download-vehicles-template">
+                    <Download className="h-4 w-4 mr-2" /> Plantilla
+                  </Button>
+                  <label className="inline-flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="file"
+                      accept=".csv"
+                      className="hidden"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (f) importMutation.mutate(f);
+                        e.currentTarget.value = "";
+                      }}
+                      data-testid="input-import-vehicles-file"
+                    />
+                    <Button variant="default" size="sm" disabled={importMutation.isPending} asChild>
+                      <span>
+                        <Upload className="h-4 w-4 mr-2" /> {importMutation.isPending ? "Importando..." : "Importar CSV"}
+                      </span>
+                    </Button>
+                  </label>
+                  <Button variant="outline" size="sm" onClick={exportCsv} data-testid="button-export-vehicles-csv">
+                    <Download className="h-4 w-4 mr-2" /> Exportar
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
 
@@ -216,14 +353,65 @@ export default function VehiclesPage() {
             <div className="text-center py-12 text-muted-foreground">
               {searchQuery ? "No se encontraron vehículos" : "No hay vehículos registrados"}
             </div>
-          ) : viewMode === "grid" ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {filteredVehicles.map((vehicle) => (
-                <VehicleCard key={vehicle.id} vehicle={vehicle} />
-              ))}
-            </div>
+          ) : groupBy === "none" ? (
+            viewMode === "grid" ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {filteredVehicles.map((vehicle) => (
+                  <VehicleCard key={vehicle.id} vehicle={vehicle} />
+                ))}
+              </div>
+            ) : (
+              <VehicleTable vehicles={filteredVehicles} />
+            )
           ) : (
-            <VehicleTable vehicles={filteredVehicles} />
+            (() => {
+              const groups = new Map<string, Vehicle[]>();
+              const labelMap = new Map<string, string>();
+              if (groupBy === "client") {
+                for (const v of filteredVehicles) {
+                  const key = String(v.clientId ?? "none");
+                  const name = v.clientId ? (clients.find((c) => c.id === v.clientId)?.name || "Cliente") : "Sin cliente";
+                  groups.set(key, [...(groups.get(key) || []), v]);
+                  labelMap.set(key, name);
+                }
+              } else if (groupBy === "type") {
+                for (const v of filteredVehicles) {
+                  const key = String(v.vehicleTypeId ?? "none");
+                  const name = v.vehicleTypeId ? (vehicleTypes.find((t) => t.id === v.vehicleTypeId)?.name || "Tipo") : "Sin tipo";
+                  groups.set(key, [...(groups.get(key) || []), v]);
+                  labelMap.set(key, name);
+                }
+              } else if (groupBy === "branch") {
+                for (const v of filteredVehicles) {
+                  const key = String(v.branchId ?? "none");
+                  const name = v.branchId ? (branches.find((b) => b.id === v.branchId)?.name || "Sucursal") : "Sin sucursal";
+                  groups.set(key, [...(groups.get(key) || []), v]);
+                  labelMap.set(key, name);
+                }
+              }
+              const entries = Array.from(groups.entries()).sort((a, b) => (labelMap.get(a[0]) || "").localeCompare(labelMap.get(b[0]) || ""));
+              return (
+                <div className="space-y-6">
+                  {entries.map(([key, list]) => (
+                    <div key={key}>
+                      <div className="flex items-center justify-between mb-2">
+                        <h3 className="text-lg font-semibold">{labelMap.get(key)}</h3>
+                        <span className="text-sm text-muted-foreground">{list.length} vehículos</span>
+                      </div>
+                      {viewMode === "grid" ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                          {list.map((v) => (
+                            <VehicleCard key={v.id} vehicle={v} />
+                          ))}
+                        </div>
+                      ) : (
+                        <VehicleTable vehicles={list} />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              );
+            })()
           )}
         </TabsContent>
 
@@ -527,12 +715,12 @@ export default function VehiclesPage() {
                                       <div>
                                         <h5 className="font-semibold">Trabajos realizados</h5>
                                         {wo.tasks.length === 0 ? (
-                                          <p className="text-xs text-muted-foreground">Sin tareas</p>
+                                          <p className="text-xs text-muted-foreground">Sin reparaciones</p>
                                         ) : (
                                           <ul className="mt-1 space-y-1">
                                             {wo.tasks.map((t) => (
                                               <li key={t.id} className="text-xs">
-                                                <span className="font-medium">Tarea #{t.id}:</span> {t.notes || t.estimatedTime || "Trabajo"}
+                                                <span className="font-medium">Reparación #{t.id}:</span> {t.notes || t.estimatedTime || "Trabajo"}
                                               </li>
                                             ))}
                                           </ul>
@@ -594,6 +782,39 @@ export default function VehiclesPage() {
           )}
         </TabsContent>
       </Tabs>
+      <AlertDialog open={importOpen} onOpenChange={(open) => setImportOpen(open)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Resultado de importación</AlertDialogTitle>
+            <AlertDialogDescription>
+              {importSummary ? (
+                <div className="space-y-2">
+                  <div>Creados: {importSummary.created}</div>
+                  <div>Actualizados: {importSummary.updated}</div>
+                  {importSummary.errors.length > 0 ? (
+                    <div className="mt-2">
+                      <div className="font-medium">Errores:</div>
+                      <ul className="text-sm max-h-40 overflow-y-auto list-disc ml-5">
+                        {importSummary.errors.map((e, idx) => (
+                          <li key={idx}>Fila {e.row}: {e.error}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : (
+                    <div className="text-sm text-muted-foreground">Sin errores.</div>
+                  )}
+                </div>
+              ) : (
+                <span>Sin datos</span>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cerrar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { setImportOpen(false); }}>Aceptar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

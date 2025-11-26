@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
@@ -20,10 +20,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Phone, Mail, MapPin, Eye, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { Phone, Mail, MapPin, Eye, MoreHorizontal, Pencil, Trash2, Building2, ChevronDown, ChevronUp } from "lucide-react";
 import { EditClientDialog } from "@/components/edit-client-dialog";
-import type { Client } from "@shared/schema";
+import type { Client, ClientBranch, Vehicle } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { AddClientBranchDialog } from "@/components/add-client-dialog";
 import { useToast } from "@/hooks/use-toast";
 
 interface ClientCardProps {
@@ -38,6 +39,7 @@ const statusConfig = {
 export function ClientCard({ client }: ClientCardProps) {
   const [editingClient, setEditingClient] = useState(false);
   const [deletingClient, setDeletingClient] = useState(false);
+  const [showBranches, setShowBranches] = useState(false);
   const { toast } = useToast();
 
   const getInitials = (name: string) => {
@@ -71,6 +73,7 @@ export function ClientCard({ client }: ClientCardProps) {
   });
 
   const status = client.status as keyof typeof statusConfig;
+  const statusInfo = statusConfig[status] ?? { label: String(client.status || "-"), className: "border-gray-600 text-gray-600" };
 
   return (
     <>
@@ -91,8 +94,8 @@ export function ClientCard({ client }: ClientCardProps) {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <Badge variant="outline" className={statusConfig[status].className}>
-                {statusConfig[status].label}
+              <Badge variant="outline" className={statusInfo?.className ?? "border-gray-600 text-gray-600"}>
+                {statusInfo?.label ?? String(client.status || "-")}
               </Badge>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -133,6 +136,8 @@ export function ClientCard({ client }: ClientCardProps) {
               <span className="text-muted-foreground">{client.address}</span>
             </div>
           </div>
+
+          <BranchesSection client={client} show={showBranches} onToggle={() => setShowBranches((v) => !v)} />
         </CardContent>
         <CardFooter>
           <Button variant="outline" className="w-full" data-testid={`button-view-client-${client.id}`}>
@@ -171,5 +176,55 @@ export function ClientCard({ client }: ClientCardProps) {
         </AlertDialogContent>
       </AlertDialog>
     </>
+  );
+}
+
+function BranchesSection({ client, show, onToggle }: { client: Client; show: boolean; onToggle: () => void }) {
+  const { data: branches = [], isLoading } = useQuery<ClientBranch[]>({
+    queryKey: ["/api/client-branches", client.id],
+    queryFn: async () => {
+      const res = await fetch(`/api/client-branches?clientId=${client.id}`);
+      if (!res.ok) return [];
+      return await res.json();
+    },
+  });
+  const { data: vehicles = [] } = useQuery<Vehicle[]>({ queryKey: ["/api/vehicles"] });
+
+  const countByBranch: Record<number, number> = {};
+  for (const v of vehicles) {
+    if (v.branchId) countByBranch[v.branchId] = (countByBranch[v.branchId] || 0) + 1;
+  }
+
+  return (
+    <div className="mt-4 border rounded-md">
+      <button
+        className="w-full flex justify-between items-center px-3 py-2 text-sm"
+        onClick={onToggle}
+      >
+        <span className="flex items-center gap-2"><Building2 className="h-4 w-4" /> Sucursales</span>
+        {show ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+      </button>
+      {show && (
+        <div className="px-3 pb-3">
+          {isLoading ? (
+            <div className="text-muted-foreground text-sm">Cargando sucursales...</div>
+          ) : branches.length === 0 ? (
+            <div className="text-muted-foreground text-sm">Sin sucursales</div>
+          ) : (
+            <ul className="space-y-2">
+              {branches.map((b) => (
+                <li key={b.id} className="flex justify-between items-center">
+                  <span className="font-medium">{b.name}</span>
+                  <span className="text-xs text-muted-foreground">Vehículos: {countByBranch[b.id] || 0}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="mt-3">
+            <AddClientBranchDialog clientId={client.id} />
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

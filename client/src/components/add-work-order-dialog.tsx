@@ -155,12 +155,12 @@ export function AddWorkOrderDialog() {
       }
       
       const taskPromises = tasks.map(task => {
-        console.log("📝 Creating task with data:", task);
+        console.log("📝 Creating repair with data:", task);
         return apiRequest("POST", `/api/work-orders/${workOrder.id}/tasks`, task).catch(async (err) => {
           const errorText = await err.text?.() || err.message || "Unknown error";
-          console.error("❌ Error creating task:", errorText);
-          console.error("Task data that failed:", task);
-          throw new Error("Error al crear una de las tareas");
+          console.error("❌ Error creating repair:", errorText);
+          console.error("Repair data that failed:", task);
+          throw new Error("Error al crear una de las reparaciones");
         });
       });
       
@@ -205,7 +205,7 @@ export function AddWorkOrderDialog() {
       queryClient.invalidateQueries({ queryKey: ["/api/work-orders"] });
       toast({
         title: "Orden de trabajo creada",
-        description: "La orden de trabajo ha sido agregada exitosamente con todas sus tareas, materiales y evidencias",
+        description: "La orden de trabajo ha sido agregada exitosamente con todas sus reparaciones, materiales y evidencias",
       });
       form.reset();
       setTasks([]);
@@ -385,7 +385,7 @@ export function AddWorkOrderDialog() {
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="general" data-testid="tab-general">General</TabsTrigger>
             <TabsTrigger value="tasks" data-testid="tab-tasks">
-              Tareas {tasks.length > 0 && <Badge className="ml-2" variant="secondary">{tasks.length}</Badge>}
+              Reparaciones {tasks.length > 0 && <Badge className="ml-2" variant="secondary">{tasks.length}</Badge>}
             </TabsTrigger>
             <TabsTrigger value="materials" data-testid="tab-materials">
               Materiales {materials.length > 0 && <Badge className="ml-2" variant="secondary">{materials.length}</Badge>}
@@ -590,8 +590,8 @@ export function AddWorkOrderDialog() {
           <TabsContent value="tasks" className="space-y-4 mt-4">
             <Card>
               <CardHeader>
-                <CardTitle>Agregar Tarea</CardTitle>
-                <CardDescription>Define las tareas específicas para esta orden de trabajo</CardDescription>
+                <CardTitle>Agregar Reparación</CardTitle>
+                <CardDescription>Define las reparaciones específicas para esta orden de trabajo</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -715,7 +715,7 @@ export function AddWorkOrderDialog() {
                   <div className="space-y-2 md:col-span-2">
                     <label className="text-sm font-medium">Notas</label>
                     <Textarea
-                      placeholder="Notas adicionales sobre la tarea"
+                      placeholder="Notas adicionales sobre la reparación"
                       value={newTask.notes || ""}
                       onChange={(e) => setNewTask({ ...newTask, notes: e.target.value })}
                       data-testid="textarea-task-notes"
@@ -725,7 +725,7 @@ export function AddWorkOrderDialog() {
 
                 <Button type="button" onClick={addTask} className="w-full" data-testid="button-add-task">
                   <Plus className="h-4 w-4 mr-2" />
-                  Agregar Tarea
+                  Agregar Reparación
                 </Button>
               </CardContent>
             </Card>
@@ -733,7 +733,7 @@ export function AddWorkOrderDialog() {
             {tasks.length > 0 && (
               <Card>
                 <CardHeader>
-                  <CardTitle>Tareas Agregadas ({tasks.length})</CardTitle>
+                  <CardTitle>Reparaciones Agregadas ({tasks.length})</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <Table>
@@ -1027,7 +1027,7 @@ export function AddWorkOrderDialog() {
 
         <DialogFooter className="flex justify-between items-center">
           <div className="text-sm text-muted-foreground">
-            {tasks.length > 0 && <span className="mr-4">{tasks.length} tarea(s)</span>}
+            {tasks.length > 0 && <span className="mr-4">{tasks.length} reparación(es)</span>}
             {materials.length > 0 && <span className="mr-4">{materials.length} material(es) - ${totalMaterialsCost.toFixed(2)}</span>}
             {evidences.length > 0 && <span>{evidences.length} evidencia(s)</span>}
           </div>

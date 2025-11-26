@@ -1,10 +1,13 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
-import { Calendar, Eye, Settings } from "lucide-react";
-import type { Vehicle } from "@shared/schema";
+import { Calendar, Eye, Settings, Pencil } from "lucide-react";
+import type { Vehicle, ClientBranch, Client, User } from "@shared/schema";
+import { useQuery } from "@tanstack/react-query";
 import vanImage from "@assets/generated_images/White_commercial_van_photo_54e80b21.png";
 import { useLocation } from "wouter";
+import { useState } from "react";
+import { EditVehicleDialog } from "@/components/edit-vehicle-dialog";
 
 interface VehicleCardProps {
   vehicle: Vehicle;
@@ -18,7 +21,24 @@ const statusConfig = {
 
 export function VehicleCard({ vehicle }: VehicleCardProps) {
   const status = vehicle.status as keyof typeof statusConfig;
+  const statusInfo = statusConfig[status] ?? { label: String(vehicle.status || "-"), className: "border-gray-600 text-gray-600" };
   const [, navigate] = useLocation();
+  const [openEdit, setOpenEdit] = useState(false);
+  const { data: branches = [] } = useQuery<ClientBranch[]>({ queryKey: ["/api/client-branches"] });
+  const { data: clients = [] } = useQuery<Client[]>({ queryKey: ["/api/clients"] });
+  const { data: users = [] } = useQuery<User[]>({ queryKey: ["/api/users"] });
+  const { data: directUser } = useQuery<User | null>({
+    queryKey: ["/api/users", String(vehicle.assignedUserId || "none")],
+    queryFn: async () => {
+      if (!vehicle.assignedUserId) return null;
+      const res = await fetch(`/api/users/${vehicle.assignedUserId}`, { credentials: "include" });
+      if (!res.ok) return null;
+      return await res.json();
+    },
+  });
+  const branch = branches.find((b) => b.id === vehicle.branchId);
+  const client = clients.find((c) => c.id === vehicle.clientId);
+  const assignedUser = users.find(u => Number(u.id) === Number(vehicle.assignedUserId ?? NaN)) || directUser || undefined;
   
   return (
     <Card className="hover-elevate" data-testid={`card-vehicle-${vehicle.id}`}>
@@ -35,20 +55,35 @@ export function VehicleCard({ vehicle }: VehicleCardProps) {
         <div className="flex items-start justify-between gap-2 mb-3">
           <div>
             {vehicle.economicNumber && (
-              <div className="text-sm text-muted-foreground mb-1">
-                Nº Económico: <span className="font-mono font-semibold" data-testid={`text-economic-${vehicle.id}`}>{vehicle.economicNumber}</span>
+              <div className="flex items-baseline gap-2 mb-1">
+                <span className="text-xs text-muted-foreground">Nº Económico:</span>
+                <span className="font-mono font-bold text-xl leading-tight" data-testid={`text-economic-${vehicle.id}`}>{vehicle.economicNumber}</span>
               </div>
             )}
-            <h3 className="font-semibold text-lg" data-testid={`text-vehicle-name-${vehicle.id}`}>
+            <h3 className="font-medium text-base text-muted-foreground" data-testid={`text-vehicle-name-${vehicle.id}`}>
               {vehicle.brand} {vehicle.model}
             </h3>
-            <p className="text-sm text-muted-foreground">{vehicle.year}</p>
+            <p className="text-xs text-muted-foreground">{vehicle.year}</p>
           </div>
-          <Badge variant="outline" className={statusConfig[status].className}>
-            {statusConfig[status].label}
+          <Badge variant="outline" className={statusInfo?.className ?? "border-gray-600 text-gray-600"}>
+            {statusInfo?.label ?? String(vehicle.status || "-")}
           </Badge>
         </div>
         <div className="space-y-2 text-sm">
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Cliente:</span>
+            <span className="font-medium" data-testid={`text-client-${vehicle.id}`}>{client?.name || ""}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Sucursal:</span>
+            <span className="font-medium" data-testid={`text-branch-${vehicle.id}`}>{branch?.name || ""}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Usuario:</span>
+          <span className="font-medium" data-testid={`text-user-${vehicle.id}`}>
+            {assignedUser ? (assignedUser.fullName || assignedUser.username) : (vehicle.assignedUserId ? `ID ${vehicle.assignedUserId}` : "")}
+          </span>
+        </div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">Placa:</span>
             <span className="font-mono font-medium" data-testid={`text-plate-${vehicle.id}`}>{vehicle.plate}</span>
@@ -89,11 +124,22 @@ export function VehicleCard({ vehicle }: VehicleCardProps) {
           <Eye className="h-4 w-4 mr-1" />
           Ver Detalles
         </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          className="flex-1"
+          data-testid={`button-edit-${vehicle.id}`}
+          onClick={() => setOpenEdit(true)}
+        >
+          <Pencil className="h-4 w-4 mr-1" />
+          Editar
+        </Button>
         <Button variant="default" size="sm" className="flex-1" data-testid={`button-service-${vehicle.id}`}>
           <Settings className="h-4 w-4 mr-1" />
           Programar
         </Button>
       </CardFooter>
+      <EditVehicleDialog vehicle={vehicle} open={openEdit} onOpenChange={setOpenEdit} />
     </Card>
   );
 }

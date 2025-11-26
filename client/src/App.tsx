@@ -35,6 +35,8 @@ import AreasPage from "@/pages/areas";
 import ConfigurationPage from "@/pages/configuration";
 import RolesPage from "@/pages/roles";
 import PermissionsPage from "@/pages/permissions";
+import ChecklistsPage from "@/pages/checklists";
+import ChecklistTemplatesPage from "@/pages/checklist-templates";
 
 function Router() {
   return (
@@ -56,6 +58,10 @@ function Router() {
       <Route path="/ordenes-trabajo" component={WorkOrdersPage} />
       <Route path="/prueba-validacion" component={TestingValidationPage} />
       <Route path="/empleados" component={EmployeesPage} />
+      <Route path="/checklists" component={ChecklistsPage} />
+      <Route path="/checklists/historial" component={ChecklistsPage} />
+      <Route path="/checklists/nuevo" component={ChecklistsPage} />
+      <Route path="/checklists/plantillas" component={ChecklistTemplatesPage} />
       <Route path="/usuarios" component={UsersPage} />
       <Route path="/roles" component={RolesPage} />
       <Route path="/permisos" component={PermissionsPage} />

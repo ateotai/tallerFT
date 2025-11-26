@@ -28,7 +28,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { EditVehicleDialog } from "@/components/edit-vehicle-dialog";
-import type { Vehicle } from "@shared/schema";
+import type { Vehicle, ClientBranch } from "@shared/schema";
+import { useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
@@ -48,6 +49,7 @@ export function VehicleTable({ vehicles }: VehicleTableProps) {
   const [deletingVehicleId, setDeletingVehicleId] = useState<number | null>(null);
   const { toast } = useToast();
   const [, navigate] = useLocation();
+  const { data: branches = [] } = useQuery<ClientBranch[]>({ queryKey: ["/api/client-branches"] });
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
@@ -87,30 +89,34 @@ export function VehicleTable({ vehicles }: VehicleTableProps) {
           <TableBody>
             {vehicles.map((vehicle) => {
               const status = vehicle.status as keyof typeof statusConfig;
+              const statusInfo = statusConfig[status] ?? { label: String(vehicle.status || "-"), className: "border-gray-600 text-gray-600" };
               return (
                 <TableRow key={vehicle.id} data-testid={`row-vehicle-${vehicle.id}`}>
                   <TableCell>
                     <div>
                       {vehicle.economicNumber && (
-                        <div className="text-xs text-muted-foreground mb-1">
-                          Nº Económico: <span className="font-mono font-semibold" data-testid={`text-economic-${vehicle.id}`}>{vehicle.economicNumber}</span>
+                        <div className="flex items-baseline gap-2 mb-1">
+                          <span className="text-xs text-muted-foreground">Nº Económico:</span>
+                          <span className="font-mono font-bold text-lg" data-testid={`text-economic-${vehicle.id}`}>{vehicle.economicNumber}</span>
                         </div>
                       )}
-                      <div className="font-medium" data-testid={`text-vehicle-${vehicle.id}`}>
+                      {branches.find(b => b.id === vehicle.branchId) && (
+                        <div className="text-xs text-muted-foreground mb-1">
+                          Sucursal: <span className="font-medium" data-testid={`text-branch-${vehicle.id}`}>{branches.find(b => b.id === vehicle.branchId)!.name}</span>
+                        </div>
+                      )}
+                      <div className="text-sm text-muted-foreground" data-testid={`text-vehicle-${vehicle.id}`}>
                         {vehicle.brand} {vehicle.model}
                       </div>
-                      <div className="text-sm text-muted-foreground">{vehicle.year}</div>
+                      <div className="text-xs text-muted-foreground">{vehicle.year}</div>
                     </div>
                   </TableCell>
                   <TableCell>
                     <span className="font-mono" data-testid={`text-plate-${vehicle.id}`}>{vehicle.plate}</span>
                   </TableCell>
                   <TableCell>
-                    <Badge
-                      variant="outline"
-                      className={statusConfig[status].className}
-                    >
-                      {statusConfig[status].label}
+                    <Badge variant="outline" className={statusInfo?.className ?? "border-gray-600 text-gray-600"}>
+                      {statusInfo?.label ?? String(vehicle.status || "-")}
                     </Badge>
                   </TableCell>
                   <TableCell>

@@ -30,6 +30,8 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { insertVehicleSchema, type InsertVehicle, type Vehicle } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { ImagePlus } from "lucide-react";
+import { UserSearchCombobox } from "@/components/user-search-combobox";
 
 interface EditVehicleDialogProps {
   vehicle: Vehicle;
@@ -39,6 +41,9 @@ interface EditVehicleDialogProps {
 
 export function EditVehicleDialog({ vehicle, open, onOpenChange }: EditVehicleDialogProps) {
   const { toast } = useToast();
+  const [uploading, setUploading] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(vehicle.imageUrl || null);
+  const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
 
   const form = useForm<InsertVehicle>({
     resolver: zodResolver(insertVehicleSchema),
@@ -57,6 +62,7 @@ export function EditVehicleDialog({ vehicle, open, onOpenChange }: EditVehicleDi
       clientId: vehicle.clientId,
       vehicleTypeId: vehicle.vehicleTypeId,
       imageUrl: vehicle.imageUrl,
+      assignedUserId: vehicle.assignedUserId ?? null,
     },
   });
 
@@ -77,7 +83,9 @@ export function EditVehicleDialog({ vehicle, open, onOpenChange }: EditVehicleDi
         clientId: vehicle.clientId,
         vehicleTypeId: vehicle.vehicleTypeId,
         imageUrl: vehicle.imageUrl,
+        assignedUserId: vehicle.assignedUserId ?? null,
       });
+      setPreviewUrl(vehicle.imageUrl || null);
     }
   }, [vehicle, open, form]);
 
@@ -105,6 +113,27 @@ export function EditVehicleDialog({ vehicle, open, onOpenChange }: EditVehicleDi
 
   const onSubmit = (data: InsertVehicle) => {
     updateMutation.mutate(data);
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("image", file);
+      const res = await fetch(`/api/vehicles/${vehicle.id}/image`, { method: "POST", body: fd });
+      if (!res.ok) throw new Error("No se pudo subir la imagen");
+      const payload = await res.json();
+      form.setValue("imageUrl", payload.url);
+      setPreviewUrl(payload.url);
+      toast({ title: "Imagen subida", description: "La foto del vehículo se actualizó." });
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message || "Falló la subida de imagen", variant: "destructive" });
+    } finally {
+      setUploading(false);
+      e.target.value = "";
+    }
   };
 
   return (
@@ -282,6 +311,23 @@ export function EditVehicleDialog({ vehicle, open, onOpenChange }: EditVehicleDi
               />
               <FormField
                 control={form.control}
+                name="assignedUserId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Asignar usuario</FormLabel>
+                    <FormControl>
+                      <UserSearchCombobox
+                        value={field.value ?? null}
+                        onValueChange={(userId) => field.onChange(userId)}
+                        placeholder="Buscar usuario..."
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
                 name="assignedArea"
                 render={({ field }) => (
                   <FormItem>
@@ -293,6 +339,19 @@ export function EditVehicleDialog({ vehicle, open, onOpenChange }: EditVehicleDi
                   </FormItem>
                 )}
               />
+              <div className="md:col-span-2 space-y-2">
+                <FormLabel>Imagen del vehículo</FormLabel>
+                <div className="flex items-center gap-3">
+                  <label className="inline-flex items-center gap-2 cursor-pointer px-3 py-2 border rounded-md text-sm">
+                    <ImagePlus className="h-4 w-4" />
+                    <span>{uploading ? "Subiendo..." : "Seleccionar imagen"}</span>
+                    <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+                  </label>
+                  {previewUrl && (
+                    <img src={previewUrl} alt="Vehicle" className="h-12 w-20 object-cover rounded-md border" />
+                  )}
+                </div>
+              </div>
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

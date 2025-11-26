@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 import * as schema from "@shared/schema";
 import type {
   User,
@@ -22,6 +22,8 @@ import type {
   InsertProviderType,
   Client,
   InsertClient,
+  ClientBranch,
+  InsertClientBranch,
   InventoryCategory,
   InsertInventoryCategory,
   Inventory,
@@ -81,6 +83,7 @@ export interface IStorage {
   getVehicle(id: number): Promise<Vehicle | undefined>;
   createVehicle(vehicle: InsertVehicle): Promise<Vehicle>;
   updateVehicle(id: number, vehicle: Partial<InsertVehicle>): Promise<Vehicle | undefined>;
+  getVehicleByPlate(plate: string): Promise<Vehicle | undefined>;
   deleteVehicle(id: number): Promise<boolean>;
   getVehicleByEconomicNumber(economicNumber: string): Promise<Vehicle | undefined>;
   getVehicleByVin(vin: string): Promise<Vehicle | undefined>;
@@ -129,11 +132,18 @@ export interface IStorage {
   createClient(client: InsertClient): Promise<Client>;
   updateClient(id: number, client: Partial<InsertClient>): Promise<Client | undefined>;
   deleteClient(id: number): Promise<boolean>;
+  getClientBranches(): Promise<ClientBranch[]>;
+  getClientBranch(id: number): Promise<ClientBranch | undefined>;
+  getClientBranchesByClient(clientId: number): Promise<ClientBranch[]>;
+  createClientBranch(branch: InsertClientBranch): Promise<ClientBranch>;
+  updateClientBranch(id: number, branch: Partial<InsertClientBranch>): Promise<ClientBranch | undefined>;
+  deleteClientBranch(id: number): Promise<boolean>;
   
-  getInventoryItems(): Promise<Inventory[]>;
+  getInventoryItems(partCondition?: string): Promise<Inventory[]>;
   getInventoryItem(id: number): Promise<Inventory | undefined>;
   createInventoryItem(item: InsertInventory): Promise<Inventory>;
   updateInventoryItem(id: number, item: Partial<InsertInventory>): Promise<Inventory | undefined>;
+  getInventoryItemByPartNumber(partNumber: string): Promise<Inventory | undefined>;
   deleteInventoryItem(id: number): Promise<boolean>;
   
   getInventoryMovements(): Promise<InventoryMovement[]>;
@@ -185,6 +195,12 @@ export interface IStorage {
   getWorkOrder(id: number): Promise<WorkOrder | undefined>;
   getWorkOrdersByVehicle(vehicleId: number): Promise<WorkOrder[]>;
   getWorkOrdersByEmployee(employeeId: number): Promise<WorkOrder[]>;
+  getChecklists(): Promise<Checklist[]>;
+  getChecklist(id: number): Promise<Checklist | undefined>;
+  getChecklistsByVehicle(vehicleId: number): Promise<Checklist[]>;
+  createChecklist(checklist: InsertChecklist): Promise<Checklist>;
+  updateChecklist(id: number, checklist: Partial<InsertChecklist>): Promise<Checklist | undefined>;
+  deleteChecklist(id: number): Promise<boolean>;
   createWorkOrder(workOrder: InsertWorkOrder): Promise<WorkOrder>;
   updateWorkOrder(id: number, workOrder: Partial<InsertWorkOrder>): Promise<WorkOrder | undefined>;
   deleteWorkOrder(id: number): Promise<boolean>;
@@ -324,6 +340,15 @@ export class DbStorage implements IStorage {
 
   async updateVehicle(id: number, vehicle: Partial<InsertVehicle>): Promise<Vehicle | undefined> {
     const result = await db.update(schema.vehicles).set(vehicle).where(eq(schema.vehicles.id, id)).returning();
+    return result[0];
+  }
+
+  async getVehicleByPlate(plate: string): Promise<Vehicle | undefined> {
+    const result = await db
+      .select()
+      .from(schema.vehicles)
+      .where(eq(schema.vehicles.plate, plate))
+      .limit(1);
     return result[0];
   }
 
@@ -554,7 +579,38 @@ export class DbStorage implements IStorage {
     return result.length > 0;
   }
 
-  async getInventoryItems(): Promise<Inventory[]> {
+  async getClientBranches(): Promise<ClientBranch[]> {
+    return await db.select().from(schema.clientBranches);
+  }
+
+  async getClientBranch(id: number): Promise<ClientBranch | undefined> {
+    const result = await db.select().from(schema.clientBranches).where(eq(schema.clientBranches.id, id)).limit(1);
+    return result[0];
+  }
+
+  async getClientBranchesByClient(clientId: number): Promise<ClientBranch[]> {
+    return await db.select().from(schema.clientBranches).where(eq(schema.clientBranches.clientId, clientId));
+  }
+
+  async createClientBranch(branch: InsertClientBranch): Promise<ClientBranch> {
+    const result = await db.insert(schema.clientBranches).values(branch).returning();
+    return result[0];
+  }
+
+  async updateClientBranch(id: number, branch: Partial<InsertClientBranch>): Promise<ClientBranch | undefined> {
+    const result = await db.update(schema.clientBranches).set(branch).where(eq(schema.clientBranches.id, id)).returning();
+    return result[0];
+  }
+
+  async deleteClientBranch(id: number): Promise<boolean> {
+    const result = await db.delete(schema.clientBranches).where(eq(schema.clientBranches.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async getInventoryItems(partCondition?: string): Promise<Inventory[]> {
+    if (partCondition) {
+      return await db.select().from(schema.inventory).where(eq(schema.inventory.partCondition, partCondition));
+    }
     return await db.select().from(schema.inventory);
   }
 
@@ -570,6 +626,11 @@ export class DbStorage implements IStorage {
 
   async updateInventoryItem(id: number, item: Partial<InsertInventory>): Promise<Inventory | undefined> {
     const result = await db.update(schema.inventory).set(item).where(eq(schema.inventory.id, id)).returning();
+    return result[0];
+  }
+
+  async getInventoryItemByPartNumber(partNumber: string): Promise<Inventory | undefined> {
+    const result = await db.select().from(schema.inventory).where(eq(schema.inventory.partNumber, partNumber)).limit(1);
     return result[0];
   }
 
@@ -796,6 +857,97 @@ export class DbStorage implements IStorage {
   async getWorkOrder(id: number): Promise<WorkOrder | undefined> {
     const result = await db.select().from(schema.workOrders).where(eq(schema.workOrders.id, id)).limit(1);
     return result[0];
+  }
+
+  async getChecklists(): Promise<Checklist[]> {
+    return await db.select().from(schema.checklists);
+  }
+
+  async getChecklist(id: number): Promise<Checklist | undefined> {
+    const result = await db.select().from(schema.checklists).where(eq(schema.checklists.id, id)).limit(1);
+    return result[0];
+  }
+
+  async getChecklistsByVehicle(vehicleId: number): Promise<Checklist[]> {
+    return await db.select().from(schema.checklists).where(eq(schema.checklists.vehicleId, vehicleId));
+  }
+
+  async createChecklist(checklist: InsertChecklist): Promise<Checklist> {
+    const result = await db.insert(schema.checklists).values(checklist).returning();
+    return result[0];
+  }
+
+  async updateChecklist(id: number, checklist: Partial<InsertChecklist>): Promise<Checklist | undefined> {
+    const result = await db.update(schema.checklists).set(checklist).where(eq(schema.checklists.id, id)).returning();
+    return result[0];
+  }
+
+  async deleteChecklist(id: number): Promise<boolean> {
+    const result = await db.delete(schema.checklists).where(eq(schema.checklists.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async getVehicleAssignedToUser(userId: number): Promise<schema.Vehicle | undefined> {
+    const res = await db.select().from(schema.vehicles).where(eq(schema.vehicles.assignedUserId, userId)).limit(1);
+    return res[0];
+  }
+
+  // Checklist templates
+  async getChecklistTemplates(): Promise<schema.ChecklistTemplate[]> {
+    return await db.select().from(schema.checklistTemplates);
+  }
+
+  async getChecklistTemplate(id: number): Promise<schema.ChecklistTemplate | undefined> {
+    const result = await db.select().from(schema.checklistTemplates).where(eq(schema.checklistTemplates.id, id)).limit(1);
+    return result[0];
+  }
+
+  async createChecklistTemplate(tpl: schema.InsertChecklistTemplate, roleIds: number[]): Promise<schema.ChecklistTemplate> {
+    const [created] = await db.insert(schema.checklistTemplates).values(tpl).returning();
+    if (roleIds && roleIds.length) {
+      const rows = roleIds.map((rid) => ({ templateId: created.id, roleId: rid }));
+      await db.insert(schema.checklistTemplateRoles).values(rows);
+    }
+    return created;
+  }
+
+  async updateChecklistTemplate(id: number, tpl: Partial<schema.InsertChecklistTemplate>, roleIds?: number[]): Promise<schema.ChecklistTemplate | undefined> {
+    const [updated] = await db.update(schema.checklistTemplates).set({ ...tpl, updatedAt: new Date() }).where(eq(schema.checklistTemplates.id, id)).returning();
+    if (!updated) return undefined;
+    if (Array.isArray(roleIds)) {
+      await db.delete(schema.checklistTemplateRoles).where(eq(schema.checklistTemplateRoles.templateId, id));
+      if (roleIds.length) {
+        const rows = roleIds.map((rid) => ({ templateId: id, roleId: rid }));
+        await db.insert(schema.checklistTemplateRoles).values(rows);
+      }
+    }
+    return updated;
+  }
+
+  async deleteChecklistTemplate(id: number): Promise<boolean> {
+    await db.delete(schema.checklistTemplateRoles).where(eq(schema.checklistTemplateRoles.templateId, id));
+    const result = await db.delete(schema.checklistTemplates).where(eq(schema.checklistTemplates.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async getChecklistTemplateByRole(roleName: string): Promise<schema.ChecklistTemplate | undefined> {
+    // Find role id by name
+    const roles = await db.select().from(schema.roles).where(eq(schema.roles.name, roleName)).limit(1);
+    const role = roles[0];
+    if (!role) return undefined;
+    const rows = await db.select().from(schema.checklistTemplateRoles).where(eq(schema.checklistTemplateRoles.roleId, role.id));
+    if (!rows.length) return undefined;
+    const tplIds = rows.map(r => r.templateId);
+    const tpls = await db.select().from(schema.checklistTemplates).where(inArray(schema.checklistTemplates.id, tplIds));
+    // Prefer active templates and latest updated
+    const active = tpls.filter(t => t.active);
+    const pick = (active.length ? active : tpls).sort((a,b) => new Date(b.updatedAt as unknown as string).getTime() - new Date(a.updatedAt as unknown as string).getTime())[0];
+    return pick;
+  }
+
+  async getChecklistTemplateRoles(templateId: number): Promise<number[]> {
+    const rows = await db.select().from(schema.checklistTemplateRoles).where(eq(schema.checklistTemplateRoles.templateId, templateId));
+    return rows.map(r => r.roleId);
   }
 
   async getWorkOrdersByVehicle(vehicleId: number): Promise<WorkOrder[]> {

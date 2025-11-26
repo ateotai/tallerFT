@@ -189,7 +189,7 @@ export function ViewWorkOrderDialog({
               General
             </TabsTrigger>
             <TabsTrigger value="tasks" data-testid="tab-tasks">
-              Tareas ({tasks.length})
+              Reparaciones ({tasks.length})
             </TabsTrigger>
             <TabsTrigger value="materials" data-testid="tab-materials">
               Materiales ({materials.length})
@@ -307,7 +307,7 @@ export function ViewWorkOrderDialog({
           <TabsContent value="tasks" className="mt-6">
             {tasks.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
-                No hay tareas asignadas
+                No hay reparaciones asignadas
               </div>
             ) : (
               <div className="rounded-md border">

@@ -236,7 +236,7 @@ export function PrintWorkOrderDialog({
           {tasks.length > 0 && (
             <div>
               <h2 className="text-lg font-bold mb-3 border-b pb-2">
-                Tareas Asignadas
+                Reparaciones Asignadas
               </h2>
               <table className="w-full border-collapse border border-black">
                 <thead>

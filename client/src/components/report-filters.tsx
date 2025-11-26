@@ -11,6 +11,8 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar, Download, FileText } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { useQuery } from "@tanstack/react-query";
+import type { Vehicle } from "@shared/schema";
 
 interface ReportFiltersProps {
   onFilterChange?: (filters: any) => void;
@@ -23,6 +25,9 @@ export function ReportFilters({ onFilterChange, onExport }: ReportFiltersProps) 
   const [vehicleFilter, setVehicleFilter] = useState("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [topN, setTopN] = useState("all");
+
+  const { data: vehicles = [] } = useQuery<Vehicle[]>({ queryKey: ["/api/vehicles"] });
 
   const handleApplyFilters = () => {
     onFilterChange?.({
@@ -31,6 +36,7 @@ export function ReportFilters({ onFilterChange, onExport }: ReportFiltersProps) 
       vehicleFilter,
       dateFrom,
       dateTo,
+      topN,
     });
   };
 
@@ -87,9 +93,27 @@ export function ReportFilters({ onFilterChange, onExport }: ReportFiltersProps) 
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos</SelectItem>
-                <SelectItem value="ABC-1234">Ford Transit (ABC-1234)</SelectItem>
-                <SelectItem value="DEF-5678">Toyota Hilux (DEF-5678)</SelectItem>
-                <SelectItem value="GHI-9012">Chevrolet Suburban (GHI-9012)</SelectItem>
+                {vehicles
+                  .filter((v) => (v.plate || "").trim().length > 0)
+                  .map((v) => (
+                    <SelectItem key={v.id} value={(v.plate || "").trim()}>
+                      {v.brand} {v.model} ({v.plate})
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="topn">Top N (por costo)</Label>
+            <Select value={topN} onValueChange={setTopN}>
+              <SelectTrigger id="topn" data-testid="select-topn">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos</SelectItem>
+                <SelectItem value="5">Top 5</SelectItem>
+                <SelectItem value="10">Top 10</SelectItem>
               </SelectContent>
             </Select>
           </div>

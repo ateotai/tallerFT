@@ -32,6 +32,7 @@ export function ServiceCard({
   provider,
   status,
 }: ServiceCardProps) {
+  const info = statusConfig[status] ?? { label: String(status || "-"), className: "border-gray-600 text-gray-600" };
   return (
     <Card className="hover-elevate" data-testid={`card-service-${id}`}>
       <CardHeader className="pb-3">
@@ -42,8 +43,8 @@ export function ServiceCard({
               {vehicleName} • <span className="font-mono">{vehiclePlate}</span>
             </p>
           </div>
-          <Badge variant="outline" className={statusConfig[status].className}>
-            {statusConfig[status].label}
+          <Badge variant="outline" className={info?.className ?? "border-gray-600 text-gray-600"}>
+            {info?.label ?? String(status || "-")}
           </Badge>
         </div>
       </CardHeader>

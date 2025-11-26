@@ -51,6 +51,22 @@ export const insertClientSchema = createInsertSchema(clients).omit({
 export type InsertClient = z.infer<typeof insertClientSchema>;
 export type Client = typeof clients.$inferSelect;
 
+export const clientBranches = pgTable("client_branches", {
+  id: serial("id").primaryKey(),
+  clientId: integer("client_id").notNull().references(() => clients.id),
+  name: text("name").notNull(),
+  address: text("address"),
+  status: text("status").notNull().default("active"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertClientBranchSchema = createInsertSchema(clientBranches).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertClientBranch = z.infer<typeof insertClientBranchSchema>;
+export type ClientBranch = typeof clientBranches.$inferSelect;
+
 export const vehicleTypes = pgTable("vehicle_types", {
   id: serial("id").primaryKey(),
   name: text("name").notNull().unique(),
@@ -68,7 +84,10 @@ export type VehicleType = typeof vehicleTypes.$inferSelect;
 export const vehicles = pgTable("vehicles", {
   id: serial("id").primaryKey(),
   clientId: integer("client_id").references(() => clients.id),
+  branchId: integer("branch_id").references(() => clientBranches.id),
   vehicleTypeId: integer("vehicle_type_id").references(() => vehicleTypes.id),
+  assignedEmployeeId: integer("assigned_employee_id").references(() => employees.id),
+  assignedUserId: integer("assigned_user_id").references(() => users.id),
   brand: text("brand").notNull(),
   model: text("model").notNull(),
   year: integer("year").notNull(),
@@ -227,14 +246,20 @@ export const inventory = pgTable("inventory", {
   unitPrice: real("unit_price").notNull(),
   location: text("location"),
   providerId: integer("provider_id").references(() => providers.id),
+  partCondition: text("part_condition").notNull().default("Nuevo"),
+  notes: text("notes"),
   workshopId: integer("workshop_id").references(() => workshops.id),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
-export const insertInventorySchema = createInsertSchema(inventory).omit({
-  id: true,
-  createdAt: true,
-});
+export const insertInventorySchema = createInsertSchema(inventory)
+  .omit({
+    id: true,
+    createdAt: true,
+  })
+  .extend({
+    partCondition: z.enum(["Nuevo", "En uso", "Remanofacturado"]),
+  });
 export type InsertInventory = z.infer<typeof insertInventorySchema>;
 export type Inventory = typeof inventory.$inferSelect;
 
@@ -608,3 +633,69 @@ export const insertPurchaseQuoteItemSchema = createInsertSchema(purchaseQuoteIte
 });
 export type InsertPurchaseQuoteItem = z.infer<typeof insertPurchaseQuoteItemSchema>;
 export type PurchaseQuoteItem = typeof purchaseQuoteItems.$inferSelect;
+
+export const checklists = pgTable("checklists", {
+  id: serial("id").primaryKey(),
+  vehicleId: integer("vehicle_id").notNull().references(() => vehicles.id),
+  type: text("type").notNull().default("express"),
+  folio: text("folio").unique(),
+  inspectedAt: timestamp("inspected_at").notNull().defaultNow(),
+  plate: text("plate"),
+  economicNumber: text("economic_number"),
+  brand: text("brand"),
+  model: text("model"),
+  year: integer("year"),
+  mileage: integer("mileage").default(0),
+  fuelType: text("fuel_type"),
+  driverName: text("driver_name").notNull(),
+  inspectorName: text("inspector_name").notNull(),
+  inspectorEmployeeId: integer("inspector_employee_id").references(() => employees.id),
+  reason: text("reason").notNull().default("scheduled_task"),
+  handoverUserId: integer("handover_user_id").references(() => users.id),
+  results: jsonb("results").$type<Record<string, any>>().default({}),
+  generalObservations: text("general_observations"),
+  recommendations: text("recommendations"),
+  priority: text("priority"),
+  nextMaintenanceDate: timestamp("next_maintenance_date"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertChecklistSchema = createInsertSchema(checklists)
+  .omit({ id: true, createdAt: true })
+  .extend({ inspectedAt: z.coerce.date().optional(), nextMaintenanceDate: z.coerce.date().optional() });
+export type InsertChecklist = z.infer<typeof insertChecklistSchema>;
+export type Checklist = typeof checklists.$inferSelect;
+
+// Checklist templates
+export const checklistTemplates = pgTable("checklist_templates", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  type: text("type").notNull().default("express"),
+  sections: jsonb("sections").$type<Array<{ title: string; items: string[] }>>().notNull().default([]),
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertChecklistTemplateSchema = createInsertSchema(checklistTemplates).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertChecklistTemplate = z.infer<typeof insertChecklistTemplateSchema>;
+export type ChecklistTemplate = typeof checklistTemplates.$inferSelect;
+
+export const checklistTemplateRoles = pgTable("checklist_template_roles", {
+  id: serial("id").primaryKey(),
+  templateId: integer("template_id").notNull().references(() => checklistTemplates.id),
+  roleId: integer("role_id").notNull().references(() => roles.id),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertChecklistTemplateRoleSchema = createInsertSchema(checklistTemplateRoles).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertChecklistTemplateRole = z.infer<typeof insertChecklistTemplateRoleSchema>;
+export type ChecklistTemplateRole = typeof checklistTemplateRoles.$inferSelect;

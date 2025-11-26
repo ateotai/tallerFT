@@ -84,12 +84,15 @@ export function ScheduledCalendar({ services }: ScheduledCalendarProps) {
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
                         <span className="font-medium">{service.serviceType}</span>
-                        <Badge
-                          variant="outline"
-                          className={statusConfig[service.status].className}
-                        >
-                          {statusConfig[service.status].label}
-                        </Badge>
+                        {(() => {
+                          const st = service.status as keyof typeof statusConfig;
+                          const info = statusConfig[st] ?? { label: String(service.status || "-"), className: "border-gray-600 text-gray-600" };
+                          return (
+                            <Badge variant="outline" className={info?.className ?? "border-gray-600 text-gray-600"}>
+                              {info?.label ?? String(service.status || "-")}
+                            </Badge>
+                          );
+                        })()}
                       </div>
                       <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
                         <span className="flex items-center gap-1">
@@ -140,12 +143,15 @@ export function ScheduledCalendar({ services }: ScheduledCalendarProps) {
                         <div className="flex-1">
                           <div className="flex items-center gap-2">
                             <span className="font-medium">{service.serviceType}</span>
-                            <Badge
-                              variant="outline"
-                              className={statusConfig[service.status].className}
-                            >
-                              {statusConfig[service.status].label}
-                            </Badge>
+                            {(() => {
+                              const st = service.status as keyof typeof statusConfig;
+                              const info = statusConfig[st] ?? { label: String(service.status || "-"), className: "border-gray-600 text-gray-600" };
+                              return (
+                                <Badge variant="outline" className={info?.className ?? "border-gray-600 text-gray-600"}>
+                                  {info?.label ?? String(service.status || "-")}
+                                </Badge>
+                              );
+                            })()}
                           </div>
                           <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
                             <span className="flex items-center gap-1">

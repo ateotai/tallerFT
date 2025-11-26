@@ -25,6 +25,14 @@ export function NotificationsDropdown() {
   const { data: notifications = [] } = useQuery<Notification[]>({
     queryKey: ["/api/notifications"],
     refetchInterval: 30000,
+    queryFn: async () => {
+      try {
+        const res = await apiRequest("GET", "/api/notifications");
+        return await res.json();
+      } catch {
+        return [];
+      }
+    },
   });
 
   const unreadCount = notifications.filter(n => !n.read).length;

@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
-import { Car, Wrench, DollarSign, AlertTriangle } from "lucide-react";
+import { Car, Wrench, DollarSign, AlertTriangle, Users, Building2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import type { Vehicle, Service, Inventory } from "@shared/schema";
+import type { Vehicle, Service, Inventory, Client, ClientBranch } from "@shared/schema";
 
 interface StatCardProps {
   title: string;
@@ -57,6 +57,9 @@ export function DashboardStats() {
     queryKey: ["/api/inventory"],
   });
 
+  const { data: clients = [] } = useQuery<Client[]>({ queryKey: ["/api/clients"] });
+  const { data: branches = [] } = useQuery<ClientBranch[]>({ queryKey: ["/api/client-branches"] });
+
   const pendingServices = services.filter(s => s.status === "pending").length;
   const lowStockItems = inventory.filter(i => i.quantity < i.minQuantity).length;
 
@@ -78,6 +81,16 @@ export function DashboardStats() {
       title: "Total Vehículos",
       value: vehicles.length,
       icon: <Car className="h-5 w-5" />,
+    },
+    {
+      title: "Clientes",
+      value: clients.length,
+      icon: <Users className="h-5 w-5" />,
+    },
+    {
+      title: "Sucursales Activas",
+      value: branches.filter((b) => b.status === "active").length,
+      icon: <Building2 className="h-5 w-5" />,
     },
     {
       title: "Servicios Pendientes",

@@ -14,6 +14,8 @@ import {
   Stethoscope,
   ClipboardList,
   ClipboardCheck,
+  ClipboardPlus,
+  History,
   ChevronDown,
   Building2,
   MapPin,
@@ -44,56 +46,16 @@ import {
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 const mainMenuItems = [
-  {
-    title: "Dashboard",
-    url: "/",
-    icon: LayoutDashboard,
-  },
-  {
-    title: "Vehículos",
-    url: "/vehiculos",
-    icon: Car,
-  },
-  {
-    title: "Tareas Programadas",
-    url: "/programados",
-    icon: Calendar,
-  },
-  {
-    title: "Categorías",
-    url: "/categorias",
-    icon: Tag,
-  },
-  {
-    title: "Proveedores",
-    url: "/proveedores",
-    icon: Users,
-  },
-  {
-    title: "Cotizaciones de Compra",
-    url: "/cotizaciones",
-    icon: ShoppingCart,
-  },
-  {
-    title: "Clientes",
-    url: "/clientes",
-    icon: UserCircle,
-  },
-  {
-    title: "Inventario",
-    url: "/inventario",
-    icon: Package,
-  },
-  {
-    title: "Reportes",
-    url: "/reportes",
-    icon: BarChart3,
-  },
-  {
-    title: "Reportes de Fallas",
-    url: "/reportes-fallas",
-    icon: FileText,
-  },
+  { title: "Dashboard", url: "/", icon: LayoutDashboard },
+  { title: "Fallas", url: "/reportes-fallas", icon: FileText },
+  { title: "Tareas programadas", url: "/programados", icon: Calendar },
+  { title: "Categorías de servicios", url: "/categorias", icon: Tag },
+  { title: "Inventario", url: "/inventario", icon: Package },
+  { title: "Clientes", url: "/clientes", icon: UserCircle },
+  { title: "Vehículos", url: "/vehiculos", icon: Car },
+  { title: "Proveedores", url: "/proveedores", icon: Users },
+  { title: "Cotización de compras", url: "/cotizaciones", icon: ShoppingCart },
+  { title: "Reportes", url: "/reportes", icon: BarChart3 },
 ];
 
 const maintenanceMenuItems = [
@@ -114,6 +76,27 @@ const maintenanceMenuItems = [
   },
 ];
 
+const checklistsMenuItems = [
+  {
+    title: "Checklists",
+    url: "/checklists",
+    icon: ClipboardCheck,
+  },
+];
+
+const checklistsSubMenuItems = [
+  {
+    title: "Historial de Checklists",
+    url: "/checklists/historial",
+    icon: History,
+  },
+  {
+    title: "Plantillas",
+    url: "/checklists/plantillas",
+    icon: FileText,
+  },
+];
+
 const companyMenuItems = [
   {
     title: "Talleres",
@@ -124,6 +107,11 @@ const companyMenuItems = [
     title: "Áreas",
     url: "/areas",
     icon: MapPin,
+  },
+  {
+    title: "Empleados",
+    url: "/empleados",
+    icon: Briefcase,
   },
   {
     title: "Configuración",
@@ -147,11 +135,6 @@ const rolesPermissionsMenuItems = [
 
 const adminMenuItems = [
   {
-    title: "Empleados",
-    url: "/empleados",
-    icon: Briefcase,
-  },
-  {
     title: "Usuarios",
     url: "/usuarios",
     icon: Shield,
@@ -161,6 +144,7 @@ const adminMenuItems = [
 export function AppSidebar() {
   const [location] = useLocation();
   const [maintenanceOpen, setMaintenanceOpen] = useState(true);
+  const [checklistsOpen, setChecklistsOpen] = useState(true);
   const [companyOpen, setCompanyOpen] = useState(true);
   const [rolesPermissionsOpen, setRolesPermissionsOpen] = useState(true);
 
@@ -177,19 +161,22 @@ export function AppSidebar() {
   const moduleByTitle: Record<string, string> = {
     // Principales
     "Dashboard": "Dashboard",
-    "Vehículos": "Vehículos",
-    "Tareas Programadas": "Tareas Programadas",
-    "Categorías": "Categorías",
+    "Fallas": "Reportes de Fallas",
+    "Tareas programadas": "Tareas Programadas",
+    "Categorías de servicios": "Categorías",
     "Proveedores": "Proveedores",
-    "Cotizaciones de Compra": "Cotizaciones de Compra",
+    "Cotización de compras": "Cotizaciones de Compra",
     "Clientes": "Clientes",
     "Inventario": "Inventario",
     "Reportes": "Reportes",
-    "Reportes de Fallas": "Reportes de Fallas",
+    "Vehículos": "Vehículos",
     // Servicio y Mantenimiento
     "Evaluación y Diagnóstico": "Evaluación y Diagnóstico",
     "Órdenes de Trabajo": "Órdenes de Trabajo",
     "Prueba y Validación": "Prueba y Validación",
+    "Checklists": "Checklists",
+    "Historial de Checklists": "Checklists",
+    "Plantillas": "Checklists",
     // Empresa
     "Talleres": "Talleres",
     "Áreas": "Áreas",
@@ -218,13 +205,51 @@ export function AppSidebar() {
   // Los mecánicos necesitan consultar el historial por vehículo.
   // Habilitamos también el módulo "Vehículos" para todos los usuarios autenticados.
   allowedModules.add("Vehículos");
+  // Asegurar acceso de administrador al módulo de Checklists incluso si aún no está en la matriz de permisos
+  const roleText = (user?.role || '').toLowerCase();
+  if (roleText === 'admin' || roleText === 'administrador') {
+    allowedModules.add("Checklists");
+  }
 
   const filterItemsByPermissions = (items: { title: string; url: string; icon: any }[]) =>
     items.filter(item => allowedModules.has(moduleByTitle[item.title]));
 
+  const hasPermission = (permName: string, module: string) => {
+    if (!permissions.length || !rolePerms.length) return false;
+    const perm = permissions.find(p => p.name === permName && p.module === module);
+    if (!perm) return false;
+    return rolePerms.some(rp => rp.permissionId === perm.id);
+  };
+
+  const requiredPermByTitle: Record<string, { name: string; module: string }> = {
+    "Historial de Checklists": { name: "Ver historial de checklists", module: "Checklists" },
+    "Plantillas": { name: "Administrar plantillas", module: "Checklists" },
+    "Checklists": { name: "Ver checklists", module: "Checklists" },
+  };
+
+  const filterChecklistsByAction = (items: { title: string; url: string; icon: any }[]) =>
+    items.filter(item => {
+      const req = requiredPermByTitle[item.title];
+      if (!req) return allowedModules.has(moduleByTitle[item.title]);
+      // Admin fallback mantiene acceso total
+      const isAdmin = roleText === 'admin' || roleText === 'administrador';
+      return isAdmin ? true : hasPermission(req.name, req.module);
+    });
+
   const isMaintenanceActive = maintenanceMenuItems.some(item => location === item.url);
+  const isChecklistsActive = [
+    ...checklistsMenuItems,
+    ...checklistsSubMenuItems,
+  ].some(item => location === item.url || location.startsWith("/checklists"));
   const isCompanyActive = companyMenuItems.some(item => location === item.url);
   const isRolesPermissionsActive = rolesPermissionsMenuItems.some(item => location === item.url);
+
+  const filteredMain = filterItemsByPermissions(mainMenuItems);
+  const filteredChecklistsSub = filterChecklistsByAction(checklistsSubMenuItems);
+  const filteredMaintenance = filterItemsByPermissions(maintenanceMenuItems);
+  const filteredCompany = filterItemsByPermissions(companyMenuItems);
+  const filteredAdmin = filterItemsByPermissions(adminMenuItems);
+  const filteredRolesPerm = filterItemsByPermissions(rolesPermissionsMenuItems);
 
   return (
     <Sidebar>
@@ -240,11 +265,12 @@ export function AppSidebar() {
         </div>
       </SidebarHeader>
       <SidebarContent>
+        {filteredMain.length > 0 && (
         <SidebarGroup>
           <SidebarGroupLabel>Módulos Principales</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {filterItemsByPermissions(mainMenuItems).map((item) => (
+              {filteredMain.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton
                     asChild
@@ -261,30 +287,33 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+        )}
 
+        {/* Checklists debe ir antes de Gestión de servicios según el orden requerido */}
+        {filteredChecklistsSub.length > 0 && (
         <SidebarGroup>
-          <SidebarGroupLabel>Servicio y Mantenimiento</SidebarGroupLabel>
+          <SidebarGroupLabel>Checklists</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               <Collapsible
-                open={maintenanceOpen}
-                onOpenChange={setMaintenanceOpen}
+                open={checklistsOpen}
+                onOpenChange={setChecklistsOpen}
                 className="group/collapsible"
               >
                 <SidebarMenuItem>
                   <CollapsibleTrigger asChild>
                     <SidebarMenuButton
-                      data-testid="button-maintenance-toggle"
-                      isActive={isMaintenanceActive}
+                      data-testid="button-checklists-toggle"
+                      isActive={isChecklistsActive}
                     >
-                      <Wrench className="h-5 w-5" />
-                      <span>Gestión de Servicio</span>
+                      <ClipboardCheck className="h-5 w-5" />
+                      <span>Checklists</span>
                       <ChevronDown className="ml-auto h-4 w-4 transition-transform group-data-[state=open]/collapsible:rotate-180" />
                     </SidebarMenuButton>
                   </CollapsibleTrigger>
                   <CollapsibleContent>
                     <SidebarMenuSub>
-                      {filterItemsByPermissions(maintenanceMenuItems).map((item) => (
+                      {filteredChecklistsSub.map((item) => (
                         <SidebarMenuSubItem key={item.title}>
                           <SidebarMenuSubButton
                             asChild
@@ -305,7 +334,56 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+        )}
 
+        {/* Gestión de servicios después de Checklists */}
+        {filteredMaintenance.length > 0 && (
+        <SidebarGroup>
+          <SidebarGroupLabel>Gestión de servicios</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <Collapsible
+                open={maintenanceOpen}
+                onOpenChange={setMaintenanceOpen}
+                className="group/collapsible"
+              >
+                <SidebarMenuItem>
+                  <CollapsibleTrigger asChild>
+                    <SidebarMenuButton
+                      data-testid="button-maintenance-toggle"
+                      isActive={isMaintenanceActive}
+                    >
+                      <Wrench className="h-5 w-5" />
+                      <span>Gestión de servicios</span>
+                      <ChevronDown className="ml-auto h-4 w-4 transition-transform group-data-[state=open]/collapsible:rotate-180" />
+                    </SidebarMenuButton>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <SidebarMenuSub>
+                      {filteredMaintenance.map((item) => (
+                        <SidebarMenuSubItem key={item.title}>
+                          <SidebarMenuSubButton
+                            asChild
+                            isActive={location === item.url}
+                            data-testid={`link-${item.title.toLowerCase()}`}
+                          >
+                            <Link href={item.url}>
+                              <item.icon className="h-4 w-4" />
+                              <span>{item.title}</span>
+                            </Link>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                      ))}
+                    </SidebarMenuSub>
+                  </CollapsibleContent>
+                </SidebarMenuItem>
+              </Collapsible>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+        )}
+
+        {filteredCompany.length > 0 && (
         <SidebarGroup>
           <SidebarGroupLabel>Empresa</SidebarGroupLabel>
           <SidebarGroupContent>
@@ -328,7 +406,7 @@ export function AppSidebar() {
                   </CollapsibleTrigger>
                   <CollapsibleContent>
                     <SidebarMenuSub>
-                      {filterItemsByPermissions(companyMenuItems).map((item) => (
+                      {filteredCompany.map((item) => (
                         <SidebarMenuSubItem key={item.title}>
                           <SidebarMenuSubButton
                             asChild
@@ -349,12 +427,14 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+        )}
 
+        {(filteredAdmin.length > 0 || filteredRolesPerm.length > 0) && (
         <SidebarGroup>
           <SidebarGroupLabel>Administración</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {filterItemsByPermissions(adminMenuItems).map((item) => (
+              {filteredAdmin.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton
                     asChild
@@ -369,6 +449,7 @@ export function AppSidebar() {
                 </SidebarMenuItem>
               ))}
               
+              {filteredRolesPerm.length > 0 && (
               <Collapsible
                 open={rolesPermissionsOpen}
                 onOpenChange={setRolesPermissionsOpen}
@@ -387,7 +468,7 @@ export function AppSidebar() {
                   </CollapsibleTrigger>
                   <CollapsibleContent>
                     <SidebarMenuSub>
-                      {filterItemsByPermissions(rolesPermissionsMenuItems).map((item) => (
+                      {filteredRolesPerm.map((item) => (
                         <SidebarMenuSubItem key={item.title}>
                           <SidebarMenuSubButton
                             asChild
@@ -405,9 +486,11 @@ export function AppSidebar() {
                   </CollapsibleContent>
                 </SidebarMenuItem>
               </Collapsible>
+              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+        )}
       </SidebarContent>
     </Sidebar>
   );

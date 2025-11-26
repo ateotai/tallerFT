@@ -27,6 +27,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { insertInventorySchema, type InsertInventory, type Inventory, type Provider, type InventoryCategory, type Workshop } from "@shared/schema";
@@ -65,6 +66,8 @@ export function EditInventoryDialog({ item, open, onOpenChange }: EditInventoryD
       location: item.location || "",
       providerId: item.providerId,
       workshopId: item.workshopId,
+      partCondition: item.partCondition,
+      notes: item.notes || "",
     },
   });
 
@@ -80,6 +83,8 @@ export function EditInventoryDialog({ item, open, onOpenChange }: EditInventoryD
       location: item.location || "",
       providerId: item.providerId,
       workshopId: item.workshopId,
+      partCondition: item.partCondition,
+      notes: item.notes || "",
     });
   }, [item, form]);
 
@@ -120,6 +125,42 @@ export function EditInventoryDialog({ item, open, onOpenChange }: EditInventoryD
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="partCondition"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Tipo de Refacción</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger data-testid="select-part-condition">
+                          <SelectValue placeholder="Selecciona tipo" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="Nuevo">Nuevo</SelectItem>
+                        <SelectItem value="En uso">En uso</SelectItem>
+                        <SelectItem value="Remanofacturado">Remanofacturado</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="notes"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nota</FormLabel>
+                    <FormControl>
+                      <Textarea placeholder="Detalles adicionales de la refacción" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <FormField
                 control={form.control}
                 name="partNumber"

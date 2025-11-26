@@ -297,8 +297,8 @@ export function EditWorkOrderDialog({ workOrder, open, onOpenChange }: EditWorkO
 
         const taskPromises = tasks.map(task => {
           return apiRequest("POST", `/api/work-orders/${workOrder.id}/tasks`, task).catch(err => {
-            console.error("Error creando tarea:", err);
-            throw new Error("Error al crear una de las tareas");
+            console.error("Error creando reparación:", err);
+            throw new Error("Error al crear una de las reparaciones");
           });
         });
         
@@ -386,7 +386,7 @@ export function EditWorkOrderDialog({ workOrder, open, onOpenChange }: EditWorkO
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="general" data-testid="tab-general">General</TabsTrigger>
-            <TabsTrigger value="tasks" data-testid="tab-tasks">Tareas ({tasks.length})</TabsTrigger>
+            <TabsTrigger value="tasks" data-testid="tab-tasks">Reparaciones ({tasks.length})</TabsTrigger>
             <TabsTrigger value="materials" data-testid="tab-materials">Materiales ({materials.length})</TabsTrigger>
             <TabsTrigger value="evidence" data-testid="tab-evidence">Evidencias ({evidences.length}/10)</TabsTrigger>
           </TabsList>
@@ -583,7 +583,7 @@ export function EditWorkOrderDialog({ workOrder, open, onOpenChange }: EditWorkO
 
               <TabsContent value="tasks" className="space-y-4">
                 <div className="border rounded-lg p-4 space-y-4">
-                  <h3 className="font-semibold">Agregar Tarea</h3>
+                  <h3 className="font-semibold">Agregar Reparación</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="text-sm font-medium">Mecánico Asignado</label>
@@ -712,7 +712,7 @@ export function EditWorkOrderDialog({ workOrder, open, onOpenChange }: EditWorkO
                   </div>
 
                   <Button type="button" onClick={addTask} data-testid="button-add-task">
-                    Agregar Tarea
+                    Agregar Reparación
                   </Button>
                 </div>
 
