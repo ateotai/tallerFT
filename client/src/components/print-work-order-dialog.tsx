@@ -91,6 +91,7 @@ export function PrintWorkOrderDialog({
       in_progress: "En Progreso",
       completed: "Completada",
       cancelled: "Cancelada",
+      temporary_activation: "Alta Temporal",
     };
     return statusLabels[status as keyof typeof statusLabels] || "Pendiente";
   };
@@ -112,11 +113,12 @@ export function PrintWorkOrderDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
         <DialogHeader className="print:hidden">
-          <DialogTitle className="flex items-center justify-between">
+          <DialogTitle className="flex items-center justify-between gap-2 flex-wrap">
             <span>Vista Previa de Impresión</span>
             <Button
               onClick={handlePrint}
-              className="gap-2"
+              size="sm"
+              className="gap-2 h-8 px-3 sm:h-9 sm:px-4"
               data-testid="button-print-now"
             >
               <Printer className="h-4 w-4" />

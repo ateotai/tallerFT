@@ -200,6 +200,7 @@ export const scheduledMaintenance = pgTable("scheduled_maintenance", {
   id: serial("id").primaryKey(),
   vehicleId: integer("vehicle_id").notNull().references(() => vehicles.id),
   categoryId: integer("category_id").notNull().references(() => serviceCategories.id),
+  assignedUserId: integer("assigned_user_id").notNull().references(() => users.id),
   title: text("title").notNull(),
   description: text("description").notNull(),
   frequency: text("frequency").notNull(),
@@ -699,3 +700,26 @@ export const insertChecklistTemplateRoleSchema = createInsertSchema(checklistTem
 });
 export type InsertChecklistTemplateRole = z.infer<typeof insertChecklistTemplateRoleSchema>;
 export type ChecklistTemplateRole = typeof checklistTemplateRoles.$inferSelect;
+
+// Expense history imported from Excel/CSV for reporting
+export const expenseHistory = pgTable("expense_history", {
+  id: serial("id").primaryKey(),
+  costCenter: text("cost_center").notNull(),
+  provider: text("provider").notNull(),
+  vehicle: text("vehicle"),
+  column1: text("column1"),
+  column2: text("column2"),
+  concept: text("concept").notNull(),
+  category: text("category").notNull(),
+  expenseDescription: text("expense_description"),
+  unit: text("unit"),
+  date: timestamp("date"),
+  total: real("total").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertExpenseHistorySchema = createInsertSchema(expenseHistory)
+  .omit({ id: true, createdAt: true })
+  .extend({ date: z.coerce.date().optional() });
+export type InsertExpenseHistory = z.infer<typeof insertExpenseHistorySchema>;
+export type ExpenseHistory = typeof expenseHistory.$inferSelect;

@@ -20,7 +20,8 @@
     "seed:categories": "tsx server/scripts/seed-categories.ts",
     "seed:admin-user": "tsx server/scripts/seed-admin-user.ts",
     "seed:base": "npm run seed:roles && npm run seed:permissions && npm run seed:provider-types && npm run seed:vehicle-types && npm run seed:inventory-categories && npm run seed:categories && npm run seed:admin-user",
-    "seed:vehicles5": "tsx server/scripts/create-five-vehicles.ts"
+    "seed:vehicles5": "tsx server/scripts/create-five-vehicles.ts",
+    "clear:reports": "tsx server/scripts/clear-reports.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

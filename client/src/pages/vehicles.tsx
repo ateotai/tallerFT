@@ -10,7 +10,7 @@ import { AddVehicleTypeDialog } from "@/components/add-vehicle-type-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
-import { Search, Grid, List, Upload, Download } from "lucide-react";
+import { Search, Grid, List, Upload, Download, Printer } from "lucide-react";
 import type {
   Vehicle,
   VehicleType,
@@ -621,7 +621,9 @@ export default function VehiclesPage() {
               </div>
               {/* Acciones: imprimir */}
               <div className="flex justify-end no-print gap-2">
-                <Button variant="outline" onClick={handlePrintAll}>Imprimir historial (todo)</Button>
+                <Button variant="outline" size="icon" title="Imprimir historial" onClick={handlePrintAll}>
+                  <Printer className="h-4 w-4" />
+                </Button>
               </div>
 
               {/* Historial agrupado por reporte */}
@@ -663,7 +665,9 @@ export default function VehiclesPage() {
                           </div>
                           {/* Botón para imprimir solo este reporte */}
                           <div className="flex justify-end mt-2 no-print">
-                            <Button size="sm" variant="outline" onClick={() => handlePrintReport(r.id)}>Imprimir este reporte</Button>
+                            <Button size="icon" variant="outline" title="Imprimir reporte" onClick={() => handlePrintReport(r.id)}>
+                              <Printer className="h-4 w-4" />
+                            </Button>
                           </div>
                           <div className="mt-1 text-muted-foreground">{r.description}</div>
 

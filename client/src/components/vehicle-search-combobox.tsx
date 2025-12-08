@@ -15,9 +15,12 @@ interface VehicleSearchComboboxProps {
   value?: number | null;
   onValueChange: (value: number | null) => void;
   placeholder?: string;
+  disabled?: boolean;
+  selectedFallbackText?: string;
+  allowedVehicleIds?: number[];
 }
 
-export function VehicleSearchCombobox({ value, onValueChange, placeholder = "Buscar vehículo" }: VehicleSearchComboboxProps) {
+export function VehicleSearchCombobox({ value, onValueChange, placeholder = "Buscar vehículo", disabled = false, selectedFallbackText, allowedVehicleIds }: VehicleSearchComboboxProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
 
@@ -26,20 +29,28 @@ export function VehicleSearchCombobox({ value, onValueChange, placeholder = "Bus
 
   const selected = vehicles.find((v) => v.id === value);
   const searchNorm = normalize(search);
-  const filtered = vehicles.filter((v) => {
+  const source = Array.isArray(allowedVehicleIds) && allowedVehicleIds.length > 0
+    ? vehicles.filter(v => allowedVehicleIds.includes(v.id))
+    : vehicles;
+  const filtered = source.filter((v) => {
     const clientName = clients.find((c) => c.id === v.clientId)?.name || "";
     const pool = `${v.economicNumber || ""} ${v.brand || ""} ${v.model || ""} ${clientName}`;
     return normalize(pool).includes(searchNorm);
   });
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open && !disabled} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="outline" role="combobox" aria-expanded={open} className="w-full justify-between" data-testid="select-vehicle">
+        <Button variant="outline" role="combobox" aria-expanded={open} className="w-full justify-between" data-testid="select-vehicle" disabled={disabled}>
           {selected ? (
             <div className="flex items-center gap-2 truncate">
               <Car className="h-4 w-4 shrink-0 opacity-50" />
               <span className="truncate">{selected.economicNumber || selected.plate} · {selected.brand} {selected.model}</span>
+            </div>
+          ) : disabled && selectedFallbackText ? (
+            <div className="flex items-center gap-2 truncate">
+              <Car className="h-4 w-4 shrink-0 opacity-50" />
+              <span className="truncate">{selectedFallbackText}</span>
             </div>
           ) : (
             <span className="text-muted-foreground">{placeholder}</span>
@@ -47,6 +58,7 @@ export function VehicleSearchCombobox({ value, onValueChange, placeholder = "Bus
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
+      {disabled ? null : (
       <PopoverContent className="w-[500px] p-0" align="start">
         <Command shouldFilter={false}>
           <CommandInput placeholder="Buscar por Nº económico, marca, modelo o cliente..." value={search} onValueChange={setSearch} data-testid="input-search-vehicle" />
@@ -83,6 +95,7 @@ export function VehicleSearchCombobox({ value, onValueChange, placeholder = "Bus
           </CommandList>
         </Command>
       </PopoverContent>
+      )}
     </Popover>
   );
 }

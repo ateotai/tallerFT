@@ -11,12 +11,45 @@ import {
   Calendar,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useQuery } from "@tanstack/react-query";
+ 
 import { apiRequest } from "@/lib/queryClient";
 import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useAuth } from "@/hooks/useAuth";
+import type { Role, Permission, RolePermission } from "@shared/schema";
 import type { CompanyConfiguration } from "@shared/schema";
 
 export default function ReportsPage() {
+  const { user } = useAuth();
+  const { data: roles = [] } = useQuery<Role[]>({ queryKey: ["/api/roles"] });
+  const { data: permissions = [] } = useQuery<Permission[]>({ queryKey: ["/api/permissions"] });
+  const currentRoleId = roles.find(r => r.name === user?.role)?.id;
+  const { data: rolePerms = [] } = useQuery<RolePermission[]>({
+    queryKey: ["/api/role-permissions", currentRoleId ?? ""],
+    enabled: !!currentRoleId,
+  });
+
+  const hasPermission = (permName: string, module: string) => {
+    if (!permissions.length || !rolePerms.length) return false;
+    const perm = permissions.find(p => p.name === permName && p.module === module);
+    if (!perm) return false;
+    return rolePerms.some(rp => rp.permissionId === perm.id);
+  };
+
+  const roleText = (user?.role || '').toLowerCase();
+  const isAdmin = roleText === 'admin' || roleText === 'administrador';
+  const canViewReports = isAdmin || hasPermission("Ver reportes", "Reportes");
+
+  if (!canViewReports) {
+    return (
+      <div className="space-y-8 p-6">
+        <div>
+          <h1 className="text-3xl font-bold mb-2">Acceso restringido</h1>
+          <p className="text-muted-foreground">No tienes permiso para ver Reportes.</p>
+        </div>
+      </div>
+    );
+  }
   const { toast } = useToast();
   const [filters, setFilters] = useState({ period: "6months", reportType: "general", vehicleFilter: "all", dateFrom: "", dateTo: "" });
 

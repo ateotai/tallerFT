@@ -509,6 +509,7 @@ export function AddWorkOrderDialog() {
                             <SelectItem value="in_progress">En Progreso</SelectItem>
                             <SelectItem value="completed">Completada</SelectItem>
                             <SelectItem value="cancelled">Cancelada</SelectItem>
+                            <SelectItem value="temporary_activation">Alta Temporal</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />

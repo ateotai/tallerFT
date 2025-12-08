@@ -103,6 +103,7 @@ export default function UsersPage() {
           <TableHeader>
             <TableRow>
               <TableHead>Usuario</TableHead>
+              <TableHead>Nombre de usuario</TableHead>
               <TableHead>Email</TableHead>
               <TableHead>Rol</TableHead>
               <TableHead>Estado</TableHead>
@@ -121,6 +122,7 @@ export default function UsersPage() {
                     <span className="font-medium" data-testid={`text-name-${user.id}`}>{user.fullName}</span>
                   </div>
                 </TableCell>
+                <TableCell className="font-mono text-sm" data-testid={`text-username-${user.id}`}>{user.username}</TableCell>
                 <TableCell data-testid={`text-email-${user.id}`}>{user.email}</TableCell>
                 <TableCell>
                   <Badge

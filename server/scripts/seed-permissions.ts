@@ -55,6 +55,9 @@ async function seedPermissions() {
     // Reportes
     { name: "Ver reportes", module: "Reportes", description: "Visualizar reportes y estadísticas del sistema" },
 
+    // Consulta de historial
+    { name: "Ver consulta de historial", module: "Consulta de historial", description: "Acceder a la sección de consulta de historial" },
+
     // Reportes de Fallas
     { name: "Ver reportes de fallas", module: "Reportes de Fallas", description: "Visualizar reportes de fallas vehiculares" },
     { name: "Crear reportes de fallas", module: "Reportes de Fallas", description: "Registrar nuevos reportes de fallas" },

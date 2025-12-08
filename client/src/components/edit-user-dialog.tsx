@@ -34,6 +34,7 @@ import { useToast } from "@/hooks/use-toast";
 import type { Role, User } from "@shared/schema";
 
 const editUserFormSchema = z.object({
+  username: z.string().min(3, "Mínimo 3 caracteres"),
   fullName: z.string().min(3, "Mínimo 3 caracteres"),
   email: z.string().email("Email inválido"),
   role: z.string().min(1, "Selecciona un rol"),
@@ -55,6 +56,7 @@ export function EditUserDialog({ user, open, onOpenChange }: EditUserDialogProps
   const form = useForm<EditUserForm>({
     resolver: zodResolver(editUserFormSchema),
     defaultValues: {
+      username: user?.username ?? "",
       fullName: user?.fullName ?? "",
       email: user?.email ?? "",
       role: user?.role ?? roles[0]?.name ?? "user",
@@ -65,6 +67,7 @@ export function EditUserDialog({ user, open, onOpenChange }: EditUserDialogProps
 
   useEffect(() => {
     form.reset({
+      username: user?.username ?? "",
       fullName: user?.fullName ?? "",
       email: user?.email ?? "",
       role: user?.role ?? roles[0]?.name ?? "user",
@@ -102,6 +105,20 @@ export function EditUserDialog({ user, open, onOpenChange }: EditUserDialogProps
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="username"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nombre de usuario *</FormLabel>
+                    <FormControl>
+                      <Input placeholder="usuario" {...field} data-testid="edit-input-username" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
               <FormField
                 control={form.control}
                 name="fullName"

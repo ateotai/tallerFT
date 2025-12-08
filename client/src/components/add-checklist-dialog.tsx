@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useEffect, useState, memo } from "react";
+import { Controller, useForm, useFormContext, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,10 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+ 
 import { Car, ClipboardPlus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
@@ -23,20 +26,21 @@ type ItemState = "good" | "regular" | "bad";
 interface AddChecklistDialogProps {
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  selectedTemplateId?: number | null;
 }
 
-export function AddChecklistDialog({ open: controlledOpen, onOpenChange }: AddChecklistDialogProps) {
+export function AddChecklistDialog({ open: controlledOpen, onOpenChange, selectedTemplateId }: AddChecklistDialogProps) {
   const [internalOpen, setInternalOpen] = useState(false);
   const open = controlledOpen ?? internalOpen;
   const { toast } = useToast();
   const { user } = useAuth();
 
   const { data: vehicles = [] } = useQuery<Vehicle[]>({ queryKey: ["/api/vehicles"] });
-  const { data: myVehicle } = useQuery<Vehicle | undefined>({
+  const { data: myVehicle } = useQuery<Vehicle | null>({
     queryKey: ["/api/users/me/assigned-vehicle"],
     queryFn: async () => {
       const res = await fetch("/api/users/me/assigned-vehicle", { credentials: "include" });
-      if (res.status === 404) return undefined;
+      if (res.status === 404) return null;
       if (!res.ok) throw new Error(`${res.status}: ${await res.text()}`);
       return await res.json();
     },
@@ -46,6 +50,7 @@ export function AddChecklistDialog({ open: controlledOpen, onOpenChange }: AddCh
 
   const form = useForm<InsertChecklist>({
     resolver: zodResolver(insertChecklistSchema),
+    shouldUnregister: false,
     defaultValues: {
       vehicleId: 0,
       type: "express",
@@ -70,12 +75,12 @@ export function AddChecklistDialog({ open: controlledOpen, onOpenChange }: AddCh
     enabled: !!assignedUserId,
   });
   const effectiveRole = (vehicleAssignedUser?.role ?? user?.role) || "";
-  const { data: roleTemplate } = useQuery<any>({
-    queryKey: ["/api/checklist-templates/by-role", effectiveRole],
+  const { data: roleTemplates = [] } = useQuery<any[]>({
+    queryKey: ["/api/checklist-templates/by-role", effectiveRole, "all"],
     queryFn: async () => {
-      if (!effectiveRole) return undefined;
-      const res = await fetch(`/api/checklist-templates/by-role/${encodeURIComponent(effectiveRole)}`, { credentials: "include" });
-      if (res.status === 404) return undefined;
+      if (!effectiveRole) return [];
+      const res = await fetch(`/api/checklist-templates/by-role/${encodeURIComponent(effectiveRole)}/all`, { credentials: "include" });
+      if (res.status === 404) return [];
       if (!res.ok) throw new Error(`${res.status}: ${await res.text()}`);
       return await res.json();
     },
@@ -88,25 +93,35 @@ export function AddChecklistDialog({ open: controlledOpen, onOpenChange }: AddCh
       const res = await apiRequest("GET", "/api/checklist-templates?activeOnly=true&unique=true");
       return await res.json();
     },
-    enabled: (user?.role === "admin"),
   });
-  const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
-  const activeTemplate = selectedTemplateId ? templates.find((t: any) => t.id === selectedTemplateId) : roleTemplate;
+  const { data: activeTemplate } = useQuery<any | null>({
+    queryKey: ["/api/checklist-templates", selectedTemplateId || "none"],
+    queryFn: async () => {
+      if (!selectedTemplateId) return null;
+      const res = await apiRequest("GET", `/api/checklist-templates/${selectedTemplateId}`);
+      return await res.json();
+    },
+    enabled: !!selectedTemplateId,
+  });
 
   useEffect(() => {
     if (open) {
       form.reset({
         vehicleId: 0,
-        type: (user?.role === "admin"
-          ? (activeTemplate?.type ?? "completo")
-          : (activeTemplate?.type ?? "express")),
+        type: "express",
         driverName: user?.fullName || "",
         inspectorName: user?.fullName || "",
         reason: "scheduled_task",
         results: {},
       });
     }
-  }, [open, activeTemplate]);
+  }, [open]);
+
+  useEffect(() => {
+    if (activeTemplate?.type) {
+      form.setValue("type", activeTemplate.type);
+    }
+  }, [activeTemplate]);
 
   const vehicleIdWatch = form.watch("vehicleId");
   useEffect(() => {
@@ -129,49 +144,61 @@ export function AddChecklistDialog({ open: controlledOpen, onOpenChange }: AddCh
     }
   }, [myVehicle, open]);
 
-  function Section({ title, items }: { title: string; items: string[] }) {
-    return (
-      <div className="space-y-3">
-        <h4 className="font-semibold">{title}</h4>
-        {items.map((name) => (
-          <div key={name} className="grid grid-cols-1 md:grid-cols-3 gap-2 items-center">
-            <div className="text-sm">{name}</div>
-            <FormField
-              control={form.control}
-              name={`results.${title}.${name}.state` as any}
-              render={({ field }) => (
-                <FormItem>
-                  <FormControl>
-                    <Select onValueChange={field.onChange} value={field.value as any}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Estado" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="good">Bueno</SelectItem>
-                        <SelectItem value="regular">Regular</SelectItem>
-                        <SelectItem value="bad">Malo</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </FormControl>
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name={`results.${title}.${name}.obs` as any}
-              render={({ field }) => (
-                <FormItem>
-                  <FormControl>
-                    <Input {...field} placeholder="Observaciones" />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
-          </div>
-        ))}
-      </div>
-    );
-  }
+const Section = memo(function Section({ title, items }: { title: string; items: string[] }) {
+  const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  const resultsWatch = useWatch({ name: "results", control: form.control }) as any;
+  return (
+    <div className="space-y-3">
+      <h4 className="font-semibold">{title}</h4>
+      {items.map((name) => (
+        <div key={name} className="grid grid-cols-1 md:grid-cols-3 gap-2 items-center">
+          <div className="text-sm">{name}</div>
+          <FormItem>
+            <FormControl>
+              <RadioGroup
+                value={resultsWatch?.[title]?.[name]?.state ?? ""}
+                onValueChange={(v) => {
+                  const base = (form.getValues("results") as any) || {};
+                  const sec = { ...(base[title] || {}) };
+                  const itm = { ...(sec[name] || {}) };
+                  itm.state = v;
+                  sec[name] = itm;
+                  form.setValue("results", { ...base, [title]: sec }, { shouldDirty: true, shouldValidate: false });
+                }}
+                className="flex items-center gap-4"
+              >
+                <div className="flex items-center gap-2">
+                  <RadioGroupItem value="yes" id={`state-${slug(title)}-${slug(name)}-yes`} />
+                  <Label htmlFor={`state-${slug(title)}-${slug(name)}-yes`}>Sí</Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <RadioGroupItem value="no" id={`state-${slug(title)}-${slug(name)}-no`} />
+                  <Label htmlFor={`state-${slug(title)}-${slug(name)}-no`}>No</Label>
+                </div>
+              </RadioGroup>
+            </FormControl>
+          </FormItem>
+          <FormItem>
+            <FormControl>
+              <Input
+                value={resultsWatch?.[title]?.[name]?.obs ?? ""}
+                onChange={(e) => {
+                  const base = (form.getValues("results") as any) || {};
+                  const sec = { ...(base[title] || {}) };
+                  const itm = { ...(sec[name] || {}) };
+                  itm.obs = e.target.value;
+                  sec[name] = itm;
+                  form.setValue("results", { ...base, [title]: sec }, { shouldDirty: true, shouldValidate: false });
+                }}
+                placeholder="Observaciones"
+              />
+            </FormControl>
+          </FormItem>
+        </div>
+      ))}
+    </div>
+  );
+});
 
   const createMutation = useMutation({
     mutationFn: async (data: InsertChecklist) => {
@@ -256,36 +283,10 @@ export function AddChecklistDialog({ open: controlledOpen, onOpenChange }: AddCh
                   <FormMessage />
                 </FormItem>
               )} />
-              <FormField control={form.control} name="inspectorName" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Inspector o técnico</FormLabel>
-                  <FormControl>
-                    <Input {...field} placeholder="Nombre del inspector" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
+              
             </div>
 
-            {user?.role === "admin" && templates.length > 0 && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormItem>
-                  <FormLabel>Plantilla (admin)</FormLabel>
-                  <FormControl>
-                    <Select value={selectedTemplateId ? String(selectedTemplateId) : undefined} onValueChange={(val) => setSelectedTemplateId(Number(val))}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleccionar plantilla" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {templates.map((t: any) => (
-                          <SelectItem key={t.id} value={String(t.id)}>{t.name} · {t.type}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </FormControl>
-                </FormItem>
-              </div>
-            )}
+            
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField control={form.control} name="reason" render={({ field }) => (
@@ -330,60 +331,13 @@ export function AddChecklistDialog({ open: controlledOpen, onOpenChange }: AddCh
               )}
             </div>
 
-            {(activeTemplate?.sections && activeTemplate.sections.length > 0 ? activeTemplate.sections : [
-              { title: "Estado General Exterior", items: [
-                "Carrocería / pintura",
-                "Parabrisas / cristales",
-                "Espejos retrovisores",
-                "Luces delanteras / traseras / direccionales",
-                "Placas visibles",
-                "Limpiaparabrisas / líquido limpiador",
-                "Llantas (presión, desgaste, repuesto)",
-              ] },
-              { title: "Sistema de Motor", items: [
-                "Nivel de aceite de motor",
-                "Nivel de anticongelante / refrigerante",
-                "Fugas visibles de aceite o líquido",
-                "Correas / bandas",
-                "Batería (terminales, carga)",
-                "Filtro de aire",
-                "Ruidos o vibraciones anormales",
-              ] },
-              { title: "Sistema Eléctrico", items: [
-                "Luces altas / bajas",
-                "Luces de freno / reversa",
-                "Claxon",
-                "Tablero de instrumentos / testigos",
-                "Sistema de carga (alternador)",
-              ] },
-              { title: "Sistema de Frenos y Suspensión", items: [
-                "Nivel de líquido de frenos",
-                "Funcionamiento del pedal",
-                "Pastillas / zapatas",
-                "Discos / tambores",
-                "Suspensión delantera / trasera",
-                "Dirección / alineación",
-              ] },
-              { title: "Fluidos y Niveles", items: [
-                "Aceite de motor",
-                "Líquido de frenos",
-                "Anticongelante / refrigerante",
-                "Líquido de dirección hidráulica",
-                "Aceite de transmisión",
-                "Líquido limpiaparabrisas",
-              ] },
-              { title: "Interior y Seguridad", items: [
-                "Cinturones de seguridad",
-                "Bocina / claxon",
-                "Extintor (vigencia, presión)",
-                "Triángulos reflejantes / kit de emergencia",
-                "Botiquín de primeros auxilios",
-                "Asientos / tapicería",
-                "Aire acondicionado / calefacción",
-              ] },
-            ]).map((sec: any) => (
-              <Section key={sec.title} title={sec.title} items={sec.items} />
-            ))}
+            {activeTemplate?.sections && activeTemplate.sections.length > 0 ? (
+              activeTemplate.sections.map((sec: any) => (
+                <Section key={sec.title} title={sec.title} items={sec.items} />
+              ))
+            ) : (
+              <div className="text-sm text-muted-foreground">Selecciona una plantilla para cargar las secciones del checklist.</div>
+            )}
 
             <div className="space-y-4">
               <h3 className="font-semibold text-lg">Observaciones Generales y Acciones Recomendadas</h3>
@@ -391,18 +345,11 @@ export function AddChecklistDialog({ open: controlledOpen, onOpenChange }: AddCh
                 <FormItem>
                   <FormLabel>Observaciones</FormLabel>
                   <FormControl>
-                    <Textarea {...field} placeholder="Hallazgos importantes" />
+                    <Textarea {...field} value={field.value ?? ""} placeholder="Hallazgos importantes" />
                   </FormControl>
                 </FormItem>
               )} />
-              <FormField control={form.control} name="recommendations" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Recomendaciones</FormLabel>
-                  <FormControl>
-                    <Textarea {...field} placeholder="Reparaciones o mantenimientos sugeridos" />
-                  </FormControl>
-                </FormItem>
-              )} />
+              
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <FormField control={form.control} name="priority" render={({ field }) => (
                   <FormItem>
@@ -421,14 +368,7 @@ export function AddChecklistDialog({ open: controlledOpen, onOpenChange }: AddCh
                     </FormControl>
                   </FormItem>
                 )} />
-                <FormField control={form.control} name="nextMaintenanceDate" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Fecha sugerida próximo mantenimiento</FormLabel>
-                    <FormControl>
-                      <Input type="date" value={field.value ? new Date(field.value as any).toISOString().slice(0,10) : ""} onChange={(e) => field.onChange(new Date(e.target.value))} />
-                    </FormControl>
-                  </FormItem>
-                )} />
+                
               </div>
             </div>
 

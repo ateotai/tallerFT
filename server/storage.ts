@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { eq, and, inArray } from "drizzle-orm";
+import { eq, and, inArray, sql, desc, gte, lte } from "drizzle-orm";
 import * as schema from "@shared/schema";
 import type {
   User,
@@ -64,6 +64,12 @@ import type {
   InsertPurchaseQuote,
   PurchaseQuoteItem,
   InsertPurchaseQuoteItem,
+  Checklist,
+  InsertChecklist,
+  ChecklistTemplate,
+  InsertChecklistTemplate,
+  ExpenseHistory,
+  InsertExpenseHistory,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -159,6 +165,8 @@ export interface IStorage {
   deleteReport(id: number): Promise<boolean>;
   resolveReport(id: number): Promise<Report | undefined>;
   reopenReport(id: number): Promise<Report | undefined>;
+  rejectReport(id: number): Promise<Report | undefined>;
+  clearReports(): Promise<void>;
   
   getEmployeeTypes(): Promise<EmployeeType[]>;
   getEmployeeType(id: number): Promise<EmployeeType | undefined>;
@@ -188,15 +196,16 @@ export interface IStorage {
   deleteDiagnostic(id: number): Promise<boolean>;
   approveDiagnostic(diagnosticId: number, userId: number): Promise<{ diagnostic: Diagnostic; workOrder: WorkOrder }>;
   
-  assignReportToEmployee(reportId: number, employeeId: number): Promise<{ report: Report; diagnostic: Diagnostic }>;
+  assignReportToEmployee(reportId: number, employeeId: number): Promise<{ report: Report; diagnostic?: Diagnostic }>;
   getUsers(): Promise<User[]>;
   
   getWorkOrders(): Promise<WorkOrder[]>;
   getWorkOrder(id: number): Promise<WorkOrder | undefined>;
   getWorkOrdersByVehicle(vehicleId: number): Promise<WorkOrder[]>;
   getWorkOrdersByEmployee(employeeId: number): Promise<WorkOrder[]>;
-  getChecklists(): Promise<Checklist[]>;
-  getChecklist(id: number): Promise<Checklist | undefined>;
+  getChecklists(): Promise<schema.Checklist[]>;
+  getChecklist(id: number): Promise<schema.Checklist | undefined>;
+
   getChecklistsByVehicle(vehicleId: number): Promise<Checklist[]>;
   createChecklist(checklist: InsertChecklist): Promise<Checklist>;
   updateChecklist(id: number, checklist: Partial<InsertChecklist>): Promise<Checklist | undefined>;
@@ -276,6 +285,10 @@ export interface IStorage {
   updatePurchaseQuoteItem(id: number, item: Partial<InsertPurchaseQuoteItem>): Promise<PurchaseQuoteItem | undefined>;
   deletePurchaseQuoteItem(id: number): Promise<boolean>;
   deletePurchaseQuoteItems(quoteId: number): Promise<boolean>;
+
+  getExpenseHistory(): Promise<ExpenseHistory[]>;
+  createExpenseHistory(entries: InsertExpenseHistory[]): Promise<ExpenseHistory[]>;
+  clearExpenseHistory(): Promise<number>;
 }
 
 export class DbStorage implements IStorage {
@@ -700,6 +713,27 @@ export class DbStorage implements IStorage {
     return result[0];
   }
 
+  async rejectReport(id: number): Promise<Report | undefined> {
+    const result = await db.update(schema.reports)
+      .set({ status: "pending", assignedToEmployeeId: null, assignedAt: null })
+      .where(eq(schema.reports.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async clearReports(): Promise<void> {
+    try {
+      await db.execute(sql`TRUNCATE TABLE work_order_evidence, work_order_materials, work_order_tasks, work_orders, diagnostics, reports RESTART IDENTITY CASCADE;`);
+    } catch {
+      await db.delete(schema.workOrderEvidence);
+      await db.delete(schema.workOrderMaterials);
+      await db.delete(schema.workOrderTasks);
+      await db.delete(schema.workOrders);
+      await db.delete(schema.diagnostics);
+      await db.delete(schema.reports);
+    }
+  }
+
   async getEmployeeTypes(): Promise<EmployeeType[]> {
     return await db.select().from(schema.employeeTypes);
   }
@@ -772,7 +806,20 @@ export class DbStorage implements IStorage {
 
   async createDiagnostic(diagnostic: InsertDiagnostic): Promise<Diagnostic> {
     const result = await db.insert(schema.diagnostics).values(diagnostic).returning();
-    return result[0];
+    const created = result[0];
+    // Al crear diagnóstico, actualizar el reporte a estado "diagnostico" y asegurar asignación
+    try {
+      await db.update(schema.reports)
+        .set({
+          status: "diagnostico",
+          assignedToEmployeeId: diagnostic.employeeId ?? null,
+          assignedAt: new Date(),
+        })
+        .where(eq(schema.reports.id, diagnostic.reportId));
+    } catch (err) {
+      console.warn("No se pudo actualizar estado del reporte al crear diagnóstico", { reportId: diagnostic.reportId, err });
+    }
+    return created;
   }
 
   async updateDiagnostic(id: number, diagnostic: Partial<InsertDiagnostic>): Promise<Diagnostic | undefined> {
@@ -785,35 +832,17 @@ export class DbStorage implements IStorage {
     return result.length > 0;
   }
 
-  async assignReportToEmployee(reportId: number, employeeId: number): Promise<{ report: Report; diagnostic: Diagnostic }> {
+  async assignReportToEmployee(reportId: number, employeeId: number): Promise<{ report: Report; diagnostic?: Diagnostic }> {
     const assignedAt = new Date();
-    
     const updatedReport = await db.update(schema.reports)
       .set({
         assignedToEmployeeId: employeeId,
         assignedAt: assignedAt,
-        status: "diagnostico"
+        status: "asignado",
       })
       .where(eq(schema.reports.id, reportId))
       .returning();
-
-    const diagnostic = await db.insert(schema.diagnostics)
-      .values({
-        reportId: reportId,
-        employeeId: employeeId,
-        odometer: 0,
-        vehicleCondition: "pendiente de evaluación",
-        fuelLevel: "sin evaluar",
-        possibleCause: "pendiente de diagnóstico",
-        severity: "pendiente",
-        technicalRecommendation: "pendiente de evaluación",
-        estimatedRepairTime: "por determinar",
-        requiredMaterials: "pendiente de evaluación",
-        requiresAdditionalTests: false,
-      })
-      .returning();
-
-    return { report: updatedReport[0], diagnostic: diagnostic[0] };
+    return { report: updatedReport[0] };
   }
 
   async approveDiagnostic(diagnosticId: number, userId: number): Promise<{ diagnostic: Diagnostic; workOrder: WorkOrder }> {
@@ -903,7 +932,8 @@ export class DbStorage implements IStorage {
   }
 
   async createChecklistTemplate(tpl: schema.InsertChecklistTemplate, roleIds: number[]): Promise<schema.ChecklistTemplate> {
-    const [created] = await db.insert(schema.checklistTemplates).values(tpl).returning();
+    const normalizedSections = tpl.sections as unknown as { title: string; items: string[] }[] | undefined;
+    const [created] = await db.insert(schema.checklistTemplates).values({ ...tpl, sections: normalizedSections }).returning();
     if (roleIds && roleIds.length) {
       const rows = roleIds.map((rid) => ({ templateId: created.id, roleId: rid }));
       await db.insert(schema.checklistTemplateRoles).values(rows);
@@ -912,7 +942,11 @@ export class DbStorage implements IStorage {
   }
 
   async updateChecklistTemplate(id: number, tpl: Partial<schema.InsertChecklistTemplate>, roleIds?: number[]): Promise<schema.ChecklistTemplate | undefined> {
-    const [updated] = await db.update(schema.checklistTemplates).set({ ...tpl, updatedAt: new Date() }).where(eq(schema.checklistTemplates.id, id)).returning();
+    const normalizedSections = tpl.sections as unknown as { title: string; items: string[] }[] | undefined;
+    const [updated] = await db.update(schema.checklistTemplates)
+      .set({ ...tpl, sections: normalizedSections, updatedAt: new Date() })
+      .where(eq(schema.checklistTemplates.id, id))
+      .returning();
     if (!updated) return undefined;
     if (Array.isArray(roleIds)) {
       await db.delete(schema.checklistTemplateRoles).where(eq(schema.checklistTemplateRoles.templateId, id));
@@ -943,6 +977,18 @@ export class DbStorage implements IStorage {
     const active = tpls.filter(t => t.active);
     const pick = (active.length ? active : tpls).sort((a,b) => new Date(b.updatedAt as unknown as string).getTime() - new Date(a.updatedAt as unknown as string).getTime())[0];
     return pick;
+  }
+
+  async getChecklistTemplatesByRole(roleName: string): Promise<schema.ChecklistTemplate[]> {
+    const roles = await db.select().from(schema.roles).where(eq(schema.roles.name, roleName)).limit(1);
+    const role = roles[0];
+    if (!role) return [];
+    const rows = await db.select().from(schema.checklistTemplateRoles).where(eq(schema.checklistTemplateRoles.roleId, role.id));
+    if (!rows.length) return [];
+    const tplIds = rows.map(r => r.templateId);
+    const tpls = await db.select().from(schema.checklistTemplates).where(inArray(schema.checklistTemplates.id, tplIds));
+    const active = tpls.filter(t => t.active);
+    return active.sort((a,b) => new Date(b.updatedAt as unknown as string).getTime() - new Date(a.updatedAt as unknown as string).getTime());
   }
 
   async getChecklistTemplateRoles(templateId: number): Promise<number[]> {
@@ -1319,6 +1365,86 @@ export class DbStorage implements IStorage {
   async deletePurchaseQuoteItems(quoteId: number): Promise<boolean> {
     await db.delete(schema.purchaseQuoteItems).where(eq(schema.purchaseQuoteItems.quoteId, quoteId));
     return true;
+  }
+
+  async getExpenseHistory(): Promise<ExpenseHistory[]> {
+    await db.execute(sql`CREATE TABLE IF NOT EXISTS expense_history (
+      id serial PRIMARY KEY,
+      cost_center text NOT NULL,
+      provider text NOT NULL,
+      vehicle text,
+      column1 text,
+      column2 text,
+      concept text NOT NULL,
+      category text NOT NULL,
+      expense_description text,
+      unit text,
+      date timestamp,
+      total real NOT NULL DEFAULT 0,
+      created_at timestamp NOT NULL DEFAULT now()
+    )`);
+    await db.execute(sql`ALTER TABLE expense_history ADD COLUMN IF NOT EXISTS category text NOT NULL DEFAULT ''`);
+    return await db
+      .select()
+      .from(schema.expenseHistory)
+      .orderBy(
+        desc(schema.expenseHistory.date),
+        desc(schema.expenseHistory.createdAt),
+        desc(schema.expenseHistory.id)
+      );
+  }
+
+  async createExpenseHistory(entries: InsertExpenseHistory[]): Promise<ExpenseHistory[]> {
+    if (!entries.length) return [];
+    await db.execute(sql`CREATE TABLE IF NOT EXISTS expense_history (
+      id serial PRIMARY KEY,
+      cost_center text NOT NULL,
+      provider text NOT NULL,
+      vehicle text,
+      column1 text,
+      column2 text,
+      concept text NOT NULL,
+      category text NOT NULL,
+      expense_description text,
+      unit text,
+      date timestamp,
+      total real NOT NULL DEFAULT 0,
+      created_at timestamp NOT NULL DEFAULT now()
+    )`);
+    await db.execute(sql`ALTER TABLE expense_history ADD COLUMN IF NOT EXISTS category text NOT NULL DEFAULT ''`);
+    const result = await db.insert(schema.expenseHistory).values(entries).returning();
+    return result as unknown as ExpenseHistory[];
+  }
+
+  async clearExpenseHistory(): Promise<number> {
+    await db.execute(sql`CREATE TABLE IF NOT EXISTS expense_history (
+      id serial PRIMARY KEY,
+      cost_center text NOT NULL,
+      provider text NOT NULL,
+      vehicle text,
+      column1 text,
+      column2 text,
+      concept text NOT NULL,
+      category text NOT NULL,
+      expense_description text,
+      unit text,
+      date timestamp,
+      total real NOT NULL DEFAULT 0,
+      created_at timestamp NOT NULL DEFAULT now()
+    )`);
+    const result = await db.delete(schema.expenseHistory).returning();
+    return result.length;
+  }
+
+  async deleteExpenseHistoryByFilter({ category, startDate, endDate }: { category?: string; startDate?: Date; endDate?: Date; }): Promise<number> {
+    await db.execute(sql`ALTER TABLE expense_history ADD COLUMN IF NOT EXISTS category text NOT NULL DEFAULT ''`);
+    const conditions: any[] = [];
+    if (category) conditions.push(eq(schema.expenseHistory.category, category));
+    if (startDate) conditions.push(gte(schema.expenseHistory.date, startDate));
+    if (endDate) conditions.push(lte(schema.expenseHistory.date, endDate));
+    if (conditions.length === 0) return 0;
+    const result = await db.delete(schema.expenseHistory).where(and(...conditions)).returning();
+    return result.length;
   }
 }
 

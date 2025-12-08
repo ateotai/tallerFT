@@ -161,7 +161,7 @@ export function ProvidersTable({ providers }: ProvidersTableProps) {
       )}
 
       <AlertDialog open={!!deletingProvider} onOpenChange={(open: boolean) => !open && setDeletingProvider(null)}>
-        <AlertDialogContent>
+        <AlertDialogContent className="max-w-[95vw] sm:max-w-md">
           <AlertDialogHeader>
             <AlertDialogTitle>¿Eliminar proveedor?</AlertDialogTitle>
             <AlertDialogDescription>
@@ -169,12 +169,13 @@ export function ProvidersTable({ providers }: ProvidersTableProps) {
               <span className="font-semibold">{deletingProvider?.name}</span>.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel data-testid="button-cancel-delete">Cancelar</AlertDialogCancel>
+          <AlertDialogFooter className="flex flex-col-reverse sm:flex-row gap-2 sm:justify-end">
+            <AlertDialogCancel data-testid="button-cancel-delete" className="w-full sm:w-auto h-9 px-4 text-sm">Cancelar</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => deletingProvider && deleteMutation.mutate(deletingProvider.id)}
               disabled={deleteMutation.isPending}
               data-testid="button-confirm-delete"
+              className="w-full sm:w-auto h-9 px-4 text-sm"
             >
               {deleteMutation.isPending ? "Eliminando..." : "Eliminar"}
             </AlertDialogAction>

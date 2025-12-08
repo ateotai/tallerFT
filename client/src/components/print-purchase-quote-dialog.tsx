@@ -57,11 +57,12 @@ export function PrintPurchaseQuoteDialog({ quote, providers, open, onOpenChange 
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto print:max-w-full">
         <DialogHeader className="print:hidden">
-          <DialogTitle className="flex items-center justify-between">
+          <DialogTitle className="flex items-center justify-between gap-2 flex-wrap">
             <span>Vista Previa de Impresión</span>
             <Button
               onClick={handlePrint}
               size="sm"
+              className="h-8 px-3 sm:h-9 sm:px-4"
               data-testid="button-print-now"
             >
               <Printer className="h-4 w-4 mr-2" />

@@ -111,6 +111,7 @@ export function WorkOrdersTable({ workOrders }: WorkOrdersTableProps) {
       in_progress: { label: "En Progreso", variant: "default" as const },
       completed: { label: "Completada", variant: "secondary" as const },
       cancelled: { label: "Cancelada", variant: "destructive" as const },
+      temporary_activation: { label: "Alta Temporal", variant: "default" as const },
     };
 
     const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.pending;

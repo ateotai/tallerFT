@@ -110,8 +110,8 @@ export function VehicleCard({ vehicle }: VehicleCardProps) {
       <CardFooter className="p-6 pt-0 flex gap-2">
         <Button
           variant="outline"
-          size="sm"
-          className="flex-1"
+          size="icon"
+          title="Ver detalles"
           data-testid={`button-view-${vehicle.id}`}
           onClick={() => {
             const params = new URLSearchParams();
@@ -121,22 +121,24 @@ export function VehicleCard({ vehicle }: VehicleCardProps) {
             navigate(`/vehiculos?${params.toString()}`);
           }}
         >
-          <Eye className="h-4 w-4 mr-1" />
-          Ver Detalles
+          <Eye className="h-4 w-4" />
         </Button>
         <Button
           variant="outline"
-          size="sm"
-          className="flex-1"
+          size="icon"
+          title="Editar"
           data-testid={`button-edit-${vehicle.id}`}
           onClick={() => setOpenEdit(true)}
         >
-          <Pencil className="h-4 w-4 mr-1" />
-          Editar
+          <Pencil className="h-4 w-4" />
         </Button>
-        <Button variant="default" size="sm" className="flex-1" data-testid={`button-service-${vehicle.id}`}>
-          <Settings className="h-4 w-4 mr-1" />
-          Programar
+        <Button
+          variant="default"
+          size="icon"
+          title="Programar"
+          data-testid={`button-service-${vehicle.id}`}
+        >
+          <Settings className="h-4 w-4" />
         </Button>
       </CardFooter>
       <EditVehicleDialog vehicle={vehicle} open={openEdit} onOpenChange={setOpenEdit} />

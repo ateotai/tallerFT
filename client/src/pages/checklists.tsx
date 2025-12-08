@@ -1,8 +1,10 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { AddChecklistDialog } from "@/components/add-checklist-dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import type { Checklist, Vehicle } from "@shared/schema";
+import { VehicleSearchCombobox } from "@/components/vehicle-search-combobox";
 import { useLocation } from "wouter";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -10,9 +12,10 @@ import { Button } from "@/components/ui/button";
 import { ClipboardPlus } from "lucide-react";
 import { Grid, List } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Trash2, Printer } from "lucide-react";
+import { Trash2, Printer, Eye } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function ChecklistsPage() {
   const [typeFilter, setTypeFilter] = useState<string>("all");
@@ -20,21 +23,55 @@ export default function ChecklistsPage() {
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [vehicleFilter, setVehicleFilter] = useState<number | null>(null);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
+  const [viewingChecklist, setViewingChecklist] = useState<Checklist | null>(null);
   const { toast } = useToast();
+  const { user } = useAuth();
   const { data: checklists = [] } = useQuery<Checklist[]>({
-    queryKey: ["/api/checklists", { type: typeFilter, economicNumber: economicSearch, start: startDate, end: endDate }],
+    queryKey: ["/api/checklists", { type: typeFilter, economicNumber: economicSearch, start: startDate, end: endDate, vehicleId: vehicleFilter }],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (typeFilter && typeFilter !== "all") params.set("type", typeFilter);
       if (economicSearch) params.set("economicNumber", economicSearch.trim());
       if (startDate) params.set("start", startDate);
       if (endDate) params.set("end", endDate);
+      if (vehicleFilter) params.set("vehicleId", String(vehicleFilter));
       const res = await fetch(`/api/checklists${params.toString() ? `?${params.toString()}` : ""}`);
       return await res.json();
     },
   });
   const { data: vehicles = [] } = useQuery<Vehicle[]>({ queryKey: ["/api/vehicles"] });
+  const { data: roleTemplates = [] } = useQuery<any[]>({
+    queryKey: ["/api/checklist-templates/by-role", user?.role || "", "all"],
+    queryFn: async () => {
+      if (!user?.role) return [];
+      const res = await fetch(`/api/checklist-templates/by-role/${encodeURIComponent(user.role || "")}/all`, { credentials: "include" });
+      if (!res.ok) return [];
+      return await res.json();
+    },
+    enabled: !!user?.role,
+  });
+  const { data: templates = [] } = useQuery<any[]>({
+    queryKey: ["/api/checklist-templates", { activeOnly: true, unique: true }],
+    queryFn: async () => {
+      const res = await apiRequest("GET", "/api/checklist-templates?activeOnly=true&unique=true");
+      return await res.json();
+    },
+  });
   const [location, navigate] = useLocation();
+
+  const templateOptions = useMemo(() => {
+    const seen = new Set<number>();
+    const list: any[] = [];
+    for (const t of roleTemplates) {
+      if (!seen.has(t.id)) { seen.add(t.id); list.push(t); }
+    }
+    for (const t of templates) {
+      if (!seen.has(t.id)) { seen.add(t.id); list.push(t); }
+    }
+    return list;
+  }, [roleTemplates, templates]);
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
@@ -59,7 +96,7 @@ export default function ChecklistsPage() {
     const dateStr = checklist.inspectedAt ? new Date(checklist.inspectedAt as any).toLocaleString() : "";
     const v = vehicles.find((vv) => vv.id === checklist.vehicleId);
     const vehicleStr = v ? `${v.economicNumber || v.plate} · ${v.brand} ${v.model}` : vehicleLabel(checklist.vehicleId);
-    const stateLabel: Record<string, string> = { good: "Bueno", regular: "Regular", bad: "Malo" };
+    const stateLabel: Record<string, string> = { good: "Bueno", regular: "Regular", bad: "Malo", yes: "Sí", no: "No" };
     const priorityLabel: Record<string, string> = { high: "Alta", medium: "Media", low: "Baja" } as any;
     const nextMaint = checklist.nextMaintenanceDate ? new Date(checklist.nextMaintenanceDate as any).toLocaleDateString() : "";
     const sections = Object.entries((checklist.results || {}) as any)
@@ -92,10 +129,8 @@ export default function ChecklistsPage() {
         <h2>Resumen</h2>
         <div class="grid2">
           <div><strong>Prioridad:</strong> ${priorityLabel[String(checklist.priority || "")] || (checklist.priority || "")}</div>
-          <div><strong>Próximo mantenimiento:</strong> ${nextMaint || ""}</div>
         </div>
         ${checklist.generalObservations ? `<div class="block"><strong>Observaciones:</strong><div class="text">${checklist.generalObservations}</div></div>` : ""}
-        ${checklist.recommendations ? `<div class="block"><strong>Recomendaciones:</strong><div class="text">${checklist.recommendations}</div></div>` : ""}
       </div>
     `;
     const vehicleDetails = v ? `
@@ -142,7 +177,6 @@ export default function ChecklistsPage() {
             <div><strong>Vehículo:</strong> ${vehicleStr}</div>
             <div><strong>Tipo:</strong> ${checklist.type || ""}</div>
             <div><strong>Conductor:</strong> ${checklist.driverName || ""}</div>
-            <div><strong>Inspector:</strong> ${checklist.inspectorName || ""}</div>
           </div>
           ${vehicleDetails}
           ${sections}
@@ -169,13 +203,22 @@ export default function ChecklistsPage() {
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold">Checklists</h2>
         <div className="flex items-center gap-2">
-          <Button onClick={() => navigate("/checklists/nuevo")} data-testid="button-create-checklist">
+          <Select value={selectedTemplateId ? String(selectedTemplateId) : ""} onValueChange={(v) => setSelectedTemplateId(v ? Number(v) : null)}>
+            <SelectTrigger className="w-64"><SelectValue placeholder="Plantilla" /></SelectTrigger>
+            <SelectContent>
+              {templateOptions.map((t: any) => (
+                <SelectItem key={`tpl-${t.id}`} value={String(t.id)}>{t.name} · {t.type}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button onClick={() => navigate("/checklists/nuevo")} disabled={!selectedTemplateId} data-testid="button-create-checklist">
             <ClipboardPlus className="h-4 w-4 mr-2" />
             Crear nuevo checklist
           </Button>
           {location === "/checklists/nuevo" && (
             <AddChecklistDialog
               open={true}
+              selectedTemplateId={selectedTemplateId}
               onOpenChange={(o) => {
                 if (!o) navigate("/checklists");
               }}
@@ -189,41 +232,44 @@ export default function ChecklistsPage() {
           <CardTitle>Revisiones registradas</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-col md:flex-row md:items-center gap-3 mb-4">
-            <div className="w-full md:w-1/2">
+          <div className="flex flex-wrap items-center gap-3 mb-4">
+            <div className="flex-1 min-w-[240px]">
               <Input value={economicSearch} onChange={(e) => setEconomicSearch(e.target.value)} placeholder="Buscar por número económico" />
             </div>
-            <div className="flex items-center gap-3 w-full md:w-1/2 md:justify-end">
-              <Select value={typeFilter} onValueChange={setTypeFilter}>
-                <SelectTrigger className="w-40">
-                  <SelectValue placeholder="Filtrar por tipo" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
-                  <SelectItem value="express">Express</SelectItem>
-                  <SelectItem value="completo">Completo</SelectItem>
-                </SelectContent>
-              </Select>
-              <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-40" />
-              <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-40" />
-              <div className="flex border rounded-md">
-                <Button
-                  variant={viewMode === "grid" ? "secondary" : "ghost"}
-                  size="sm"
-                  onClick={() => setViewMode("grid")}
-                  data-testid="button-view-grid-checklists"
-                >
-                  <Grid className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant={viewMode === "list" ? "secondary" : "ghost"}
-                  size="sm"
-                  onClick={() => setViewMode("list")}
-                  data-testid="button-view-list-checklists"
-                >
-                  <List className="h-4 w-4" />
-                </Button>
-              </div>
+            <div className="flex-1 min-w-[240px]">
+              <VehicleSearchCombobox value={vehicleFilter} onValueChange={setVehicleFilter} placeholder="Filtrar por vehículo" />
+            </div>
+            
+            <Select value={typeFilter} onValueChange={setTypeFilter}>
+              <SelectTrigger className="w-40">
+                <SelectValue placeholder="Filtrar por tipo" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos</SelectItem>
+                <SelectItem value="express">Express</SelectItem>
+                <SelectItem value="completo">Completo</SelectItem>
+              </SelectContent>
+            </Select>
+            <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-40" />
+            <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-40" />
+            <Button variant="ghost" onClick={() => { setTypeFilter("all"); setEconomicSearch(""); setStartDate(""); setEndDate(""); setVehicleFilter(null); }}>Limpiar</Button>
+            <div className="ml-auto flex border rounded-md">
+              <Button
+                variant={viewMode === "grid" ? "secondary" : "ghost"}
+                size="sm"
+                onClick={() => setViewMode("grid")}
+                data-testid="button-view-grid-checklists"
+              >
+                <Grid className="h-4 w-4" />
+              </Button>
+              <Button
+                variant={viewMode === "list" ? "secondary" : "ghost"}
+                size="sm"
+                onClick={() => setViewMode("list")}
+                data-testid="button-view-list-checklists"
+              >
+                <List className="h-4 w-4" />
+              </Button>
             </div>
           </div>
 
@@ -236,15 +282,34 @@ export default function ChecklistsPage() {
                   <div className="mt-2">{vehicleLabel(c.vehicleId)}</div>
                   <div className="text-sm">Tipo: {c.type}</div>
                   <div className="text-sm">Conductor: {c.driverName}</div>
-                  <div className="text-sm">Inspector: {c.inspectorName}</div>
-                  <div className="flex gap-2 mt-3">
-                    <Button variant="outline" size="sm" onClick={() => handlePrint(c)} data-testid={`button-print-checklist-${c.id}`}>
-                      <Printer className="h-4 w-4 mr-2" />
-                      Imprimir PDF
+                  
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      title="Ver detalles"
+                      onClick={() => setViewingChecklist(c)}
+                      data-testid={`button-view-checklist-${c.id}`}
+                    >
+                      <Eye className="h-4 w-4" />
                     </Button>
-                    <Button variant="destructive" size="sm" onClick={() => handleDelete(c.id)} data-testid={`button-delete-checklist-${c.id}`}>
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Eliminar
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      title="Imprimir PDF"
+                      onClick={() => handlePrint(c)}
+                      data-testid={`button-print-checklist-${c.id}`}
+                    >
+                      <Printer className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="icon"
+                      title="Eliminar"
+                      onClick={() => handleDelete(c.id)}
+                      data-testid={`button-delete-checklist-${c.id}`}
+                    >
+                      <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
@@ -260,7 +325,7 @@ export default function ChecklistsPage() {
                     <TableHead>Vehículo</TableHead>
                     <TableHead>Tipo</TableHead>
                     <TableHead>Conductor</TableHead>
-                    <TableHead>Inspector</TableHead>
+                    
                     <TableHead className="text-right">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -279,13 +344,16 @@ export default function ChecklistsPage() {
                         <TableCell>{vehicleLabel(c.vehicleId)}</TableCell>
                         <TableCell>{c.type}</TableCell>
                         <TableCell>{c.driverName}</TableCell>
-                        <TableCell>{c.inspectorName}</TableCell>
+                        
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
-                            <Button variant="outline" size="sm" onClick={() => handlePrint(c)} data-testid={`button-print-checklist-${c.id}`}>
+                          <Button variant="ghost" size="icon" title="Ver" onClick={() => setViewingChecklist(c)} data-testid={`button-view-checklist-${c.id}`}>
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button variant="outline" size="icon" title="Imprimir" onClick={() => handlePrint(c)} data-testid={`button-print-checklist-${c.id}`}>
                               <Printer className="h-4 w-4" />
                             </Button>
-                            <Button variant="ghost" size="sm" onClick={() => handleDelete(c.id)} data-testid={`button-delete-checklist-${c.id}`}>
+                            <Button variant="ghost" size="icon" title="Eliminar" onClick={() => handleDelete(c.id)} data-testid={`button-delete-checklist-${c.id}`}>
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </div>
@@ -299,6 +367,69 @@ export default function ChecklistsPage() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={!!viewingChecklist} onOpenChange={(o) => !o && setViewingChecklist(null)}>
+        <DialogContent className="max-w-3xl">
+          {viewingChecklist && (
+            <>
+              <DialogHeader>
+                <DialogTitle>Checklist {viewingChecklist.folio || viewingChecklist.id}</DialogTitle>
+                <DialogDescription>{new Date(viewingChecklist.inspectedAt as any).toLocaleString()}</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-2">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  <div><strong>Vehículo:</strong> {vehicleLabel(viewingChecklist.vehicleId)}</div>
+                  <div><strong>Tipo:</strong> {viewingChecklist.type}</div>
+                  <div><strong>Conductor:</strong> {viewingChecklist.driverName}</div>
+                </div>
+                <div className="mt-4 space-y-4">
+                  {Object.entries((viewingChecklist.results || {}) as any).map(([title, items]: [string, any]) => {
+                    const entries = Object.entries(items || {}) as [string, any][];
+                    if (entries.length === 0) return null;
+                    return (
+                      <div key={title}>
+                        <h3 className="font-semibold">{title}</h3>
+                        <div className="rounded-md border mt-2">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Actividad</TableHead>
+                                <TableHead>Estado</TableHead>
+                                <TableHead>Observaciones</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {entries.map(([name, val]) => (
+                                <TableRow key={name}>
+                                  <TableCell className="w-[40%]">{name}</TableCell>
+                                  <TableCell className="w-[20%]">{({ good: "Bueno", regular: "Regular", bad: "Malo", yes: "Sí", no: "No" } as any)[String(val?.state || "")] || String(val?.state || "")}</TableCell>
+                                  <TableCell className="w-[40%]">{String(val?.obs || "")}</TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="mt-4 space-y-2">
+                  <h3 className="font-semibold">Resumen</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    <div><strong>Prioridad:</strong> {({ high: "Alta", medium: "Media", low: "Baja" } as any)[String(viewingChecklist.priority || "")] || (viewingChecklist.priority || "-")}</div>
+                  </div>
+                  {viewingChecklist.generalObservations && (
+                    <div className="space-y-1">
+                      <div className="font-medium">Observaciones</div>
+                      <div className="text-sm whitespace-pre-wrap">{viewingChecklist.generalObservations}</div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -20,9 +20,10 @@ export default function DiagnosticsPage() {
   const diagnosticsPath = isPrivileged ? "/api/diagnostics?includeApproved=1" : "/api/diagnostics";
   const { data: diagnostics = [], isLoading } = useQuery<Diagnostic[]>({
     queryKey: [diagnosticsPath],
+    refetchOnMount: "always",
   });
 
-  const { data: reports = [] } = useQuery<Report[]>({ queryKey: ["/api/reports"] });
+  const { data: reports = [] } = useQuery<Report[]>({ queryKey: ["/api/reports"], refetchOnMount: "always" });
   const { data: employees = [] } = useQuery<Employee[]>({ queryKey: ["/api/employees"] });
   // Identificar empleado actual: por userId y con fallback por nombre/email
   const currentEmployee = (() => {
@@ -42,7 +43,7 @@ export default function DiagnosticsPage() {
   })();
 
   const assignedReports = reports.filter(r =>
-    r.status === "diagnostico" && (isPrivileged || (currentEmployee && r.assignedToEmployeeId === currentEmployee.id))
+    (r.status === "asignado" || r.status === "diagnostico") && (isPrivileged || (currentEmployee && r.assignedToEmployeeId === currentEmployee.id))
   );
 
   const filteredDiagnostics = diagnostics.filter((d) =>
@@ -115,7 +116,7 @@ export default function DiagnosticsPage() {
         <TabsContent value="asignados" className="mt-4">
           <div className="space-y-2">
             <p className="text-muted-foreground">
-              {isPrivileged ? "Reportes en diagnóstico asignados a todos los mecánicos" : "Reportes en diagnóstico asignados a mí"}
+              {isPrivileged ? "Reportes asignados/diagnóstico de todos los mecánicos" : "Mis reportes asignados/diagnóstico"}
             </p>
             {assignedReports.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">No hay reportes asignados</div>

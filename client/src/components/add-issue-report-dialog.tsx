@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Plus, Upload, X, Image as ImageIcon, Mic } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,6 +28,8 @@ import { useToast } from "@/hooks/use-toast";
 import { insertReportSchema } from "@shared/schema";
 import type { InsertReport } from "@shared/schema";
 import { z } from "zod";
+import { useAuth } from "@/hooks/useAuth";
+import type { Vehicle } from "@shared/schema";
 
 const formSchema = insertReportSchema;
 
@@ -43,18 +45,46 @@ export function AddIssueReportDialog() {
   const [images, setImages] = useState<ImageWithDescription[]>([]);
   const [audioPreview, setAudioPreview] = useState<string | null>(null);
   const { toast } = useToast();
+  const { user } = useAuth();
+  const roleText = (user?.role || '').toLowerCase();
+  const isAdmin = roleText === 'admin' || roleText === 'administrador';
+
+  const { data: assignedVehicle } = useQuery<Vehicle | null>({
+    queryKey: ["/api/users/me/assigned-vehicle"],
+    queryFn: async () => {
+      const res = await fetch("/api/users/me/assigned-vehicle", { credentials: "include" });
+      if (res.status === 404 || res.status === 401) return null;
+      if (!res.ok) throw new Error(await res.text());
+      return await res.json();
+    },
+    retry: false,
+  });
+
+  const canReport = useMemo(() => {
+    if (isAdmin) return true;
+    return !!assignedVehicle;
+  }, [isAdmin, assignedVehicle]);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       vehicleId: undefined,
-      userId: 1,
+      userId: user?.id ?? 1,
       description: "",
       notes: "",
       images: [],
       audioUrl: undefined,
     },
   });
+
+  useEffect(() => {
+    if (!isAdmin && assignedVehicle?.id) {
+      form.setValue("vehicleId", assignedVehicle.id);
+    }
+    if (user?.id) {
+      form.setValue("userId", user.id);
+    }
+  }, [assignedVehicle?.id, isAdmin, user?.id]);
 
   const createMutation = useMutation({
     mutationFn: async (data: InsertReport) => {
@@ -145,7 +175,14 @@ export function AddIssueReportDialog() {
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(o) => {
+      if (!o) return setOpen(false);
+      if (!canReport) {
+        toast({ title: "Sin vehículo asignado", description: "No puedes reportar fallas hasta que se te asigne un vehículo.", variant: "destructive" });
+        return;
+      }
+      setOpen(true);
+    }}>
       <DialogTrigger asChild>
         <Button data-testid="button-add-issue-report">
           <Plus className="h-4 w-4 mr-2" />
@@ -171,8 +208,14 @@ export function AddIssueReportDialog() {
                     <VehicleSearchCombobox
                       value={field.value}
                       onValueChange={field.onChange}
+                      disabled={!isAdmin}
+                      selectedFallbackText={assignedVehicle ? `${assignedVehicle.economicNumber || assignedVehicle.plate} · ${assignedVehicle.brand} ${assignedVehicle.model}` : undefined}
+                      allowedVehicleIds={!isAdmin && assignedVehicle ? [assignedVehicle.id] : undefined}
                     />
                   </FormControl>
+                  {!isAdmin && assignedVehicle && (
+                    <p className="text-xs text-muted-foreground">Tu vehículo asignado: {(assignedVehicle.economicNumber || assignedVehicle.plate)} · {assignedVehicle.brand} {assignedVehicle.model}</p>
+                  )}
                   <FormMessage />
                 </FormItem>
               )}

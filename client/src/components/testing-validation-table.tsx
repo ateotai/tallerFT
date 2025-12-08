@@ -178,11 +178,15 @@ export function TestingValidationTable({ workOrders }: TestingValidationTablePro
                     onClick={() => setActivatingVehicle(workOrder)}
                     data-testid={`button-activate-${workOrder.id}`}
                     className="gap-2"
-                    disabled={workOrder.status !== "validated" || activatedIds.has(workOrder.id)}
-                    title={workOrder.status !== "validated" ? "Validar por administración antes de dar de alta" : activatedIds.has(workOrder.id) ? "Vehículo ya dado de alta" : undefined}
+                    disabled={(workOrder.status !== "validated" && workOrder.status !== "temporary_activation") || activatedIds.has(workOrder.id)}
+                    title={(workOrder.status !== "validated" && workOrder.status !== "temporary_activation")
+                      ? "Validar por administración o marcar alta temporal antes de entregar"
+                      : activatedIds.has(workOrder.id)
+                        ? "Vehículo ya dado de alta"
+                        : undefined}
                   >
                     <CheckCircle2 className="h-4 w-4" />
-                    Dar de Alta
+                    {workOrder.status === "temporary_activation" ? "Entregar a Operario" : "Dar de Alta"}
                   </Button>
                   {workOrder.status === "awaiting_validation" && (
                     <Button
@@ -216,11 +220,15 @@ export function TestingValidationTable({ workOrders }: TestingValidationTablePro
       <AlertDialog open={!!activatingVehicle} onOpenChange={(open) => !open && setActivatingVehicle(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Dar de Alta Vehículo</AlertDialogTitle>
+            <AlertDialogTitle>{activatingVehicle?.status === "temporary_activation" ? "Entregar a Operario" : "Dar de Alta Vehículo"}</AlertDialogTitle>
             <AlertDialogDescription>
-              ¿Estás seguro de que deseas dar de alta el vehículo {activatingVehicle && getVehicleName(activatingVehicle.vehicleId)}?
-              <br /><br />
-              Esta acción marcará el vehículo como disponible para uso operativo después de completar la orden de trabajo #{activatingVehicle?.id}.
+              {activatingVehicle?.status === "temporary_activation"
+                ? (
+                  <>¿Estás seguro de que deseas entregar al operario el vehículo {activatingVehicle && getVehicleName(activatingVehicle.vehicleId)} bajo alta temporal?<br /><br />Esta acción permitirá su uso operativo temporal asociado a la orden de trabajo #{activatingVehicle?.id}.</>
+                )
+                : (
+                  <>¿Estás seguro de que deseas dar de alta el vehículo {activatingVehicle && getVehicleName(activatingVehicle.vehicleId)}?<br /><br />Esta acción marcará el vehículo como disponible para uso operativo después de completar la orden de trabajo #{activatingVehicle?.id}.</>
+                )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

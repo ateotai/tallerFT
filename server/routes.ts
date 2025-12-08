@@ -61,6 +61,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       { name: "Crear checklist", module: "Checklists", description: "Registro de nuevos checklists" },
       { name: "Ver historial de checklists", module: "Checklists", description: "Historial y búsqueda de checklists" },
       { name: "Administrar plantillas", module: "Checklists", description: "Crear, editar y activar/desactivar plantillas" },
+      { name: "Ver consulta de historial", module: "Consulta de historial", description: "Acceder y operar la consulta de historial" },
     ];
     for (const r of required) {
       if (!existingKeys.has(`${r.name}|${r.module}`)) {
@@ -617,6 +618,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         filtered = filtered.filter((c) => (c.type || "").toLowerCase() === type);
       }
 
+      const vehicleIdParam = typeof req.query.vehicleId === "string" ? Number(req.query.vehicleId) : undefined;
+      if (vehicleIdParam && Number.isFinite(vehicleIdParam)) {
+        filtered = filtered.filter((c) => c.vehicleId === vehicleIdParam);
+      }
+
       const economicNumber = typeof req.query.economicNumber === "string" ? String(req.query.economicNumber).trim().toLowerCase() : "";
       if (economicNumber) {
         filtered = filtered.filter((c) => String(c.economicNumber || "").toLowerCase().includes(economicNumber));
@@ -836,6 +842,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching checklist template by role:", error);
       res.status(500).json({ error: "Error al obtener plantilla por rol" });
+    }
+  });
+
+  app.get("/api/checklist-templates/by-role/:role/all", async (req, res) => {
+    try {
+      const role = req.params.role;
+      const tpls = await storage.getChecklistTemplatesByRole(role);
+      if (!tpls || tpls.length === 0) return res.status(404).json([]);
+      res.json(tpls);
+    } catch (error) {
+      console.error("Error fetching checklist templates by role:", error);
+      res.status(500).json({ error: "Error al obtener plantillas por rol" });
     }
   });
 
@@ -1063,9 +1081,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (req.query.vehicleId && vehicleId === null) {
         return res.status(400).json({ error: "vehicleId inválido" });
       }
+      const currentUserId = req.session.userId;
+      const currentUser = currentUserId ? await storage.getUser(currentUserId) : undefined;
+      const roleText = (currentUser?.role || "").toLowerCase();
+      const isPrivileged = ["admin", "administrador", "supervisor"].includes(roleText);
+
       const items = vehicleId
         ? await storage.getScheduledMaintenanceByVehicle(vehicleId)
         : await storage.getScheduledMaintenance();
+
+      if (!isPrivileged && currentUser) {
+        const filtered = items.filter((it) => Number(it.assignedUserId || NaN) === Number(currentUser.id));
+        return res.json(filtered);
+      }
+
       res.json(items);
     } catch (error) {
       console.error("Error fetching scheduled maintenance:", error);
@@ -1082,6 +1111,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const item = await storage.getScheduledMaintenanceItem(id);
       if (!item) {
         return res.status(404).json({ error: "Mantenimiento programado no encontrado" });
+      }
+      const currentUserId = req.session.userId;
+      const currentUser = currentUserId ? await storage.getUser(currentUserId) : undefined;
+      const roleText = (currentUser?.role || "").toLowerCase();
+      const isPrivileged = ["admin", "administrador", "supervisor"].includes(roleText);
+      if (!isPrivileged && currentUser && Number(item.assignedUserId || NaN) !== Number(currentUser.id)) {
+        return res.status(403).json({ error: "No autorizado" });
       }
       res.json(item);
     } catch (error) {
@@ -2013,6 +2049,170 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Expense history: CSV template
+  app.get("/api/expense-history/template", async (_req, res) => {
+    const headers = [
+      "Centro de",
+      "Proveedor",
+      "Vehiculo",
+      "Columna1",
+      "Column",
+      "Concepto",
+      "Descripción Gasto",
+      "Unidad",
+      "Fecha",
+      "Total",
+    ];
+    const csv = "\uFEFF" + "sep=,\n" + headers.join(",") + "\n";
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", "attachment; filename=plantilla_historial.csv");
+    res.send(csv);
+  });
+
+  // Expense history: list
+  app.get("/api/expense-history", async (_req, res) => {
+    try {
+      const rows = await storage.getExpenseHistory();
+      res.json(rows);
+    } catch (err) {
+      console.error("Error fetching expense history:", err);
+      res.status(500).json({ error: "Error al obtener historial" });
+    }
+  });
+
+  // Expense history: import from CSV (Excel export)
+  app.post("/api/expense-history/upload", (req, res) => {
+    importUpload.single("file")(req as any, res as any, async (err: any) => {
+      if (err) {
+        const msg = err?.message || "Error al procesar archivo";
+        return res.status(400).json({ error: msg });
+      }
+      try {
+        if (!req.file) return res.status(400).json({ error: "Archivo requerido" });
+        const allowed = [
+          "COMBUSTIBLE",
+          "GAS",
+          "REPARACIONES",
+          "ACEITES Y LUBRICANTES",
+          "FLETES",
+          "TRASLADOS",
+          "LEASING",
+        ];
+        const rawCategory = String((req.body?.category || "").toString()).trim().toUpperCase();
+        if (!allowed.includes(rawCategory)) {
+          return res.status(400).json({ error: "Categoría inválida" });
+        }
+        const content = (req.file as any).buffer.toString("utf-8");
+      const rawLines = content.split(/\r?\n/).filter((l: string) => l.length);
+      if (rawLines.length < 2) return res.status(400).json({ error: "CSV sin datos" });
+      const hasSep = rawLines[0].toLowerCase().startsWith("sep=");
+      const startIndex = hasSep ? 1 : 0;
+      const header = rawLines[startIndex];
+      const delimiter = header.includes(";") && !header.includes(",") ? ";" : ",";
+      const parseLine = (line: string): string[] => {
+        const out: string[] = [];
+        let cur = ""; let inQ = false;
+        for (let i = 0; i < line.length; i++) {
+          const ch = line[i];
+          if (ch === '"') {
+            if (inQ && line[i+1] === '"') { cur += '"'; i++; }
+            else inQ = !inQ;
+          } else if (ch === delimiter && !inQ) {
+            out.push(cur); cur = "";
+          } else {
+            cur += ch;
+          }
+        }
+        out.push(cur);
+        return out.map((s) => s.trim());
+      };
+
+      const headers = parseLine(header).map((h) => h.toLowerCase());
+      const idx = (name: string) => headers.findIndex((h) => h.includes(name.toLowerCase()));
+      const iCentro = idx("centro");
+      const iProveedor = idx("proveedor");
+      const iVehiculo = idx("vehiculo");
+      const iCol1 = idx("columna1");
+      const iCol2 = idx("column");
+      const iConcepto = idx("concepto");
+      const iDesc = idx("descripción") !== -1 ? idx("descripción") : idx("descripcion");
+      const iUnidad = idx("unidad");
+      const iFecha = idx("fecha");
+      const iTotal = idx("total");
+
+        const entries: import("@shared/schema").InsertExpenseHistory[] = [];
+      for (let li = startIndex + 1; li < rawLines.length; li++) {
+        const cols = parseLine(rawLines[li]);
+        const rawDate = iFecha !== -1 ? cols[iFecha] : "";
+        let date: Date | undefined = undefined;
+        if (rawDate) {
+          const m = rawDate.match(/(\d{2})[\/\-](\d{2})[\/\-](\d{4})/);
+          if (m) date = new Date(`${m[3]}-${m[2]}-${m[1]}T00:00:00`);
+        }
+        const rawTotal = iTotal !== -1 ? cols[iTotal] : "";
+        const total = Number(String(rawTotal).replace(/[^\d.-]/g, "")) || 0;
+        entries.push({
+          costCenter: iCentro !== -1 ? cols[iCentro] : "",
+          provider: iProveedor !== -1 ? cols[iProveedor] : "",
+          vehicle: iVehiculo !== -1 ? cols[iVehiculo] : "",
+          column1: iCol1 !== -1 ? cols[iCol1] : undefined,
+          column2: iCol2 !== -1 ? cols[iCol2] : undefined,
+          concept: iConcepto !== -1 ? cols[iConcepto] : "",
+          category: rawCategory,
+          expenseDescription: iDesc !== -1 ? cols[iDesc] : undefined,
+          unit: iUnidad !== -1 ? cols[iUnidad] : undefined,
+          date,
+          total,
+        });
+      }
+
+      const rows = await storage.createExpenseHistory(entries);
+      const total = (await storage.getExpenseHistory()).length;
+      res.json({ inserted: rows.length, total, rows });
+      } catch (error) {
+        console.error("Error importing expense history:", error);
+        res.status(500).json({ error: "Error al importar historial" });
+      }
+    });
+  });
+
+  // Expense history: delete by category and date range
+  app.post("/api/expense-history/delete", async (req, res) => {
+    try {
+      const allowed = [
+        "COMBUSTIBLE",
+        "GAS",
+        "REPARACIONES",
+        "ACEITES Y LUBRICANTES",
+        "FLETES",
+        "TRASLADOS",
+        "LEASING",
+      ];
+      const categoryRaw = String((req.body?.category || "").toString()).trim().toUpperCase();
+      if (categoryRaw && !allowed.includes(categoryRaw)) {
+        return res.status(400).json({ error: "Categoría inválida" });
+      }
+      const startDate = req.body?.startDate ? new Date(String(req.body.startDate)) : undefined;
+      const endDate = req.body?.endDate ? new Date(String(req.body.endDate)) : undefined;
+      const deleted = await storage.deleteExpenseHistoryByFilter({ category: categoryRaw || undefined, startDate, endDate });
+      res.json({ deleted });
+    } catch (err) {
+      console.error("Error deleting expense history:", err);
+      res.status(500).json({ error: "Error al eliminar historial" });
+    }
+  });
+
+  // Expense history: clear all
+  app.post("/api/expense-history/clear", async (_req, res) => {
+    try {
+      const count = await storage.clearExpenseHistory();
+      res.json({ deleted: count });
+    } catch (err) {
+      console.error("Error clearing expense history:", err);
+      res.status(500).json({ error: "Error al limpiar historial" });
+    }
+  });
+
   app.get("/api/inventory/:id", async (req, res) => {
     try {
       const id = validateId(req.params.id);
@@ -2116,8 +2316,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const currentUserId = req.session.userId;
       const currentUser = currentUserId ? await storage.getUser(currentUserId) : undefined;
-      // Todos los roles deben poder ver todos los reportes de fallas,
-      // por lo que eliminamos la restricción de visibilidad por rol.
+      const roleText = (currentUser?.role || "").toLowerCase();
+      const isAdmin = roleText === "admin" || roleText === "administrador";
 
       const vehicleId = req.query.vehicleId ? validateId(req.query.vehicleId as string) : null;
       const userId = req.query.userId ? validateId(req.query.userId as string) : null;
@@ -2130,12 +2330,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       let reports;
-      if (vehicleId) {
-        reports = await storage.getReportsByVehicle(vehicleId);
-      } else if (userId) {
-        reports = await storage.getReportsByUser(userId);
+      if (isAdmin) {
+        if (vehicleId) {
+          reports = await storage.getReportsByVehicle(vehicleId);
+        } else if (userId) {
+          reports = await storage.getReportsByUser(userId);
+        } else {
+          reports = await storage.getReports();
+        }
       } else {
-        reports = await storage.getReports();
+        const own = await storage.getReportsByUser(currentUser!.id);
+        const all = await storage.getReports();
+        const employees = await storage.getEmployees();
+
+        const norm = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim().toLowerCase();
+        const userFull = norm(currentUser!.fullName || "");
+        const candidates: Array<{ id: number }> = [];
+
+        for (const e of employees) {
+          if (e.userId === currentUser!.id) {
+            if (!candidates.some(c => c.id === e.id)) candidates.push({ id: e.id });
+            continue;
+          }
+          const empFull = norm(`${e.firstName || ""} ${e.lastName || ""}`);
+          const emailMatch = norm(e.email || "") === norm(currentUser!.email || "");
+          const nameExact = empFull === userFull;
+          const nameIncludes = empFull.includes(userFull) || userFull.includes(empFull);
+          if (emailMatch || nameExact || nameIncludes) {
+            if (!candidates.some(c => c.id === e.id)) candidates.push({ id: e.id });
+          }
+        }
+
+        const assigned = candidates.length
+          ? all.filter(r => r.assignedToEmployeeId != null && candidates.some(c => c.id === r.assignedToEmployeeId))
+          : [];
+        const combined = [...own, ...assigned];
+        const deduped = combined.filter((r, i, arr) => arr.findIndex(x => x.id === r.id) === i);
+        reports = vehicleId ? deduped.filter(r => r.vehicleId === vehicleId) : deduped;
       }
 
       res.json(reports);
@@ -2151,10 +2382,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (id === null) {
         return res.status(400).json({ error: "ID inválido" });
       }
+      const currentUserId = req.session.userId;
+      const currentUser = currentUserId ? await storage.getUser(currentUserId) : undefined;
+      const roleText = (currentUser?.role || "").toLowerCase();
+      const isAdmin = roleText === "admin" || roleText === "administrador";
+
       const report = await storage.getReport(id);
       if (!report) {
         return res.status(404).json({ error: "Reporte no encontrado" });
       }
+
+      if (!isAdmin) {
+        if (report.userId !== currentUser!.id) {
+          const employees = await storage.getEmployees();
+          const norm = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim().toLowerCase();
+          const userFull = norm(currentUser!.fullName || "");
+          const candidates: Array<{ id: number }> = [];
+          for (const e of employees) {
+            if (e.userId === currentUser!.id) {
+              if (!candidates.some(c => c.id === e.id)) candidates.push({ id: e.id });
+              continue;
+            }
+            const empFull = norm(`${e.firstName || ""} ${e.lastName || ""}`);
+            const emailMatch = norm(e.email || "") === norm(currentUser!.email || "");
+            const nameExact = empFull === userFull;
+            const nameIncludes = empFull.includes(userFull) || userFull.includes(empFull);
+            if (emailMatch || nameExact || nameIncludes) {
+              if (!candidates.some(c => c.id === e.id)) candidates.push({ id: e.id });
+            }
+          }
+          const authorized = candidates.some(c => c.id === report.assignedToEmployeeId);
+          if (!authorized) {
+            return res.status(403).json({ error: "No autorizado" });
+          }
+        }
+      }
+
       res.json(report);
     } catch (error) {
       console.error("Error fetching report:", error);
@@ -2165,6 +2428,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/reports", async (req, res) => {
     try {
       const validatedData = insertReportSchema.parse(req.body);
+      const userId = req.session.userId;
+      if (!userId) return res.status(401).json({ error: "No autenticado" });
+      const currentUser = await storage.getUser(userId);
+      if (!currentUser) return res.status(401).json({ error: "No autenticado" });
+      const roleText = (currentUser.role || '').toLowerCase();
+      const isAdmin = roleText === 'admin' || roleText === 'administrador';
+
+      if (!isAdmin) {
+        const assignedVehicle = await storage.getVehicleAssignedToUser(currentUser.id);
+        if (!assignedVehicle) {
+          return res.status(403).json({ error: "No puedes reportar fallas sin vehículo asignado" });
+        }
+        if (validatedData.vehicleId !== assignedVehicle.id) {
+          return res.status(403).json({ error: "Solo puedes reportar fallas para tu vehículo asignado" });
+        }
+        validatedData.userId = currentUser.id;
+      }
+
       const report = await storage.createReport(validatedData);
       
       // Create notification for new report
@@ -2503,6 +2784,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!employeeId || typeof employeeId !== 'number') {
         return res.status(400).json({ error: "Se requiere employeeId válido" });
       }
+      console.log('[assign] admin', currentUser.id, 'asignando reporte', id, 'al empleado', employeeId, 'a las', new Date().toISOString());
       const result = await storage.assignReportToEmployee(id, employeeId);
       res.json(result);
     } catch (error) {
@@ -2532,6 +2814,103 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error reopening report:", error);
       res.status(500).json({ error: "Error al reabrir reporte" });
+    }
+  });
+
+  app.post("/api/reports/:id/reject", async (req, res) => {
+    try {
+      const id = validateId(req.params.id);
+      if (id === null) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+
+      const currentUserId = req.session.userId;
+      const currentUser = currentUserId ? await storage.getUser(currentUserId) : undefined;
+      if (!currentUser) return res.status(401).json({ error: "No autenticado" });
+
+      const roleText = (currentUser.role || '').toLowerCase();
+      const isAdmin = roleText === 'admin' || roleText === 'administrador';
+
+      const report = await storage.getReport(id);
+      if (!report) return res.status(404).json({ error: "Reporte no encontrado" });
+
+      let authorized = false;
+      if (isAdmin) {
+        authorized = true;
+      } else {
+        const employees = await storage.getEmployees();
+        const norm = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim().toLowerCase();
+        const userFull = norm(currentUser.fullName || "");
+        const candidates: Array<{ id: number }> = [];
+        for (const e of employees) {
+          if (e.userId === currentUser.id) {
+            if (!candidates.some(c => c.id === e.id)) candidates.push({ id: e.id });
+            continue;
+          }
+          const empFull = norm(`${e.firstName || ""} ${e.lastName || ""}`);
+          const emailMatch = norm(e.email || "") === norm(currentUser.email || "");
+          const nameExact = empFull === userFull;
+          const nameIncludes = empFull.includes(userFull) || userFull.includes(empFull);
+          if (emailMatch || nameExact || nameIncludes) {
+            if (!candidates.some(c => c.id === e.id)) candidates.push({ id: e.id });
+          }
+        }
+        authorized = report.assignedToEmployeeId != null && candidates.some(c => c.id === report.assignedToEmployeeId);
+      }
+
+      if (!authorized) return res.status(403).json({ error: "No autorizado" });
+
+      const updated = await storage.rejectReport(id);
+      if (!updated) return res.status(404).json({ error: "Reporte no encontrado" });
+
+      // Eliminar diagnósticos no aprobados vinculados a este reporte para evitar reingreso automático a diagnóstico
+      try {
+        const diags = await storage.getDiagnosticsByReport(id);
+        for (const d of diags) {
+          const isApproved = !!(d as any).approvedAt;
+          if (!isApproved) {
+            await storage.deleteDiagnostic(d.id);
+          }
+        }
+      } catch (cleanupErr) {
+        console.warn("No se pudo limpiar diagnósticos del reporte rechazado", { reportId: id, error: cleanupErr });
+      }
+
+      await storage.createNotification({
+        type: "report",
+        title: "Reporte rechazado",
+        message: `El reporte #${id} fue rechazado y regresó a pendiente`,
+        read: false,
+      });
+
+      res.json(updated);
+    } catch (error) {
+      console.error("Error rejecting report:", error);
+      res.status(500).json({ error: "Error al rechazar reporte" });
+    }
+  });
+
+  app.post("/api/reports/clear", async (req, res) => {
+    try {
+      const currentUserId = req.session.userId;
+      const currentUser = currentUserId ? await storage.getUser(currentUserId) : undefined;
+      const roleText = (currentUser?.role || '').toLowerCase();
+      const isAdmin = roleText === 'admin' || roleText === 'administrador';
+      if (!currentUser || !isAdmin) {
+        return res.status(403).json({ error: "Solo el administrador puede limpiar reportes" });
+      }
+
+      await storage.clearReports();
+      await storage.createNotification({
+        type: "report",
+        title: "Reportes eliminados",
+        message: `El administrador ${currentUser.username || currentUser.fullName || currentUser.id} eliminó todos los reportes`,
+        read: false,
+      });
+      res.json({ ok: true });
+    } catch (error) {
+      console.error("Error clearing reports:", error);
+      res.status(500).json({ error: "Error al eliminar reportes" });
     }
   });
 
@@ -3117,8 +3496,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Orden de trabajo no encontrada" });
       }
       
-      if (workOrder.status !== "validated") {
-        return res.status(400).json({ error: "La orden de trabajo debe estar validada por administración para dar de alta el vehículo" });
+      const canActivate = workOrder.status === "validated" || workOrder.status === "temporary_activation";
+      if (!canActivate) {
+        return res.status(400).json({ error: "La orden de trabajo debe estar validada o en alta temporal para entregar el vehículo" });
       }
       
       const vehicle = await storage.getVehicle(workOrder.vehicleId);
@@ -3134,9 +3514,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
+      const isTemporary = workOrder.status === "temporary_activation";
       await storage.createNotification({
-        title: "Vehículo dado de alta",
-        message: `El vehículo ${vehicle.brand} ${vehicle.model} (${vehicle.economicNumber}) ha sido dado de alta y está listo para uso operativo`,
+        title: isTemporary ? "Vehículo entregado al operario (alta temporal)" : "Vehículo dado de alta",
+        message: isTemporary
+          ? `El vehículo ${vehicle.brand} ${vehicle.model} (${vehicle.economicNumber}) ha sido entregado al operario bajo alta temporal`
+          : `El vehículo ${vehicle.brand} ${vehicle.model} (${vehicle.economicNumber}) ha sido dado de alta y está listo para uso operativo`,
         type: "vehicle",
       });
       

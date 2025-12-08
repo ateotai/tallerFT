@@ -12,6 +12,7 @@ export default function IssueReportsPage() {
 
   const { data: reports = [], isLoading } = useQuery<Report[]>({
     queryKey: ["/api/reports"],
+    refetchOnMount: "always",
   });
 
   const pendingCount = reports.filter((r) => r.status === "pending").length;

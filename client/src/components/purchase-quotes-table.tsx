@@ -218,19 +218,19 @@ export function PurchaseQuotesTable({ quotes, providers }: PurchaseQuotesTablePr
       )}
 
       <AlertDialog open={!!deletingQuote} onOpenChange={(open: boolean) => !open && setDeletingQuote(null)}>
-        <AlertDialogContent>
+        <AlertDialogContent className="max-w-[95vw] sm:max-w-md">
           <AlertDialogHeader>
             <AlertDialogTitle>¿Eliminar cotización?</AlertDialogTitle>
             <AlertDialogDescription>
               Esta acción no se puede deshacer. Se eliminará la cotización {deletingQuote?.quoteNumber} y todos sus items.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel data-testid="button-cancel-delete">Cancelar</AlertDialogCancel>
+          <AlertDialogFooter className="flex flex-col-reverse sm:flex-row gap-2 sm:justify-end">
+            <AlertDialogCancel data-testid="button-cancel-delete" className="w-full sm:w-auto h-9 px-4 text-sm">Cancelar</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => deletingQuote && deleteMutation.mutate(deletingQuote.id)}
               data-testid="button-confirm-delete"
-              className="bg-destructive text-destructive-foreground hover-elevate active-elevate-2"
+              className="w-full sm:w-auto h-9 px-4 text-sm bg-destructive text-destructive-foreground hover-elevate active-elevate-2"
             >
               Eliminar
             </AlertDialogAction>

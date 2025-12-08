@@ -4,20 +4,19 @@ import path from "path";
 
 export default defineConfig({
   plugins: [react()],
+  publicDir: path.resolve(import.meta.dirname, "client", "public"),
   resolve: {
     alias: {
       "@": path.resolve(import.meta.dirname, "client", "src"),
       "@shared": path.resolve(import.meta.dirname, "shared"),
       "@assets": path.resolve(import.meta.dirname, "attached_assets"),
-      "react": path.resolve(import.meta.dirname, "node_modules", "react"),
-      "react-dom": path.resolve(import.meta.dirname, "node_modules", "react-dom"),
     },
     dedupe: ["react", "react-dom"],
   },
   optimizeDeps: {
     include: ["react", "react-dom"],
   },
-  root: path.resolve(import.meta.dirname, "client"),
+  root: path.resolve(import.meta.dirname),
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
@@ -28,8 +27,9 @@ export default defineConfig({
   },
   server: {
     fs: {
-      strict: true,
+      strict: false,
       deny: ["**/.*"],
+      allow: [path.resolve(import.meta.dirname)],
     },
     // Proxy API requests to the Express backend when running
     // the client-only Vite dev server (e.g., on port 5174).

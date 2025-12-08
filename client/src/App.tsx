@@ -25,6 +25,8 @@ import ClientsPage from "@/pages/clients";
 import InventoryPage from "@/pages/inventory";
 import ReportsPage from "@/pages/reports";
 import IssueReportsPage from "@/pages/issue-reports";
+import HistoryConsultPage from "@/pages/history-consult";
+import HistoryReportsPage from "@/pages/history-reports";
 import UsersPage from "@/pages/users";
 import EmployeesPage from "@/pages/employees";
 import DiagnosticsPage from "@/pages/diagnostics";
@@ -53,6 +55,8 @@ function Router() {
       <Route path="/clientes" component={ClientsPage} />
       <Route path="/inventario" component={InventoryPage} />
       <Route path="/reportes" component={ReportsPage} />
+      <Route path="/consulta-historial" component={HistoryConsultPage} />
+      <Route path="/consulta-historial/reportes" component={HistoryReportsPage} />
       <Route path="/reportes-fallas" component={IssueReportsPage} />
       <Route path="/diagnosticos" component={DiagnosticsPage} />
       <Route path="/ordenes-trabajo" component={WorkOrdersPage} />

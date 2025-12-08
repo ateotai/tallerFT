@@ -56,6 +56,8 @@ const mainMenuItems = [
   { title: "Proveedores", url: "/proveedores", icon: Users },
   { title: "Cotización de compras", url: "/cotizaciones", icon: ShoppingCart },
   { title: "Reportes", url: "/reportes", icon: BarChart3 },
+  { title: "Consulta de historial", url: "/consulta-historial", icon: History },
+  
 ];
 
 const maintenanceMenuItems = [
@@ -147,6 +149,7 @@ export function AppSidebar() {
   const [checklistsOpen, setChecklistsOpen] = useState(true);
   const [companyOpen, setCompanyOpen] = useState(true);
   const [rolesPermissionsOpen, setRolesPermissionsOpen] = useState(true);
+  const [historyOpen, setHistoryOpen] = useState(true);
 
   // Obtener usuario y permisos del rol
   const { user } = useAuth();
@@ -169,6 +172,7 @@ export function AppSidebar() {
     "Clientes": "Clientes",
     "Inventario": "Inventario",
     "Reportes": "Reportes",
+    "Consulta de historial": "Consulta de historial",
     "Vehículos": "Vehículos",
     // Servicio y Mantenimiento
     "Evaluación y Diagnóstico": "Evaluación y Diagnóstico",
@@ -199,20 +203,36 @@ export function AppSidebar() {
     }
   }
 
-  // Todos los usuarios autenticados deben poder ver "Reportes de Fallas"
-  // incluso si aún no tienen configurada la matriz de permisos.
+  // Todos los usuarios autenticados pueden ver "Reportes de Fallas" por defecto
   allowedModules.add("Reportes de Fallas");
-  // Los mecánicos necesitan consultar el historial por vehículo.
-  // Habilitamos también el módulo "Vehículos" para todos los usuarios autenticados.
-  allowedModules.add("Vehículos");
+  // El módulo "Reportes" solo se habilita si el rol tiene permisos explícitos
   // Asegurar acceso de administrador al módulo de Checklists incluso si aún no está en la matriz de permisos
   const roleText = (user?.role || '').toLowerCase();
   if (roleText === 'admin' || roleText === 'administrador') {
     allowedModules.add("Checklists");
   }
 
+  const requiredPermByTitle: Record<string, { name: string; module: string }> = {
+    "Historial de Checklists": { name: "Ver historial de checklists", module: "Checklists" },
+    "Plantillas": { name: "Administrar plantillas", module: "Checklists" },
+    "Checklists": { name: "Ver checklists", module: "Checklists" },
+    // Reportes
+    "Reportes": { name: "Ver reportes", module: "Reportes" },
+    "Consulta de historial": { name: "Ver consulta de historial", module: "Consulta de historial" },
+  };
+
+  const hasAccessByTitle = (title: string) => {
+    const module = moduleByTitle[title];
+    if (!module) return false;
+    if (!allowedModules.has(module)) return false;
+    const req = requiredPermByTitle[title];
+    if (!req) return true;
+    const isAdmin = roleText === 'admin' || roleText === 'administrador';
+    return isAdmin ? true : hasPermission(req.name, req.module);
+  };
+
   const filterItemsByPermissions = (items: { title: string; url: string; icon: any }[]) =>
-    items.filter(item => allowedModules.has(moduleByTitle[item.title]));
+    items.filter(item => hasAccessByTitle(item.title));
 
   const hasPermission = (permName: string, module: string) => {
     if (!permissions.length || !rolePerms.length) return false;
@@ -221,20 +241,8 @@ export function AppSidebar() {
     return rolePerms.some(rp => rp.permissionId === perm.id);
   };
 
-  const requiredPermByTitle: Record<string, { name: string; module: string }> = {
-    "Historial de Checklists": { name: "Ver historial de checklists", module: "Checklists" },
-    "Plantillas": { name: "Administrar plantillas", module: "Checklists" },
-    "Checklists": { name: "Ver checklists", module: "Checklists" },
-  };
-
   const filterChecklistsByAction = (items: { title: string; url: string; icon: any }[]) =>
-    items.filter(item => {
-      const req = requiredPermByTitle[item.title];
-      if (!req) return allowedModules.has(moduleByTitle[item.title]);
-      // Admin fallback mantiene acceso total
-      const isAdmin = roleText === 'admin' || roleText === 'administrador';
-      return isAdmin ? true : hasPermission(req.name, req.module);
-    });
+    items.filter(item => hasAccessByTitle(item.title));
 
   const isMaintenanceActive = maintenanceMenuItems.some(item => location === item.url);
   const isChecklistsActive = [
@@ -250,6 +258,7 @@ export function AppSidebar() {
   const filteredCompany = filterItemsByPermissions(companyMenuItems);
   const filteredAdmin = filterItemsByPermissions(adminMenuItems);
   const filteredRolesPerm = filterItemsByPermissions(rolesPermissionsMenuItems);
+  const isHistoryActive = location === "/consulta-historial" || location === "/consulta-historial/reportes";
 
   return (
     <Sidebar>
@@ -270,20 +279,60 @@ export function AppSidebar() {
           <SidebarGroupLabel>Módulos Principales</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {filteredMain.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={location === item.url}
-                    data-testid={`link-${item.title.toLowerCase()}`}
-                  >
-                    <Link href={item.url}>
-                      <item.icon className="h-5 w-5" />
-                      <span>{item.title}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+              {filteredMain
+                .filter((item) => item.title !== "Consulta de historial")
+                .map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={location === item.url}
+                      data-testid={`link-${item.title.toLowerCase()}`}
+                    >
+                      <Link href={item.url}>
+                        <item.icon className="h-5 w-5" />
+                        <span>{item.title}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+
+              {hasAccessByTitle("Consulta de historial") && (
+                <Collapsible
+                  open={historyOpen}
+                  onOpenChange={setHistoryOpen}
+                  className="group/collapsible"
+                >
+                  <SidebarMenuItem>
+                    <CollapsibleTrigger asChild>
+                      <SidebarMenuButton
+                        data-testid="button-history-toggle"
+                        isActive={isHistoryActive}
+                      >
+                        <History className="h-5 w-5" />
+                        <span>Consulta de historial</span>
+                        <ChevronDown className="ml-auto h-4 w-4 transition-transform group-data-[state=open]/collapsible:rotate-180" />
+                      </SidebarMenuButton>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <SidebarMenuSub>
+                        <SidebarMenuSubItem>
+                          <SidebarMenuSubButton
+                            asChild
+                            isActive={location === "/consulta-historial"}
+                            data-testid={`link-consulta de historial`}
+                          >
+                            <Link href="/consulta-historial">
+                              <History className="h-4 w-4" />
+                              <span>Consulta de historial</span>
+                            </Link>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                        {/* Eliminado para evitar confusión: solo mostrar Consulta de historial */}
+                      </SidebarMenuSub>
+                    </CollapsibleContent>
+                  </SidebarMenuItem>
+                </Collapsible>
+              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

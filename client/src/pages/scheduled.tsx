@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { ScheduledMaintenance, Vehicle } from "@shared/schema";
+import type { ScheduledMaintenance, Vehicle, User } from "@shared/schema";
 import { useMemo, useState } from "react";
 import { AddScheduledMaintenanceDialog } from "@/components/add-scheduled-maintenance-dialog";
 
@@ -26,6 +26,14 @@ export default function ScheduledPage() {
     },
   });
 
+  const { data: users = [] } = useQuery<User[]>({
+    queryKey: ["/api/users"],
+    queryFn: async () => {
+      const res = await apiRequest("GET", "/api/users");
+      return await res.json();
+    },
+  });
+
   const vehicleMap = useMemo(() => {
     const map = new Map<number, Vehicle>();
     vehicles.forEach((v) => map.set(v.id, v));
@@ -43,7 +51,6 @@ export default function ScheduledPage() {
       minute: "2-digit",
     });
 
-    const today = new Date();
     const isSameDay = (a: Date, b: Date) =>
       a.getFullYear() === b.getFullYear() &&
       a.getMonth() === b.getMonth() &&
@@ -55,11 +62,8 @@ export default function ScheduledPage() {
       const timeLabel = formatterTime.format(due);
       const vehicle = vehicleMap.get(item.vehicleId);
       const plate = vehicle?.plate || "—";
-      const status: "upcoming" | "today" | "overdue" = isSameDay(due, today)
-        ? "today"
-        : due < today
-        ? "overdue"
-        : "upcoming";
+      const assigned = users.find((u) => Number(u.id) === Number(item.assignedUserId || NaN));
+      const assignedName = assigned ? (assigned.fullName || assigned.username) : undefined;
 
       return {
         id: item.id.toString(),
@@ -67,11 +71,13 @@ export default function ScheduledPage() {
         time: timeLabel,
         vehiclePlate: plate,
         serviceType: item.title,
-        status,
+        status: (item.status as any) || "pending",
+        assignedUser: assignedName,
+        assignedUserId: item.assignedUserId,
         due,
       } as const;
     });
-  }, [scheduled, vehicleMap]);
+  }, [scheduled, vehicleMap, users]);
 
   return (
     <div className="space-y-8">
