@@ -110,7 +110,10 @@ app.use((req, res, next) => {
   // setting up all the other routes so the catch-all route
   // doesn't interfere with the other routes
   const distPublic = path.resolve(import.meta.dirname, "..", "dist", "public");
-  const hasBuiltIndex = fs.existsSync(path.resolve(distPublic, "index.html"));
+  const hasBuiltIndex = (
+    fs.existsSync(path.resolve(distPublic, "index.html")) ||
+    fs.existsSync(path.resolve(distPublic, "client", "index.html"))
+  );
   if ((process.env.NODE_ENV || "development").toLowerCase() === "development") {
     await setupVite(app, server);
   } else if (hasBuiltIndex) {
