@@ -1,5 +1,6 @@
 import { db } from "../db";
 import { serviceCategories, serviceSubcategories } from "../../shared/schema";
+import { eq, and } from "drizzle-orm";
 
 async function seedCategories() {
   console.log("Seeding service categories and subcategories...");
@@ -121,25 +122,38 @@ async function seedCategories() {
   // Insert categories and subcategories
   for (const category of categoriesData) {
     // Insert category
-    const [insertedCategory] = await db
+    const insertedOrEmpty = await db
       .insert(serviceCategories)
       .values({
         name: category.name,
         description: category.description,
         active: true,
       })
+      .onConflictDoNothing()
       .returning();
+
+    const insertedCategory = insertedOrEmpty[0] ?? (
+      (await db.select().from(serviceCategories).where(eq(serviceCategories.name, category.name)).limit(1))[0]
+    );
 
     console.log(`✓ Category created: ${insertedCategory.name}`);
 
     // Insert subcategories
     for (const subcategory of category.subcategories) {
-      await db.insert(serviceSubcategories).values({
-        categoryId: insertedCategory.id,
-        name: subcategory.name,
-        description: subcategory.description,
-        active: true,
-      });
+      const existingSub = await db
+        .select()
+        .from(serviceSubcategories)
+        .where(and(eq(serviceSubcategories.categoryId, insertedCategory.id), eq(serviceSubcategories.name, subcategory.name)))
+        .limit(1);
+
+      if (existingSub.length === 0) {
+        await db.insert(serviceSubcategories).values({
+          categoryId: insertedCategory.id,
+          name: subcategory.name,
+          description: subcategory.description,
+          active: true,
+        });
+      }
     }
 
     console.log(`  ✓ ${category.subcategories.length} subcategories created`);
