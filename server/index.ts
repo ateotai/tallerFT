@@ -4,6 +4,7 @@ import fs from "fs";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import memorystore from "memorystore";
+import crypto from "crypto";
 import { setupVite, serveStatic, log } from "./vite";
 import "dotenv/config";
 const app = express();
@@ -14,12 +15,17 @@ const pgStore = connectPg(session);
 const MemoryStore = memorystore(session);
 const sessionStore = (process.env.NODE_ENV || "development").toLowerCase() === "development"
   ? new MemoryStore({ checkPeriod: sessionTtl })
-  : new pgStore({
-      conString: process.env.DATABASE_URL,
-      createTableIfMissing: true,
-      ttl: sessionTtl,
-      tableName: "sessions",
-    });
+  : (process.env.DATABASE_URL
+      ? new pgStore({
+          conObject: {
+            connectionString: process.env.DATABASE_URL,
+            ssl: { rejectUnauthorized: false },
+          },
+          createTableIfMissing: true,
+          ttl: sessionTtl,
+          tableName: "sessions",
+        })
+      : new MemoryStore({ checkPeriod: sessionTtl }));
 
 // Allow overriding secure cookie behavior for local HTTP testing
 const secureCookieEnv = (process.env.SESSION_SECURE_COOKIE || "").toLowerCase();
@@ -31,7 +37,7 @@ const secureCookie = secureCookieEnv === "true"
 
 app.set("trust proxy", 1);
 app.use(session({
-  secret: process.env.SESSION_SECRET!,
+  secret: process.env.SESSION_SECRET || crypto.randomBytes(32).toString("hex"),
   store: sessionStore,
   resave: false,
   saveUninitialized: false,
