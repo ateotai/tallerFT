@@ -28,9 +28,10 @@ import { useToast } from "@/hooks/use-toast";
 
 interface ProvidersTableProps {
   providers: Provider[];
+  view?: "table" | "cards";
 }
 
-export function ProvidersTable({ providers }: ProvidersTableProps) {
+export function ProvidersTable({ providers, view = "table" }: ProvidersTableProps) {
   const [editingProvider, setEditingProvider] = useState<Provider | null>(null);
   const [deletingProvider, setDeletingProvider] = useState<Provider | null>(null);
   const { toast } = useToast();
@@ -54,9 +55,17 @@ export function ProvidersTable({ providers }: ProvidersTableProps) {
       setDeletingProvider(null);
     },
     onError: (error: Error) => {
+      let msg = error.message || "No se pudo eliminar el proveedor";
+      const m = msg.match(/^\d{3}:\s*(.*)$/);
+      if (m) {
+        try {
+          const j = JSON.parse(m[1]);
+          if (j?.error) msg = j.error;
+        } catch {}
+      }
       toast({
         title: "Error",
-        description: error.message || "No se pudo eliminar el proveedor",
+        description: msg,
         variant: "destructive",
       });
     },
@@ -75,14 +84,57 @@ export function ProvidersTable({ providers }: ProvidersTableProps) {
     );
   };
 
+  const renderCards = () => (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      {providers.length === 0 ? (
+        <div className="text-center py-8 text-muted-foreground">No hay proveedores registrados</div>
+      ) : (
+        providers.map((provider) => (
+          <div key={provider.id} className="border rounded-md p-4 space-y-3" data-testid={`card-provider-${provider.id}`}>
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <div className="text-lg font-semibold" data-testid={`text-name-${provider.id}`}>{provider.name}</div>
+                {provider.tradeName && (
+                  <div className="text-sm text-muted-foreground" data-testid={`text-tradename-${provider.id}`}>{provider.tradeName}</div>
+                )}
+                <div className="text-sm" data-testid={`text-type-${provider.id}`}>{provider.type}</div>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="ghost" size="icon" onClick={() => setEditingProvider(provider)} data-testid={`button-edit-${provider.id}`}>
+                  <Pencil className="h-4 w-4" />
+                </Button>
+                <Button variant="ghost" size="icon" onClick={() => setDeletingProvider(provider)} data-testid={`button-delete-${provider.id}`}>
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              <div className="font-mono">Código: {provider.code || ""}</div>
+              <div className="font-mono">RFC: {provider.rfc || ""}</div>
+              <div>Régimen: {provider.regimen || ""}</div>
+              <div className="font-mono">Tel: {provider.phone}</div>
+              <div className="break-all">Email: {provider.email}</div>
+              <div>{getStatusBadge(provider.status)}</div>
+            </div>
+          </div>
+        ))
+      )}
+    </div>
+  );
+
   return (
     <>
       <div className="rounded-md border">
+        {view === "table" ? (
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead className="w-[50px]">ID</TableHead>
               <TableHead>Nombre</TableHead>
+              <TableHead>Nombre Comercial</TableHead>
+              <TableHead>Código</TableHead>
+              <TableHead>RFC</TableHead>
+              <TableHead>Régimen</TableHead>
               <TableHead>Tipo</TableHead>
               <TableHead>Teléfono</TableHead>
               <TableHead>Email</TableHead>
@@ -106,6 +158,18 @@ export function ProvidersTable({ providers }: ProvidersTableProps) {
                   </TableCell>
                   <TableCell className="font-medium" data-testid={`text-name-${provider.id}`}>
                     {provider.name}
+                  </TableCell>
+                  <TableCell data-testid={`text-tradename-${provider.id}`}>
+                    {provider.tradeName || ""}
+                  </TableCell>
+                  <TableCell className="font-mono text-sm" data-testid={`text-code-${provider.id}`}>
+                    {provider.code || ""}
+                  </TableCell>
+                  <TableCell className="font-mono text-sm" data-testid={`text-rfc-${provider.id}`}>
+                    {provider.rfc || ""}
+                  </TableCell>
+                  <TableCell data-testid={`text-regimen-${provider.id}`}>
+                    {provider.regimen || ""}
                   </TableCell>
                   <TableCell data-testid={`text-type-${provider.id}`}>
                     {provider.type}
@@ -150,6 +214,9 @@ export function ProvidersTable({ providers }: ProvidersTableProps) {
             )}
           </TableBody>
         </Table>
+        ) : (
+          renderCards()
+        )}
       </div>
 
       {editingProvider && (

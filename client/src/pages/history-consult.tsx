@@ -168,16 +168,40 @@ export default function HistoryConsultPage() {
     },
   });
 
+  const clearAllMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/expense-history/clear", {
+        method: "POST",
+        credentials: "include",
+      });
+      return await res.json();
+    },
+    onSuccess: (data: any) => {
+      toast({ title: "Historial limpiado", description: `Se eliminaron ${data?.deleted ?? 0} registros` });
+      queryClient.invalidateQueries({ queryKey: ["/api/expense-history"] });
+    },
+    onError: (err: any) => {
+      toast({ title: "Error", description: String(err?.message || err), variant: "destructive" });
+    }
+  });
+
+  const handleDeleteFilteredClick = () => {
+    clearMutation.mutate();
+  };
+
+  const handleClearAllClick = () => {
+    const ok = window.confirm("¿Eliminar TODO el historial? Esta acción no se puede deshacer.");
+    if (!ok) return;
+    clearAllMutation.mutate();
+  };
+
   const downloadTemplate = async () => {
     const headers = [
       "Centro de",
       "Proveedor",
       "Vehiculo",
-      "Columna1",
-      "Column",
       "Concepto",
       "Descripción Gasto",
-      "Unidad",
       "Fecha",
       "Total",
     ];
@@ -204,7 +228,7 @@ export default function HistoryConsultPage() {
             <CardTitle>Importación</CardTitle>
             <CardDescription>Usa la plantilla para asegurar encabezados compatibles.</CardDescription>
           </div>
-          <div className="flex flex-col items-stretch gap-2 md:flex-row md:items-center">
+          <div className="flex flex-col items-stretch gap-2 md:flex-row md:items-center md:flex-wrap">
             <Select value={selectedCategory} onValueChange={(v) => setSelectedCategory(v)}>
               <SelectTrigger className="w-full md:w-64"><SelectValue placeholder="Selecciona categoría" /></SelectTrigger>
               <SelectContent>
@@ -240,7 +264,7 @@ export default function HistoryConsultPage() {
             }}>
               <Upload className="h-4 w-4 mr-2" /> {uploadMutation.isPending ? "Importando..." : "Importar CSV"}
             </Button>
-            <div className="flex flex-col gap-2 w-full md:w-auto md:flex-row md:items-center">
+            <div className="flex flex-col gap-2 w-full md:w-auto md:flex-row md:items-center md:flex-wrap">
               <Input type="date" value={delStart} onChange={(e) => setDelStart(e.target.value)} className="w-full md:w-40" />
               <Input type="date" value={delEnd} onChange={(e) => setDelEnd(e.target.value)} className="w-full md:w-40" />
               <Select value={delCategory} onValueChange={(v) => setDelCategory(v)}>
@@ -255,8 +279,11 @@ export default function HistoryConsultPage() {
                   <SelectItem value="LEASING">LEASING</SelectItem>
                 </SelectContent>
               </Select>
-              <Button variant="destructive" size="sm" onClick={() => clearMutation.mutate()} disabled={clearMutation.isPending}>
-                <Trash2 className="h-4 w-4 mr-2" /> Eliminar por rango/categoría
+              <Button variant="destructive" size="sm" onClick={handleDeleteFilteredClick} disabled={clearMutation.isPending}>
+                <Trash2 className="h-4 w-4 mr-2" /> Eliminar por filtros
+              </Button>
+              <Button variant="destructive" size="sm" onClick={handleClearAllClick} disabled={clearAllMutation.isPending}>
+                <Trash2 className="h-4 w-4 mr-2" /> Eliminar todo
               </Button>
             </div>
           </div>
@@ -304,8 +331,6 @@ export default function HistoryConsultPage() {
                     <TableHead>Centro de</TableHead>
                     <TableHead>Proveedor</TableHead>
                     <TableHead className="hidden md:table-cell">Vehículo</TableHead>
-                    <TableHead className="hidden lg:table-cell">Columna1</TableHead>
-                    <TableHead className="hidden lg:table-cell">Column</TableHead>
                     <TableHead>Concepto</TableHead>
                     <TableHead>Categoría</TableHead>
                     <TableHead className="hidden md:table-cell">Descripción Gasto</TableHead>
@@ -321,8 +346,6 @@ export default function HistoryConsultPage() {
                       <TableCell>{r.costCenter}</TableCell>
                       <TableCell>{r.provider}</TableCell>
                       <TableCell className="hidden md:table-cell">{r.vehicle || ""}</TableCell>
-                      <TableCell className="hidden lg:table-cell">{r.column1 || ""}</TableCell>
-                      <TableCell className="hidden lg:table-cell">{r.column2 || ""}</TableCell>
                       <TableCell>{r.concept}</TableCell>
                       <TableCell>{r.category}</TableCell>
                       <TableCell className="hidden md:table-cell">{r.expenseDescription || ""}</TableCell>
@@ -345,8 +368,6 @@ export default function HistoryConsultPage() {
                       <TableHead>Centro de</TableHead>
                       <TableHead>Proveedor</TableHead>
                       <TableHead className="hidden md:table-cell">Vehículo</TableHead>
-                      <TableHead className="hidden lg:table-cell">Columna1</TableHead>
-                      <TableHead className="hidden lg:table-cell">Column</TableHead>
                       <TableHead>Concepto</TableHead>
                       <TableHead>Categoría</TableHead>
                       <TableHead className="hidden md:table-cell">Descripción Gasto</TableHead>
@@ -361,8 +382,6 @@ export default function HistoryConsultPage() {
                         <TableCell>{r.costCenter}</TableCell>
                         <TableCell>{r.provider}</TableCell>
                         <TableCell className="hidden md:table-cell">{r.vehicle || ""}</TableCell>
-                        <TableCell className="hidden lg:table-cell">{r.column1 || ""}</TableCell>
-                        <TableCell className="hidden lg:table-cell">{r.column2 || ""}</TableCell>
                         <TableCell>{r.concept}</TableCell>
                         <TableCell>{r.category}</TableCell>
                         <TableCell className="hidden md:table-cell">{r.expenseDescription || ""}</TableCell>

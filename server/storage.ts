@@ -497,25 +497,67 @@ export class DbStorage implements IStorage {
   }
 
   async getProviders(): Promise<Provider[]> {
+    await db.execute(sql`ALTER TABLE providers ADD COLUMN IF NOT EXISTS code text`);
+    await db.execute(sql`ALTER TABLE providers ADD COLUMN IF NOT EXISTS rfc text`);
+    await db.execute(sql`ALTER TABLE providers ADD COLUMN IF NOT EXISTS regimen text`);
+    await db.execute(sql`ALTER TABLE providers ADD COLUMN IF NOT EXISTS trade_name text`);
     return await db.select().from(schema.providers);
   }
 
   async getProvider(id: number): Promise<Provider | undefined> {
+    await db.execute(sql`ALTER TABLE providers ADD COLUMN IF NOT EXISTS code text`);
+    await db.execute(sql`ALTER TABLE providers ADD COLUMN IF NOT EXISTS rfc text`);
+    await db.execute(sql`ALTER TABLE providers ADD COLUMN IF NOT EXISTS regimen text`);
+    await db.execute(sql`ALTER TABLE providers ADD COLUMN IF NOT EXISTS trade_name text`);
     const result = await db.select().from(schema.providers).where(eq(schema.providers.id, id)).limit(1);
     return result[0];
   }
 
+  async getProviderByRFC(rfc: string): Promise<Provider | undefined> {
+    await db.execute(sql`ALTER TABLE providers ADD COLUMN IF NOT EXISTS rfc text`);
+    const result = await db.select().from(schema.providers).where(eq(schema.providers.rfc, rfc)).limit(1);
+    return result[0];
+  }
+
   async createProvider(provider: InsertProvider): Promise<Provider> {
+    await db.execute(sql`ALTER TABLE providers ADD COLUMN IF NOT EXISTS code text`);
+    await db.execute(sql`ALTER TABLE providers ADD COLUMN IF NOT EXISTS rfc text`);
+    await db.execute(sql`ALTER TABLE providers ADD COLUMN IF NOT EXISTS regimen text`);
+    await db.execute(sql`ALTER TABLE providers ADD COLUMN IF NOT EXISTS trade_name text`);
     const result = await db.insert(schema.providers).values(provider).returning();
     return result[0];
   }
 
   async updateProvider(id: number, provider: Partial<InsertProvider>): Promise<Provider | undefined> {
+    await db.execute(sql`ALTER TABLE providers ADD COLUMN IF NOT EXISTS code text`);
+    await db.execute(sql`ALTER TABLE providers ADD COLUMN IF NOT EXISTS rfc text`);
+    await db.execute(sql`ALTER TABLE providers ADD COLUMN IF NOT EXISTS regimen text`);
+    await db.execute(sql`ALTER TABLE providers ADD COLUMN IF NOT EXISTS trade_name text`);
     const result = await db.update(schema.providers).set(provider).where(eq(schema.providers.id, id)).returning();
     return result[0];
   }
 
   async deleteProvider(id: number): Promise<boolean> {
+    const [{ scount }] = await db
+      .select({ scount: sql<number>`count(*)` })
+      .from(schema.services)
+      .where(eq(schema.services.providerId, id));
+
+    const [{ icount }] = await db
+      .select({ icount: sql<number>`count(*)` })
+      .from(schema.inventory)
+      .where(eq(schema.inventory.providerId, id));
+
+    const [{ wcount }] = await db
+      .select({ wcount: sql<number>`count(*)` })
+      .from(schema.workOrderTasks)
+      .where(eq(schema.workOrderTasks.providerId, id));
+
+    const totalRefs = Number(scount || 0) + Number(icount || 0) + Number(wcount || 0);
+    if (totalRefs > 0) {
+      throw new Error("No se puede eliminar proveedor: está referenciado por otros registros");
+    }
+
     const result = await db.delete(schema.providers).where(eq(schema.providers.id, id)).returning();
     return result.length > 0;
   }
@@ -731,6 +773,23 @@ export class DbStorage implements IStorage {
       await db.delete(schema.workOrders);
       await db.delete(schema.diagnostics);
       await db.delete(schema.reports);
+    }
+  }
+
+  async clearVehicles(): Promise<void> {
+    try {
+      await db.execute(sql`TRUNCATE TABLE work_order_evidence, work_order_materials, work_order_tasks, work_orders, diagnostics, reports, services, scheduled_maintenance, checklists, vehicles RESTART IDENTITY CASCADE;`);
+    } catch {
+      await db.delete(schema.workOrderEvidence);
+      await db.delete(schema.workOrderMaterials);
+      await db.delete(schema.workOrderTasks);
+      await db.delete(schema.workOrders);
+      await db.delete(schema.diagnostics);
+      await db.delete(schema.reports);
+      await db.delete(schema.services);
+      await db.delete(schema.scheduledMaintenance);
+      await db.delete(schema.checklists);
+      await db.delete(schema.vehicles);
     }
   }
 

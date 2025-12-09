@@ -185,6 +185,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
+  // Health endpoint
+  app.get("/api/health", (req, res) => {
+    res.json({ status: "ok", uptime: process.uptime(), env: process.env.NODE_ENV || "development" });
+  });
+
   // Current user endpoint
   app.get("/api/auth/user", isAuthenticated, async (req, res) => {
     try {
@@ -216,7 +221,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Skip protection for auth-related endpoints
     if (req.path === '/api/login' || 
         req.path === '/api/logout' ||
-        req.path === '/api/auth/user') {
+        req.path === '/api/auth/user' ||
+        req.path === '/api/health') {
       return next();
     }
     // Apply authentication middleware to all other API routes
@@ -338,6 +344,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         "branchName",
         "vehicleTypeName",
         "assignedArea",
+        "serie",
+        "engineNumber",
+        "vehicleValue",
+        "policyNumber",
+        "insurer",
+        "policyStart",
+        "policyEnd",
       ];
       const explanation = [
         "Placa única (obligatorio)",
@@ -354,6 +367,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         "Nombre de la sucursal (opcional)",
         "Nombre del tipo de vehículo (opcional)",
         "Área asignada (opcional)",
+        "Serie (opcional)",
+        "Número de motor (opcional)",
+        "Valor vehicular numérico (opcional)",
+        "Número de póliza (opcional)",
+        "Aseguradora (opcional)",
+        "Fecha inicio póliza (opcional, formato YYYY-MM-DD)",
+        "Fecha vencimiento póliza (opcional, formato YYYY-MM-DD)",
       ];
       const sep = ";";
       const bom = "\ufeff";
@@ -407,7 +427,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const header = parseCsvLine(lines[0]).map((h) => h.trim());
       const expected = [
-        "plate","brand","model","year","vin","economicNumber","color","mileage","fuelType","status","clientName","branchName","vehicleTypeName","assignedArea"
+        "plate","brand","model","year","vin","economicNumber","color","mileage","fuelType","status","clientName","branchName","vehicleTypeName","assignedArea","serie","engineNumber","vehicleValue","policyNumber","insurer","policyStart","policyEnd"
       ];
       const matchesHeader = expected.every((e, idx) => (header[idx] || "").toLowerCase() === e.toLowerCase());
       const startIdx = matchesHeader ? 1 : 0;
@@ -427,7 +447,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       for (let li = dataStart; li < lines.length; li++) {
         const row = parseCsvLine(lines[li]);
         if (row.length === 1 && row[0] === "") continue;
-        const [plate, brand, model, yearStr, vin, economicNumber, color, mileageStr, fuelType, status, clientName, branchName, vehicleTypeName, assignedArea] = row;
+        const [plate, brand, model, yearStr, vin, economicNumber, color, mileageStr, fuelType, status, clientName, branchName, vehicleTypeName, assignedArea, serie, engineNumber, vehicleValueStr, policyNumber, insurer, policyStartStr, policyEndStr] = row;
         const rowNum = li + 1;
         if (!plate) { summary.errors.push({ row: rowNum, error: "Falta placa" }); continue; }
         if (!brand) { summary.errors.push({ row: rowNum, error: "Falta marca" }); continue; }
@@ -438,6 +458,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const mileage = Number(mileageStr ?? "");
         if (!Number.isFinite(mileage)) { summary.errors.push({ row: rowNum, error: "Kilometraje inválido" }); continue; }
         if (!fuelType) { summary.errors.push({ row: rowNum, error: "Falta tipo de combustible" }); continue; }
+        let vehicleValue: number | null = null;
+        if ((vehicleValueStr ?? "").trim().length > 0) {
+          const vv = Number(vehicleValueStr);
+          if (!Number.isFinite(vv)) { summary.errors.push({ row: rowNum, error: "Valor vehicular inválido" }); continue; }
+          vehicleValue = vv;
+        }
+        let policyStart: Date | null = null;
+        if ((policyStartStr ?? "").trim().length > 0) {
+          const d = new Date(policyStartStr);
+          if (isNaN(d.getTime())) { summary.errors.push({ row: rowNum, error: "Fecha inicio póliza inválida" }); continue; }
+          policyStart = d;
+        }
+        let policyEnd: Date | null = null;
+        if ((policyEndStr ?? "").trim().length > 0) {
+          const d = new Date(policyEndStr);
+          if (isNaN(d.getTime())) { summary.errors.push({ row: rowNum, error: "Fecha vencimiento póliza inválida" }); continue; }
+          policyEnd = d;
+        }
         const clientId = clientName ? (clients.find(c => (c.name || '').toLowerCase() === (clientName||'').toLowerCase())?.id ?? null) : null;
         const branchId = branchName ? (branches.find(b => (b.name || '').toLowerCase() === (branchName||'').toLowerCase())?.id ?? null) : null;
         const vehicleTypeId = vehicleTypeName ? (vehicleTypes.find(t => (t.name || '').toLowerCase() === (vehicleTypeName||'').toLowerCase())?.id ?? null) : null;
@@ -458,6 +496,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
             branchId,
             vehicleTypeId,
             assignedArea: assignedArea || existing.assignedArea,
+            serie: serie || existing.serie,
+            engineNumber: engineNumber || existing.engineNumber,
+            vehicleValue: vehicleValue ?? existing.vehicleValue ?? null,
+            policyNumber: policyNumber || existing.policyNumber,
+            insurer: insurer || existing.insurer,
+            policyStart: policyStart ?? existing.policyStart ?? null,
+            policyEnd: policyEnd ?? existing.policyEnd ?? null,
           });
           if (updated) summary.updated++;
           else summary.errors.push({ row: rowNum, error: "No se pudo actualizar" });
@@ -478,6 +523,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
               branchId,
               vehicleTypeId,
               assignedArea: assignedArea || null,
+              serie: (serie ?? "") ? serie : null,
+              engineNumber: (engineNumber ?? "") ? engineNumber : null,
+              vehicleValue: vehicleValue,
+              policyNumber: (policyNumber ?? "") ? policyNumber : null,
+              insurer: (insurer ?? "") ? insurer : null,
+              policyStart: policyStart,
+              policyEnd: policyEnd,
               imageUrl: null,
               assignedEmployeeId: null,
               assignedUserId: null,
@@ -526,6 +578,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       console.error("Error creating vehicle:", error);
       res.status(500).json({ error: "Error al crear vehículo" });
+    }
+  });
+
+  app.post("/api/vehicles/clear", async (req, res) => {
+    try {
+      const currentUserId = req.session.userId;
+      const currentUser = currentUserId ? await storage.getUser(currentUserId) : undefined;
+      const roleText = (currentUser?.role || '').toLowerCase();
+      const isAdmin = roleText === 'admin' || roleText === 'administrador';
+      if (!currentUser || !isAdmin) {
+        return res.status(403).json({ error: "Solo el administrador puede limpiar vehículos" });
+      }
+
+      await storage.clearVehicles();
+      res.json({ ok: true });
+    } catch (error) {
+      console.error("Error clearing vehicles:", error);
+      res.status(500).json({ error: "Error al limpiar vehículos" });
     }
   });
 
@@ -1352,7 +1422,128 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/providers/:id", async (req, res) => {
+  // Providers: CSV template download
+  app.get("/api/providers/template", async (_req, res) => {
+    const headers = [
+      "Nombre",
+      "Tipo",
+      "Teléfono",
+      "Email",
+      "Dirección",
+      "Código",
+      "RFC",
+      "Régimen",
+      "Nombre comercial",
+    ];
+    const csv = "\uFEFF" + "sep=,\n" + headers.join(",") + "\n";
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", "attachment; filename=plantilla_proveedores.csv");
+    res.send(csv);
+  });
+
+  // Providers: import from CSV
+  app.post("/api/providers/upload", (req, res) => {
+    importUpload.single("file")(req as any, res as any, async (err: any) => {
+      if (err) {
+        const msg = err?.message || "Error al procesar archivo";
+        return res.status(400).json({ error: msg });
+      }
+      try {
+        if (!req.file) return res.status(400).json({ error: "Archivo requerido" });
+        const content = (req.file as any).buffer.toString("utf-8");
+        const rawLines = content.split(/\r?\n/).filter((l: string) => l.length);
+        if (rawLines.length < 2) return res.status(400).json({ error: "CSV sin datos" });
+        const hasSep = rawLines[0].toLowerCase().startsWith("sep=");
+        const startIndex = hasSep ? 1 : 0;
+        const header = rawLines[startIndex];
+        const delimiter = header.includes(";") && !header.includes(",") ? ";" : ",";
+        const parseLine = (line: string): string[] => {
+          const out: string[] = [];
+          let cur = ""; let inQ = false;
+          for (let i = 0; i < line.length; i++) {
+            const ch = line[i];
+            if (ch === '"') {
+              if (inQ && line[i+1] === '"') { cur += '"'; i++; }
+              else inQ = !inQ;
+            } else if (ch === delimiter && !inQ) {
+              out.push(cur); cur = "";
+            } else {
+              cur += ch;
+            }
+          }
+          out.push(cur);
+          return out.map((s) => s.trim());
+        };
+
+        const headers = parseLine(header).map((h) => h.toLowerCase());
+        const idx = (name: string) => headers.findIndex((h) => h.includes(name.toLowerCase()));
+
+        const iNombre = idx("nombre");
+        const iTipo = idx("tipo");
+        const iTel = idx("tel") !== -1 ? idx("tel") : idx("teléfono");
+        const iEmail = idx("email");
+        const iDir = idx("dirección") !== -1 ? idx("dirección") : idx("direccion");
+        const iCodigo = idx("código") !== -1 ? idx("código") : idx("codigo");
+        const iRfc = idx("rfc");
+        const iRegimen = idx("régimen") !== -1 ? idx("régimen") : idx("regimen");
+        const iTrade = idx("nombre comercial");
+
+        const entries: import("@shared/schema").InsertProvider[] = [];
+        for (let li = startIndex + 1; li < rawLines.length; li++) {
+          const cols = parseLine(rawLines[li]);
+          const status = "active";
+          const entry: import("@shared/schema").InsertProvider = {
+            name: iNombre !== -1 ? cols[iNombre] : "",
+            type: iTipo !== -1 ? cols[iTipo] : "",
+            phone: iTel !== -1 ? cols[iTel] : "",
+            email: iEmail !== -1 ? cols[iEmail] : "",
+            address: iDir !== -1 ? cols[iDir] : "",
+            status,
+            rating: 0,
+            code: iCodigo !== -1 ? cols[iCodigo] : "",
+            rfc: iRfc !== -1 ? cols[iRfc] : "",
+            regimen: iRegimen !== -1 ? cols[iRegimen] : "",
+            tradeName: iTrade !== -1 ? cols[iTrade] : "",
+          };
+          entries.push(entry);
+        }
+
+        let inserted = 0;
+        let updated = 0;
+        for (const e of entries) {
+          const rfc = (e.rfc || "").trim();
+          if (rfc) {
+            const existing = await storage.getProviderByRFC(rfc);
+            if (existing) {
+              await storage.updateProvider(existing.id, {
+                name: e.name,
+                type: e.type,
+                phone: e.phone,
+                email: e.email,
+                address: e.address,
+                status: e.status,
+                rating: e.rating,
+                code: e.code,
+                regimen: e.regimen,
+                tradeName: e.tradeName,
+              });
+              updated++;
+              continue;
+            }
+          }
+          await storage.createProvider(e);
+          inserted++;
+        }
+        const total = (await storage.getProviders()).length;
+        res.json({ inserted, updated, total });
+      } catch (error) {
+        console.error("Error importing providers:", error);
+        res.status(500).json({ error: "Error al importar proveedores" });
+      }
+    });
+  });
+
+  app.get("/api/providers/:id(\\d+)", async (req, res) => {
     try {
       const id = validateId(req.params.id);
       if (id === null) {
@@ -1383,7 +1574,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/providers/:id", async (req, res) => {
+  app.put("/api/providers/:id(\\d+)", async (req, res) => {
     try {
       const id = validateId(req.params.id);
       if (id === null) {
@@ -1404,7 +1595,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/providers/:id", async (req, res) => {
+  app.delete("/api/providers/:id(\\d+)", async (req, res) => {
     try {
       const id = validateId(req.params.id);
       if (id === null) {
@@ -1417,6 +1608,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(204).send();
     } catch (error) {
       console.error("Error deleting provider:", error);
+      const msg = (error as any)?.message || String(error);
+      if (msg.includes("referenciado")) {
+        return res.status(409).json({ error: msg });
+      }
       res.status(500).json({ error: "Error al eliminar proveedor" });
     }
   });
@@ -2055,11 +2250,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       "Centro de",
       "Proveedor",
       "Vehiculo",
-      "Columna1",
-      "Column",
       "Concepto",
       "Descripción Gasto",
-      "Unidad",
       "Fecha",
       "Total",
     ];

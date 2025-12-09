@@ -38,7 +38,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { ClientSearchCombobox } from "@/components/client-search-combobox";
 import { z } from "zod";
 
-export function AddClientDialog() {
+export function AddClientDialog({ trigger }: { trigger?: React.ReactNode } = {}) {
   const [open, setOpen] = useState(false);
   const { toast } = useToast();
 
@@ -84,10 +84,12 @@ export function AddClientDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button data-testid="button-add-client">
-          <Plus className="h-4 w-4 mr-2" />
-          Agregar Cliente
-        </Button>
+        {trigger ?? (
+          <Button data-testid="button-add-client">
+            <Plus className="h-4 w-4 mr-2" />
+            Agregar Cliente
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
@@ -201,7 +203,7 @@ export function AddClientDialog() {
   );
 }
 
-export function AddClientBranchDialog({ clientId: presetClientId }: { clientId?: number } = {}) {
+export function AddClientBranchDialog({ clientId: presetClientId, trigger }: { clientId?: number; trigger?: React.ReactNode } = {}) {
   const [open, setOpen] = useState(false);
   const { toast } = useToast();
 
@@ -255,10 +257,12 @@ export function AddClientBranchDialog({ clientId: presetClientId }: { clientId?:
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" data-testid="button-add-branch">
-          <Building2 className="h-4 w-4 mr-2" />
-          Agregar Sucursal
-        </Button>
+        {trigger ?? (
+          <Button variant="outline" data-testid="button-add-branch">
+            <Building2 className="h-4 w-4 mr-2" />
+            Agregar Sucursal
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent className="max-w-xl">
         <DialogHeader>

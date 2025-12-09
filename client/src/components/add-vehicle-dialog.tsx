@@ -51,12 +51,19 @@ export function AddVehicleDialog() {
           year: new Date().getFullYear(),
           plate: "",
           vin: "",
+          serie: "",
+          engineNumber: "",
           color: "",
           mileage: 0,
           fuelType: "gasoline",
           status: "active",
           assignedArea: "",
           economicNumber: "",
+          vehicleValue: undefined,
+          policyNumber: "",
+          insurer: "",
+          policyStart: undefined,
+          policyEnd: undefined,
           clientId: null,
           vehicleTypeId: null,
           assignedUserId: null,
@@ -290,12 +297,119 @@ export function AddVehicleDialog() {
               />
               <FormField
                 control={form.control}
+                name="serie"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Serie</FormLabel>
+                    <FormControl>
+                      <Input {...field} value={field.value || ""} placeholder="Serie del vehículo" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="engineNumber"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Número de Motor</FormLabel>
+                    <FormControl>
+                      <Input {...field} value={field.value || ""} placeholder="Número de motor" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
                 name="color"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Color</FormLabel>
                     <FormControl>
                       <Input {...field} value={field.value || ""} placeholder="Blanco" data-testid="input-color" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="vehicleValue"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Valor Vehicular</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        value={field.value === undefined || field.value === null ? "" : String(field.value)}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          field.onChange(v === "" ? undefined : parseFloat(v));
+                        }}
+                        placeholder="Ej: 250000"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="policyNumber"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>No. Póliza</FormLabel>
+                    <FormControl>
+                      <Input {...field} value={field.value || ""} placeholder="Número de póliza" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="insurer"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Aseguradora</FormLabel>
+                    <FormControl>
+                      <Input {...field} value={field.value || ""} placeholder="Nombre de aseguradora" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="policyStart"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Fecha Inicio Póliza</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="date"
+                        value={field.value ? new Date(field.value as any).toISOString().slice(0, 10) : ""}
+                        onChange={(e) => field.onChange(e.target.value ? new Date(e.target.value) : undefined)}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="policyEnd"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Fecha Vencimiento Póliza</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="date"
+                        value={field.value ? new Date(field.value as any).toISOString().slice(0, 10) : ""}
+                        onChange={(e) => field.onChange(e.target.value ? new Date(e.target.value) : undefined)}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

@@ -173,6 +173,7 @@ export function AppSidebar() {
     "Inventario": "Inventario",
     "Reportes": "Reportes",
     "Consulta de historial": "Consulta de historial",
+    "Reportes de historial": "Reportes",
     "Vehículos": "Vehículos",
     // Servicio y Mantenimiento
     "Evaluación y Diagnóstico": "Evaluación y Diagnóstico",
@@ -219,6 +220,7 @@ export function AppSidebar() {
     // Reportes
     "Reportes": { name: "Ver reportes", module: "Reportes" },
     "Consulta de historial": { name: "Ver consulta de historial", module: "Consulta de historial" },
+    "Reportes de historial": { name: "Ver reportes", module: "Reportes" },
   };
 
   const hasAccessByTitle = (title: string) => {
@@ -313,23 +315,36 @@ export function AppSidebar() {
                         <ChevronDown className="ml-auto h-4 w-4 transition-transform group-data-[state=open]/collapsible:rotate-180" />
                       </SidebarMenuButton>
                     </CollapsibleTrigger>
-                    <CollapsibleContent>
-                      <SidebarMenuSub>
-                        <SidebarMenuSubItem>
-                          <SidebarMenuSubButton
-                            asChild
-                            isActive={location === "/consulta-historial"}
-                            data-testid={`link-consulta de historial`}
-                          >
-                            <Link href="/consulta-historial">
-                              <History className="h-4 w-4" />
-                              <span>Consulta de historial</span>
-                            </Link>
-                          </SidebarMenuSubButton>
-                        </SidebarMenuSubItem>
-                        {/* Eliminado para evitar confusión: solo mostrar Consulta de historial */}
-                      </SidebarMenuSub>
-                    </CollapsibleContent>
+                <CollapsibleContent>
+                  <SidebarMenuSub>
+                    <SidebarMenuSubItem>
+                      <SidebarMenuSubButton
+                        asChild
+                        isActive={location === "/consulta-historial"}
+                        data-testid={`link-consulta de historial`}
+                      >
+                        <Link href="/consulta-historial">
+                          <History className="h-4 w-4" />
+                          <span>Consulta de historial</span>
+                        </Link>
+                      </SidebarMenuSubButton>
+                    </SidebarMenuSubItem>
+                    {hasAccessByTitle("Reportes de historial") && (
+                      <SidebarMenuSubItem>
+                        <SidebarMenuSubButton
+                          asChild
+                          isActive={location === "/consulta-historial/reportes"}
+                          data-testid={`link-reportes de historial`}
+                        >
+                          <Link href="/consulta-historial/reportes">
+                            <BarChart3 className="h-4 w-4" />
+                            <span>Reportes de historial</span>
+                          </Link>
+                        </SidebarMenuSubButton>
+                      </SidebarMenuSubItem>
+                    )}
+                  </SidebarMenuSub>
+                </CollapsibleContent>
                   </SidebarMenuItem>
                 </Collapsible>
               )}

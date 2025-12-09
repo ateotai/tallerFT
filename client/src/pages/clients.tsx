@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { ClientCard } from "@/components/client-card";
 import { AddClientDialog, AddClientBranchDialog } from "@/components/add-client-dialog";
@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Search, Filter } from "lucide-react";
+import { Search, Filter, MoreHorizontal, Plus, Building2, Upload, FileDown, FileUp } from "lucide-react";
 import type { Client } from "@shared/schema";
 import { queryClient } from "@/lib/queryClient";
 import {
@@ -24,6 +24,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 export default function ClientsPage() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -47,6 +48,7 @@ export default function ClientsPage() {
 
   const [importSummary, setImportSummary] = useState<null | { created: number; updated: number; errors: Array<{ row: number; error: string }> }>(null);
   const [importOpen, setImportOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const importMutation = useMutation({
     mutationFn: async (file: File) => {
@@ -131,7 +133,7 @@ export default function ClientsPage() {
         </div>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+      <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -142,7 +144,7 @@ export default function ClientsPage() {
             data-testid="input-search-clients"
           />
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="w-[180px]" data-testid="select-status-filter">
               <Filter className="h-4 w-4 mr-2" />
@@ -154,19 +156,62 @@ export default function ClientsPage() {
               <SelectItem value="inactive">Inactivos</SelectItem>
             </SelectContent>
           </Select>
-          <AddClientDialog />
-          <AddClientBranchDialog />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="default" className="min-w-[140px]">
+                <MoreHorizontal className="h-4 w-4 mr-2" />
+                Acciones
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuItem asChild>
+                <AddClientDialog
+                  trigger={
+                    <button className="w-full text-left flex items-center gap-2">
+                      <Plus className="h-4 w-4" />
+                      Agregar Cliente
+                    </button>
+                  }
+                />
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <AddClientBranchDialog
+                  trigger={
+                    <button className="w-full text-left flex items-center gap-2">
+                      <Building2 className="h-4 w-4" />
+                      Agregar Sucursal
+                    </button>
+                  }
+                />
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Upload className="h-4 w-4" />
+                Importar CSV
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={downloadTemplate}>
+                <FileDown className="h-4 w-4" />
+                Plantilla CSV
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={exportCsv}>
+                <FileUp className="h-4 w-4" />
+                Exportar CSV
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <input
+            ref={fileInputRef}
             type="file"
             accept=".csv,text/csv"
+            className="hidden"
             onChange={(e) => {
               const f = e.target.files?.[0];
               if (f) importMutation.mutate(f);
-              e.currentTarget.value = "";
+              if (fileInputRef.current) fileInputRef.current.value = "";
             }}
           />
-          <Button variant="outline" onClick={downloadTemplate}>Plantilla</Button>
-          <Button variant="outline" onClick={exportCsv}>Exportar CSV</Button>
         </div>
       </div>
 

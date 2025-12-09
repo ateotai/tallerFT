@@ -49,6 +49,8 @@ export default function VehiclesPage() {
   const [searchEnabled, setSearchEnabled] = useState(false);
   const [activeTab, setActiveTab] = useState<string>("vehicles");
   const [groupBy, setGroupBy] = useState<"none" | "client" | "type" | "branch">("none");
+  const [pageSize, setPageSize] = useState<number>(10);
+  const [currentPage, setCurrentPage] = useState<number>(1);
   const [location, navigate] = useLocation();
   // Capturar el query string actual para que el efecto reaccione cuando cambie
   const urlSearch = typeof window !== "undefined" ? window.location.search : "";
@@ -115,8 +117,18 @@ export default function VehiclesPage() {
 
   const exportCsv = () => {
     const header = [
-      "Placa","Marca","Modelo","Año","VIN","Número económico","Color","Kilometraje","Combustible","Estatus","Cliente","Sucursal","Tipo de vehículo","Área asignada"
+      "Placa","Marca","Modelo","Año","VIN","Número económico","Color","Kilometraje","Combustible","Estatus","Cliente","Sucursal","Tipo de vehículo","Área asignada","Serie","Número de motor","Valor vehicular","Número de póliza","Aseguradora","Fecha inicio póliza","Fecha vencimiento póliza"
     ];
+    const formatDate = (d: unknown): string => {
+      if (!d) return "";
+      try {
+        const dt = typeof d === "string" ? new Date(d) : (d as Date);
+        if (!dt || isNaN((dt as Date).getTime())) return "";
+        return (dt as Date).toISOString().slice(0, 10);
+      } catch {
+        return "";
+      }
+    };
     const rows = filteredVehicles.map((v) => [
       v.plate,
       v.brand,
@@ -132,6 +144,13 @@ export default function VehiclesPage() {
       v.branchId ? (branches.find(b => b.id === v.branchId)?.name ?? "") : "",
       v.vehicleTypeId ? (vehicleTypes.find(t => t.id === v.vehicleTypeId)?.name ?? "") : "",
       v.assignedArea ?? "",
+      v.serie ?? "",
+      v.engineNumber ?? "",
+      v.vehicleValue != null ? String(v.vehicleValue) : "",
+      v.policyNumber ?? "",
+      v.insurer ?? "",
+      formatDate(v.policyStart ?? null),
+      formatDate(v.policyEnd ?? null),
     ]);
     const escape = (s: string) => '"' + s.replace(/"/g,'""') + '"';
     const sep = ";";
@@ -199,6 +218,14 @@ export default function VehiclesPage() {
         : false) ||
       (v.vin ? v.vin.toLowerCase().includes(searchQuery.toLowerCase()) : false)
   );
+
+  const totalPages = Math.max(1, Math.ceil(filteredVehicles.length / pageSize));
+  const startIndex = (currentPage - 1) * pageSize;
+  const pageVehicles = filteredVehicles.slice(startIndex, startIndex + pageSize);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, groupBy]);
 
   useEffect(() => {
     try {
@@ -345,6 +372,24 @@ export default function VehiclesPage() {
             </div>
           </div>
 
+          {groupBy === "none" && filteredVehicles.length > 0 && (
+            <div className="flex items-center justify-end gap-2 mb-2">
+              <Button variant="outline" size="sm" onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={currentPage === 1} data-testid="button-prev-page-vehicles">Anterior</Button>
+              <span className="text-sm text-muted-foreground">Página {currentPage} de {totalPages}</span>
+              <Button variant="outline" size="sm" onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} disabled={currentPage >= totalPages} data-testid="button-next-page-vehicles">Siguiente</Button>
+              <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(parseInt(v)); setCurrentPage(1); }}>
+                <SelectTrigger className="w-[140px]" data-testid="select-page-size-vehicles">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="10">10 por página</SelectItem>
+                  <SelectItem value="20">20 por página</SelectItem>
+                  <SelectItem value="50">50 por página</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           {isLoadingVehicles ? (
             <div className="text-center py-12 text-muted-foreground">
               Cargando vehículos...
@@ -356,12 +401,12 @@ export default function VehiclesPage() {
           ) : groupBy === "none" ? (
             viewMode === "grid" ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {filteredVehicles.map((vehicle) => (
+                {pageVehicles.map((vehicle) => (
                   <VehicleCard key={vehicle.id} vehicle={vehicle} />
                 ))}
               </div>
             ) : (
-              <VehicleTable vehicles={filteredVehicles} />
+              <VehicleTable vehicles={pageVehicles} />
             )
           ) : (
             (() => {

@@ -47,6 +47,10 @@ export function EditProviderDialog({ provider, open, onOpenChange }: EditProvide
   const form = useForm<InsertProvider>({
     resolver: zodResolver(insertProviderSchema),
     defaultValues: {
+      code: provider.code || "",
+      rfc: provider.rfc || "",
+      regimen: provider.regimen || "",
+      tradeName: provider.tradeName || "",
       name: provider.name,
       type: provider.type,
       phone: provider.phone,
@@ -94,6 +98,33 @@ export function EditProviderDialog({ provider, open, onOpenChange }: EditProvide
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="code"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Código</FormLabel>
+                    <FormControl>
+                      <Input placeholder="COD-001" {...field} data-testid="input-code" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="tradeName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nombre Comercial</FormLabel>
+                    <FormControl>
+                      <Input placeholder="AutoService Pro S.A." {...field} data-testid="input-tradename" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <FormField
                 control={form.control}
                 name="name"
@@ -155,6 +186,34 @@ export function EditProviderDialog({ provider, open, onOpenChange }: EditProvide
                     <FormLabel>Email</FormLabel>
                     <FormControl>
                       <Input type="email" placeholder="contacto@proveedor.com" {...field} data-testid="input-email" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="rfc"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>RFC</FormLabel>
+                    <FormControl>
+                      <Input placeholder="XAXX010101000" {...field} data-testid="input-rfc" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="regimen"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Régimen</FormLabel>
+                    <FormControl>
+                      <Input placeholder="General de Ley Personas Morales" {...field} data-testid="input-regimen" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
