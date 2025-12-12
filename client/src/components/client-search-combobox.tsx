@@ -27,7 +27,7 @@ interface ClientSearchComboboxProps {
 export function ClientSearchCombobox({
   value,
   onValueChange,
-  placeholder = "Seleccionar cliente",
+  placeholder = "Seleccionar razón social",
 }: ClientSearchComboboxProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -81,10 +81,10 @@ export function ClientSearchCombobox({
           <CommandList>
             {isLoading ? (
               <div className="py-6 text-center text-sm text-muted-foreground">
-                Cargando clientes...
+                Cargando razones sociales...
               </div>
             ) : filteredClients.length === 0 ? (
-              <CommandEmpty>No se encontraron clientes.</CommandEmpty>
+              <CommandEmpty>No se encontraron razones sociales.</CommandEmpty>
             ) : (
               <CommandGroup>
                 {filteredClients.map((client) => (

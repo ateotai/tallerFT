@@ -1,13 +1,25 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
-import { Calendar, Eye, Settings, Pencil } from "lucide-react";
+import { Calendar, Eye, Pencil, Trash2 } from "lucide-react";
 import type { Vehicle, ClientBranch, Client, User } from "@shared/schema";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import vanImage from "@assets/generated_images/White_commercial_van_photo_54e80b21.png";
-import { useLocation } from "wouter";
+import { Link, useLocation } from "wouter";
 import { useState } from "react";
 import { EditVehicleDialog } from "@/components/edit-vehicle-dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 
 interface VehicleCardProps {
   vehicle: Vehicle;
@@ -24,6 +36,8 @@ export function VehicleCard({ vehicle }: VehicleCardProps) {
   const statusInfo = statusConfig[status] ?? { label: String(vehicle.status || "-"), className: "border-gray-600 text-gray-600" };
   const [, navigate] = useLocation();
   const [openEdit, setOpenEdit] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const { toast } = useToast();
   const { data: branches = [] } = useQuery<ClientBranch[]>({ queryKey: ["/api/client-branches"] });
   const { data: clients = [] } = useQuery<Client[]>({ queryKey: ["/api/clients"] });
   const { data: users = [] } = useQuery<User[]>({ queryKey: ["/api/users"] });
@@ -39,6 +53,19 @@ export function VehicleCard({ vehicle }: VehicleCardProps) {
   const branch = branches.find((b) => b.id === vehicle.branchId);
   const client = clients.find((c) => c.id === vehicle.clientId);
   const assignedUser = users.find(u => Number(u.id) === Number(vehicle.assignedUserId ?? NaN)) || directUser || undefined;
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("DELETE", `/api/vehicles/${vehicle.id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/vehicles"] });
+      toast({ title: "Vehículo eliminado", description: "El vehículo ha sido dado de baja exitosamente." });
+      setDeleting(false);
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message || "No se pudo eliminar el vehículo", variant: "destructive" });
+    },
+  });
   
   return (
     <Card className="hover-elevate" data-testid={`card-vehicle-${vehicle.id}`}>
@@ -109,19 +136,23 @@ export function VehicleCard({ vehicle }: VehicleCardProps) {
       </CardContent>
       <CardFooter className="p-6 pt-0 flex gap-2">
         <Button
+          asChild
           variant="outline"
           size="icon"
           title="Ver detalles"
           data-testid={`button-view-${vehicle.id}`}
-          onClick={() => {
+        >
+          {(() => {
             const params = new URLSearchParams();
             params.set("tab", "history");
             if (vehicle.economicNumber) params.set("economicNumber", String(vehicle.economicNumber));
             if (vehicle.vin) params.set("vin", String(vehicle.vin));
-            navigate(`/vehiculos?${params.toString()}`);
-          }}
-        >
-          <Eye className="h-4 w-4" />
+            return (
+              <Link href={`/vehiculos?${params.toString()}`}>
+                <Eye className="h-4 w-4" />
+              </Link>
+            );
+          })()}
         </Button>
         <Button
           variant="outline"
@@ -133,15 +164,36 @@ export function VehicleCard({ vehicle }: VehicleCardProps) {
           <Pencil className="h-4 w-4" />
         </Button>
         <Button
-          variant="default"
+          variant="outline"
           size="icon"
-          title="Programar"
-          data-testid={`button-service-${vehicle.id}`}
+          title="Eliminar"
+          data-testid={`button-delete-${vehicle.id}`}
+          onClick={() => setDeleting(true)}
         >
-          <Settings className="h-4 w-4" />
+          <Trash2 className="h-4 w-4" />
         </Button>
       </CardFooter>
       <EditVehicleDialog vehicle={vehicle} open={openEdit} onOpenChange={setOpenEdit} />
+      <AlertDialog open={deleting} onOpenChange={setDeleting}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción dará de baja el vehículo permanentemente. Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteMutation.mutate()}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              data-testid="button-confirm-delete"
+            >
+              {deleteMutation.isPending ? "Eliminando..." : "Dar de Baja"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }

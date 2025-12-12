@@ -73,7 +73,7 @@ export function EditClientDialog({ client, open, onOpenChange }: EditClientDialo
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/clients"] });
       toast({
-        title: "Cliente actualizado",
+        title: "Razón social actualizada",
         description: "Los cambios se guardaron exitosamente.",
       });
       onOpenChange(false);
@@ -81,7 +81,7 @@ export function EditClientDialog({ client, open, onOpenChange }: EditClientDialo
     onError: (error: Error) => {
       toast({
         title: "Error",
-        description: error.message || "No se pudo actualizar el cliente",
+        description: error.message || "No se pudo actualizar la razón social",
         variant: "destructive",
       });
     },
@@ -95,9 +95,9 @@ export function EditClientDialog({ client, open, onOpenChange }: EditClientDialo
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Editar Cliente</DialogTitle>
+          <DialogTitle>Editar Razón Social</DialogTitle>
           <DialogDescription>
-            Modifica los datos del cliente.
+            Modifica los datos de la razón social.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>

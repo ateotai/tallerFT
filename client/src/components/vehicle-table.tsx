@@ -10,7 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Eye, Settings, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { Eye, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -32,7 +32,7 @@ import type { Vehicle, ClientBranch } from "@shared/schema";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { useLocation } from "wouter";
+import { Link, useLocation } from "wouter";
 
 interface VehicleTableProps {
   vehicles: Vehicle[];
@@ -126,22 +126,34 @@ export function VehicleTable({ vehicles }: VehicleTableProps) {
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
                       <Button
+                        asChild
                         variant="ghost"
                         size="sm"
                         data-testid={`button-view-${vehicle.id}`}
-                        onClick={() => {
+                      >
+                        {(() => {
                           const params = new URLSearchParams();
                           params.set("tab", "history");
                           if (vehicle.economicNumber) params.set("economicNumber", String(vehicle.economicNumber));
                           if (vehicle.vin) params.set("vin", String(vehicle.vin));
-                          navigate(`/vehiculos?${params.toString()}`);
-                        }}
+                          return (
+                            <Link href={`/vehiculos?${params.toString()}`}>
+                              <Eye className="h-4 w-4" />
+                            </Link>
+                          );
+                        })()}
+                      </Button>
+
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        title="Eliminar"
+                        onClick={() => setDeletingVehicleId(vehicle.id)}
+                        data-testid={`button-delete-${vehicle.id}`}
                       >
-                        <Eye className="h-4 w-4" />
+                        <Trash2 className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="sm" data-testid={`button-schedule-${vehicle.id}`}>
-                        <Settings className="h-4 w-4" />
-                      </Button>
+                      
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="sm" data-testid={`button-more-${vehicle.id}`}>

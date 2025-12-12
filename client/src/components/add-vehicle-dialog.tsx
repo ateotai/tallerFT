@@ -152,12 +152,12 @@ export function AddVehicleDialog() {
               name="clientId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Cliente</FormLabel>
+                  <FormLabel>Razón Social</FormLabel>
                   <FormControl>
                     <ClientSearchCombobox
                       value={field.value}
                       onValueChange={field.onChange}
-                      placeholder="Buscar cliente..."
+                      placeholder="Buscar razón social..."
                     />
                   </FormControl>
                   <FormMessage />
@@ -177,7 +177,7 @@ export function AddVehicleDialog() {
                   >
                     <FormControl>
                       <SelectTrigger data-testid="select-branch">
-                        <SelectValue placeholder={clientId ? (branches.length ? "Seleccionar sucursal" : "Sin sucursales") : "Selecciona cliente primero"} />
+                        <SelectValue placeholder={clientId ? (branches.length ? "Seleccionar sucursal" : "Sin sucursales") : "Selecciona razón social primero"} />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>

@@ -45,9 +45,11 @@ export function InventoryTable({ items }: InventoryTableProps) {
   const [pageSize, setPageSize] = useState(10);
   const [sortCol, setSortCol] = useState<
     | "partNumber"
+    | "sku"
     | "name"
     | "partCondition"
     | "category"
+    | "borrowedEconomicNumber"
     | "quantity"
     | "minQuantity"
     | "maxQuantity"
@@ -98,9 +100,11 @@ export function InventoryTable({ items }: InventoryTableProps) {
   const comparator = (a: Inventory, b: Inventory) => {
     const va =
       sortCol === "partNumber" ? (a.partNumber ?? "") :
+      sortCol === "sku" ? (a.sku ?? "") :
       sortCol === "name" ? a.name :
       sortCol === "partCondition" ? a.partCondition :
       sortCol === "category" ? getCategoryName(a) :
+      sortCol === "borrowedEconomicNumber" ? (a.borrowedEconomicNumber ?? "") :
       sortCol === "quantity" ? a.quantity :
       sortCol === "minQuantity" ? a.minQuantity :
       sortCol === "maxQuantity" ? a.maxQuantity :
@@ -109,9 +113,11 @@ export function InventoryTable({ items }: InventoryTableProps) {
       sortCol === "workshop" ? getWorkshopName(a) : "";
     const vb =
       sortCol === "partNumber" ? (b.partNumber ?? "") :
+      sortCol === "sku" ? (b.sku ?? "") :
       sortCol === "name" ? b.name :
       sortCol === "partCondition" ? b.partCondition :
       sortCol === "category" ? getCategoryName(b) :
+      sortCol === "borrowedEconomicNumber" ? (b.borrowedEconomicNumber ?? "") :
       sortCol === "quantity" ? b.quantity :
       sortCol === "minQuantity" ? b.minQuantity :
       sortCol === "maxQuantity" ? b.maxQuantity :
@@ -177,9 +183,11 @@ export function InventoryTable({ items }: InventoryTableProps) {
   const exportCsv = () => {
     const header = [
       "Numero de Parte",
+      "SKU",
       "Nombre",
       "Tipo",
       "Categoria",
+      "Prestado de",
       "Cantidad",
       "Minima",
       "Maxima",
@@ -189,9 +197,11 @@ export function InventoryTable({ items }: InventoryTableProps) {
     ];
     const rows = sorted.map((item) => [
       item.partNumber ?? "",
+      item.sku ?? "",
       item.name,
       item.partCondition,
       getCategoryName(item),
+      item.partCondition === "Prestado" ? (item.borrowedEconomicNumber ?? "") : "",
       item.quantity.toString(),
       item.minQuantity.toString(),
       item.maxQuantity.toString(),
@@ -216,12 +226,18 @@ export function InventoryTable({ items }: InventoryTableProps) {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>
-                <button className="inline-flex items-center gap-1" onClick={() => handleSort("partNumber")} data-testid="sort-partNumber">
-                  Número de Parte
-                  {sortCol === "partNumber" ? (sortDir === "asc" ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3" />}
-                </button>
-              </TableHead>
+          <TableHead>
+            <button className="inline-flex items-center gap-1" onClick={() => handleSort("partNumber")} data-testid="sort-partNumber">
+              Número de Parte
+              {sortCol === "partNumber" ? (sortDir === "asc" ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3" />}
+            </button>
+          </TableHead>
+          <TableHead>
+            <button className="inline-flex items-center gap-1" onClick={() => handleSort("sku")} data-testid="sort-sku">
+              SKU
+              {sortCol === "sku" ? (sortDir === "asc" ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3" />}
+            </button>
+          </TableHead>
               <TableHead>
                 <button className="inline-flex items-center gap-1" onClick={() => handleSort("name")} data-testid="sort-name">
                   Nombre
@@ -234,12 +250,18 @@ export function InventoryTable({ items }: InventoryTableProps) {
                   {sortCol === "partCondition" ? (sortDir === "asc" ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3" />}
                 </button>
               </TableHead>
-              <TableHead>
-                <button className="inline-flex items-center gap-1" onClick={() => handleSort("category")} data-testid="sort-category">
-                  Categoría
-                  {sortCol === "category" ? (sortDir === "asc" ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3" />}
-                </button>
-              </TableHead>
+          <TableHead>
+            <button className="inline-flex items-center gap-1" onClick={() => handleSort("category")} data-testid="sort-category">
+              Categoría
+              {sortCol === "category" ? (sortDir === "asc" ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3" />}
+            </button>
+          </TableHead>
+          <TableHead>
+            <button className="inline-flex items-center gap-1" onClick={() => handleSort("borrowedEconomicNumber")} data-testid="sort-borrowedEconomicNumber">
+              Prestado de
+              {sortCol === "borrowedEconomicNumber" ? (sortDir === "asc" ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3" />}
+            </button>
+          </TableHead>
               <TableHead>
                 <button className="inline-flex items-center gap-1" onClick={() => handleSort("quantity")} data-testid="sort-quantity">
                   Stock
@@ -291,11 +313,16 @@ export function InventoryTable({ items }: InventoryTableProps) {
                 const isLowStock = item.quantity <= item.minQuantity;
                 return (
                   <TableRow key={item.id} data-testid={`row-item-${item.id}`}>
-                    <TableCell>
-                      <span className="font-mono text-sm" data-testid={`text-part-${item.id}`}>
-                        {item.partNumber || "N/A"}
-                      </span>
-                    </TableCell>
+                <TableCell>
+                  <span className="font-mono text-sm" data-testid={`text-part-${item.id}`}>
+                    {item.partNumber || "N/A"}
+                  </span>
+                </TableCell>
+                <TableCell>
+                  <span className="font-mono text-sm" data-testid={`text-sku-${item.id}`}>
+                    {item.sku || "N/A"}
+                  </span>
+                </TableCell>
                     <TableCell>
                       <div className="font-medium" data-testid={`text-name-${item.id}`}>
                         {item.name}
@@ -310,6 +337,11 @@ export function InventoryTable({ items }: InventoryTableProps) {
                       <Badge variant="secondary">
                         {getCategoryName(item)}
                       </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-sm text-muted-foreground" data-testid={`text-borrowed-${item.id}`}>
+                        {item.partCondition === "Prestado" ? (item.borrowedEconomicNumber || "N/A") : "—"}
+                      </span>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">

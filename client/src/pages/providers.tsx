@@ -12,8 +12,9 @@ import { queryClient } from "@/lib/queryClient";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Search, LayoutGrid, Rows, Filter } from "lucide-react";
+import { Search, LayoutGrid, Rows, Filter, MoreHorizontal } from "lucide-react";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 export default function ProvidersPage() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -100,6 +101,46 @@ export default function ProvidersPage() {
     return filteredProviders.slice(start, start + pageSize);
   }, [filteredProviders, safePage, pageSize]);
 
+  const exportProvidersCsv = () => {
+    const header = [
+      "Nombre",
+      "Nombre Comercial",
+      "Código",
+      "RFC",
+      "Régimen",
+      "Tipo",
+      "Teléfono",
+      "Email",
+      "Dirección",
+      "Calificación",
+      "Estatus",
+    ];
+    const rows = filteredProviders.map((p) => [
+      p.name,
+      p.tradeName ?? "",
+      p.code ?? "",
+      p.rfc ?? "",
+      p.regimen ?? "",
+      p.type ?? "",
+      p.phone ?? "",
+      p.email ?? "",
+      p.address ?? "",
+      String(p.rating ?? ""),
+      p.status ?? "",
+    ]);
+    const escape = (s: string) => '"' + s.replace(/"/g, '""') + '"';
+    const sep = ";";
+    const bom = "\ufeff";
+    const csv = bom + [header.map(escape).join(sep), ...rows.map((r) => r.map(escape).join(sep))].join("\r\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "proveedores.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="space-y-8">
       <div>
@@ -135,12 +176,25 @@ export default function ProvidersPage() {
                 className="hidden"
                 onChange={handleFileChange}
               />
-              <Button variant="outline" onClick={handleDownloadTemplate} data-testid="button-download-providers-template">
-                Descargar plantilla
-              </Button>
-              <Button variant="outline" onClick={handleClickImport} data-testid="button-import-providers-csv">
-                Importar CSV
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" data-testid="providers-actions-menu">
+                    Acciones
+                    <MoreHorizontal className="h-4 w-4 ml-2" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={handleDownloadTemplate} data-testid="menu-download-providers-template">
+                    Descargar plantilla
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleClickImport} data-testid="menu-import-providers-csv">
+                    Importar CSV
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={exportProvidersCsv} data-testid="menu-export-providers-excel">
+                    Exportar a Excel
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <AddProviderDialog />
             </div>
             <div className="flex flex-col sm:flex-row gap-2 sm:items-center">

@@ -71,7 +71,7 @@ export default function ChecklistTemplatesPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/checklist-templates"] });
-      toast({ title: "Plantilla creada", description: "La plantilla de checklist fue registrada." });
+      toast({ title: "Plantilla creada", description: "La plantilla de revisión fue registrada." });
       setOpen(false);
       setName("");
       setDescription("");
@@ -124,7 +124,7 @@ export default function ChecklistTemplatesPage() {
   if (!canManageTemplates) {
     return (
       <div className="space-y-6">
-        <h2 className="text-xl font-semibold">Plantillas de Checklists</h2>
+        <h2 className="text-xl font-semibold">Plantillas de Revisiones</h2>
         <div className="rounded-md border p-6 text-sm text-muted-foreground">No autorizado para administrar plantillas</div>
       </div>
     );
@@ -133,7 +133,7 @@ export default function ChecklistTemplatesPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold">Plantillas de Checklists</h2>
+        <h2 className="text-xl font-semibold">Plantillas de Revisiones</h2>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
             <Button>Crear Plantilla</Button>
@@ -164,7 +164,7 @@ export default function ChecklistTemplatesPage() {
               </div>
               <div>
                 <label className="text-sm font-medium">Descripción</label>
-                <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Checklist orientado al rol chofer" />
+                <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Revisión orientada al rol chofer" />
               </div>
               <div>
                 <label className="text-sm font-medium">Roles aplicables</label>

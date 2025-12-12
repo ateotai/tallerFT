@@ -32,7 +32,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Plus } from "lucide-react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { insertInventorySchema, type InsertInventory, type Provider, type InventoryCategory, type Workshop } from "@shared/schema";
+import { insertInventorySchema, type InsertInventory, type Provider, type InventoryCategory, type Workshop, type Vehicle } from "@shared/schema";
+import { VehicleSearchCombobox } from "@/components/vehicle-search-combobox";
+import { ProviderSearchCombobox } from "@/components/provider-search-combobox";
 
 export function AddInventoryDialog() {
   const [open, setOpen] = useState(false);
@@ -49,6 +51,9 @@ export function AddInventoryDialog() {
   const { data: workshops = [] } = useQuery<Workshop[]>({
     queryKey: ["/api/workshops"],
   });
+  const { data: vehicles = [] } = useQuery<Vehicle[]>({
+    queryKey: ["/api/vehicles"],
+  });
 
   const form = useForm<InsertInventory>({
     resolver: zodResolver(insertInventorySchema),
@@ -56,6 +61,7 @@ export function AddInventoryDialog() {
       name: "",
       categoryId: null,
       partNumber: "",
+      sku: "",
       quantity: 0,
       minQuantity: 0,
       maxQuantity: 0,
@@ -64,6 +70,8 @@ export function AddInventoryDialog() {
       providerId: null,
       workshopId: null,
       partCondition: "Nuevo",
+      borrowedFromVehicleId: null,
+      borrowedEconomicNumber: "",
       notes: "",
     },
   });
@@ -82,9 +90,23 @@ export function AddInventoryDialog() {
       setOpen(false);
     },
     onError: (error: Error) => {
+      const raw = error?.message || "";
+      if (raw.startsWith("409:")) {
+        const body = raw.slice(4).trim().replace(/^:\s*/, "");
+        try {
+          const parsed = JSON.parse(body);
+          const serverMsg = parsed?.error || "SKU ya existe";
+          form.setError("sku", { type: "manual", message: serverMsg });
+          toast({ title: "Error", description: serverMsg, variant: "destructive" });
+          return;
+        } catch {}
+        form.setError("sku", { type: "manual", message: "SKU ya existe" });
+        toast({ title: "Error", description: "SKU ya existe", variant: "destructive" });
+        return;
+      }
       toast({
         title: "Error",
-        description: error.message || "No se pudo crear el artículo",
+        description: raw || "No se pudo crear el artículo",
         variant: "destructive",
       });
     },
@@ -126,7 +148,7 @@ export function AddInventoryDialog() {
                       </FormControl>
                       <SelectContent>
                         <SelectItem value="Nuevo">Nuevo</SelectItem>
-                        <SelectItem value="En uso">En uso</SelectItem>
+                        <SelectItem value="Prestado">Prestado</SelectItem>
                         <SelectItem value="Remanofacturado">Remanofacturado</SelectItem>
                       </SelectContent>
                     </Select>
@@ -135,6 +157,45 @@ export function AddInventoryDialog() {
                 )}
               />
 
+              {form.watch("partCondition") === "Prestado" && (
+                <>
+                  <FormField
+                    control={form.control}
+                    name="borrowedFromVehicleId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Vehículo (Prestado de)</FormLabel>
+                        <FormControl>
+                          <VehicleSearchCombobox
+                            value={field.value}
+                            onValueChange={(v) => {
+                              field.onChange(v);
+                              const selected = vehicles.find(x => x.id === v);
+                              form.setValue("borrowedEconomicNumber", selected?.economicNumber || "");
+                            }}
+                            placeholder="Buscar vehículo"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="borrowedEconomicNumber"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Número Económico</FormLabel>
+                        <FormControl>
+                          <Input placeholder="ECO-001" {...field} value={field.value || ""} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </>
+              )}
+
               <FormField
                 control={form.control}
                 name="notes"
@@ -142,7 +203,7 @@ export function AddInventoryDialog() {
                   <FormItem>
                     <FormLabel>Nota</FormLabel>
                     <FormControl>
-                      <Textarea placeholder="Detalles adicionales de la refacción" {...field} />
+                      <Textarea placeholder="Detalles adicionales de la refacción" {...field} value={field.value || ""} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -156,6 +217,20 @@ export function AddInventoryDialog() {
                     <FormLabel>Número de Parte</FormLabel>
                     <FormControl>
                       <Input placeholder="FLT-001" {...field} value={field.value || ""} data-testid="input-part-number" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="sku"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>SKU</FormLabel>
+                    <FormControl>
+                      <Input placeholder="SKU-001" {...field} value={field.value || ""} data-testid="input-sku" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -306,24 +381,13 @@ export function AddInventoryDialog() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Proveedor (Opcional)</FormLabel>
-                    <Select
-                      onValueChange={(value) => field.onChange(value === "none" ? null : parseInt(value))}
-                      value={field.value?.toString() || "none"}
-                    >
-                      <FormControl>
-                        <SelectTrigger data-testid="select-provider">
-                          <SelectValue placeholder="Selecciona proveedor" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="none">Sin proveedor</SelectItem>
-                        {providers.map((provider) => (
-                          <SelectItem key={provider.id} value={provider.id.toString()}>
-                            {provider.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <FormControl>
+                      <ProviderSearchCombobox
+                        value={field.value ?? null}
+                        onValueChange={(v) => field.onChange(v)}
+                        placeholder="Seleccionar proveedor"
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}

@@ -62,8 +62,8 @@ export function AddClientDialog({ trigger }: { trigger?: React.ReactNode } = {})
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/clients"] });
       toast({
-        title: "Cliente agregado",
-        description: "El cliente ha sido agregado exitosamente.",
+        title: "Razón social agregada",
+        description: "La razón social ha sido agregada exitosamente.",
       });
       setOpen(false);
       form.reset();
@@ -71,7 +71,7 @@ export function AddClientDialog({ trigger }: { trigger?: React.ReactNode } = {})
     onError: (error: Error) => {
       toast({
         title: "Error",
-        description: error.message || "No se pudo agregar el cliente",
+        description: error.message || "No se pudo agregar la razón social",
         variant: "destructive",
       });
     },
@@ -87,15 +87,15 @@ export function AddClientDialog({ trigger }: { trigger?: React.ReactNode } = {})
         {trigger ?? (
           <Button data-testid="button-add-client">
             <Plus className="h-4 w-4 mr-2" />
-            Agregar Cliente
+            Agregar Razón Social
           </Button>
         )}
       </DialogTrigger>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Agregar Nuevo Cliente</DialogTitle>
+          <DialogTitle>Agregar Nueva Razón Social</DialogTitle>
           <DialogDescription>
-            Ingresa los datos del cliente.
+            Ingresa los datos de la razón social.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -193,7 +193,7 @@ export function AddClientDialog({ trigger }: { trigger?: React.ReactNode } = {})
                 Cancelar
               </Button>
               <Button type="submit" disabled={createMutation.isPending} data-testid="button-submit-client">
-                {createMutation.isPending ? "Guardando..." : "Guardar Cliente"}
+                {createMutation.isPending ? "Guardando..." : "Guardar Razón Social"}
               </Button>
             </DialogFooter>
           </form>
@@ -248,7 +248,7 @@ export function AddClientBranchDialog({ clientId: presetClientId, trigger }: { c
 
   const onSubmit = (data: InsertClientBranch) => {
     if (!data.clientId) {
-      toast({ title: "Cliente requerido", description: "Selecciona un cliente", variant: "destructive" });
+      toast({ title: "Razón social requerida", description: "Selecciona una razón social", variant: "destructive" });
       return;
     }
     createMutation.mutate(data);
@@ -267,18 +267,18 @@ export function AddClientBranchDialog({ clientId: presetClientId, trigger }: { c
       <DialogContent className="max-w-xl">
         <DialogHeader>
           <DialogTitle>Agregar Sucursal</DialogTitle>
-          <DialogDescription>Asocia una sucursal a un cliente existente.</DialogDescription>
+          <DialogDescription>Asocia una sucursal a una razón social existente.</DialogDescription>
         </DialogHeader>
         <Form {...form as any}>
           <form onSubmit={form.handleSubmit(onSubmit as any)} className="space-y-4">
             {!presetClientId && (
               <FormItem>
-                <FormLabel>Cliente</FormLabel>
+                <FormLabel>Razón Social</FormLabel>
                 <FormControl>
                   <ClientSearchCombobox
                     value={form.watch("clientId")}
                     onValueChange={(v) => form.setValue("clientId", v)}
-                    placeholder="Buscar cliente..."
+                    placeholder="Buscar razón social..."
                   />
                 </FormControl>
                 <FormMessage />

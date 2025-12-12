@@ -7,8 +7,13 @@ if (!process.env.DATABASE_URL) {
   throw new Error("DATABASE_URL is not set");
 }
 
+const url = new URL(process.env.DATABASE_URL);
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  host: url.hostname,
+  port: url.port ? parseInt(url.port, 10) : 5432,
+  user: decodeURIComponent(url.username),
+  password: decodeURIComponent(url.password),
+  database: url.pathname.replace(/^\//, ""),
   ssl: { rejectUnauthorized: false },
 });
 

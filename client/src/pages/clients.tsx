@@ -83,7 +83,7 @@ export default function ClientsPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "plantilla_clientes.csv";
+    a.download = "plantilla_razones_sociales.csv";
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -106,7 +106,7 @@ export default function ClientsPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "clientes.csv";
+    a.download = "razones_sociales.csv";
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -114,19 +114,19 @@ export default function ClientsPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-3xl font-bold mb-2">Clientes</h1>
+        <h1 className="text-3xl font-bold mb-2">Razones Sociales</h1>
         <p className="text-muted-foreground">
-          Gestión de clientes y sus vehículos
+          Gestión de razones sociales y sus vehículos
         </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="p-6 border rounded-md">
-          <p className="text-sm text-muted-foreground mb-1">Total Clientes</p>
+          <p className="text-sm text-muted-foreground mb-1">Total Razones Sociales</p>
           <p className="text-3xl font-bold" data-testid="stat-total-clients">{totalClients}</p>
         </div>
         <div className="p-6 border rounded-md">
-          <p className="text-sm text-muted-foreground mb-1">Clientes Activos</p>
+          <p className="text-sm text-muted-foreground mb-1">Razones Sociales Activas</p>
           <p className="text-3xl font-bold text-green-600" data-testid="stat-active-clients">
             {activeClients}
           </p>
@@ -137,7 +137,7 @@ export default function ClientsPage() {
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Buscar clientes..."
+            placeholder="Buscar razones sociales..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-10"
@@ -169,7 +169,7 @@ export default function ClientsPage() {
                   trigger={
                     <button className="w-full text-left flex items-center gap-2">
                       <Plus className="h-4 w-4" />
-                      Agregar Cliente
+                      Agregar Razón Social
                     </button>
                   }
                 />
@@ -217,11 +217,11 @@ export default function ClientsPage() {
 
       {isLoading ? (
         <div className="text-center py-12 text-muted-foreground">
-          Cargando clientes...
+          Cargando razones sociales...
         </div>
       ) : filteredClients.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground">
-          {searchQuery ? "No se encontraron clientes" : "No hay clientes registrados"}
+          {searchQuery ? "No se encontraron razones sociales" : "No hay razones sociales registradas"}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

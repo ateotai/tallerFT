@@ -1,4 +1,4 @@
-import { useEffect, useState, memo } from "react";
+import { useEffect, useState, useMemo, memo, useRef } from "react";
 import { Controller, useForm, useFormContext, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -11,12 +11,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
  
-import { Car, ClipboardPlus } from "lucide-react";
+import { Car, ClipboardPlus, Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { insertChecklistSchema, type InsertChecklist, type Vehicle } from "@shared/schema";
+import { insertChecklistSchema, type InsertChecklist, type Vehicle, type Checklist } from "@shared/schema";
 import { VehicleSearchCombobox } from "@/components/vehicle-search-combobox";
 import { EmployeeSearchCombobox } from "@/components/employee-search-combobox";
 import { UserSearchCombobox } from "@/components/user-search-combobox";
@@ -26,10 +27,10 @@ type ItemState = "good" | "regular" | "bad";
 interface AddChecklistDialogProps {
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
-  selectedTemplateId?: number | null;
+  editingChecklist?: Checklist | null;
 }
 
-export function AddChecklistDialog({ open: controlledOpen, onOpenChange, selectedTemplateId }: AddChecklistDialogProps) {
+export function AddChecklistDialog({ open: controlledOpen, onOpenChange, editingChecklist }: AddChecklistDialogProps) {
   const [internalOpen, setInternalOpen] = useState(false);
   const open = controlledOpen ?? internalOpen;
   const { toast } = useToast();
@@ -58,8 +59,10 @@ export function AddChecklistDialog({ open: controlledOpen, onOpenChange, selecte
       inspectorName: user?.fullName || "",
       reason: "scheduled_task",
       results: {},
+      evidenceUrl: "",
     },
   });
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const vehicleIdWatchForTemplate = form.watch("vehicleId") as number | undefined;
   const assignedUserId = vehicles.find(v => v.id === vehicleIdWatchForTemplate)?.assignedUserId ?? undefined;
@@ -94,34 +97,68 @@ export function AddChecklistDialog({ open: controlledOpen, onOpenChange, selecte
       return await res.json();
     },
   });
-  const { data: activeTemplate } = useQuery<any | null>({
-    queryKey: ["/api/checklist-templates", selectedTemplateId || "none"],
-    queryFn: async () => {
-      if (!selectedTemplateId) return null;
-      const res = await apiRequest("GET", `/api/checklist-templates/${selectedTemplateId}`);
-      return await res.json();
-    },
-    enabled: !!selectedTemplateId,
-  });
 
   useEffect(() => {
     if (open) {
-      form.reset({
-        vehicleId: 0,
-        type: "express",
-        driverName: user?.fullName || "",
-        inspectorName: user?.fullName || "",
-        reason: "scheduled_task",
-        results: {},
-      });
+      if (editingChecklist) {
+        const ec = editingChecklist as any;
+        form.reset({
+          vehicleId: ec.vehicleId ?? 0,
+          type: ec.type ?? "express",
+          driverName: ec.driverName ?? (user?.fullName || ""),
+          inspectorName: ec.inspectorName ?? (user?.fullName || ""),
+          reason: ec.reason ?? "scheduled_task",
+          handoverUserId: ec.handoverUserId ?? undefined,
+          inspectorEmployeeId: ec.inspectorEmployeeId ?? undefined,
+          plate: ec.plate ?? "",
+          economicNumber: ec.economicNumber ?? "",
+          brand: ec.brand ?? "",
+          model: ec.model ?? "",
+          year: ec.year ?? undefined,
+          mileage: ec.mileage ?? undefined,
+          fuelType: ec.fuelType ?? "",
+          results: (ec.results ?? {}) as any,
+          generalObservations: ec.generalObservations ?? "",
+          recommendations: ec.recommendations ?? "",
+          priority: ec.priority ?? undefined,
+          evidenceUrl: ec.evidenceUrl ?? "",
+          nextMaintenanceDate: ec.nextMaintenanceDate ? (new Date(ec.nextMaintenanceDate as any) as any) : undefined,
+        } as any);
+      } else {
+        form.reset({
+          vehicleId: 0,
+          type: "express",
+          driverName: user?.fullName || "",
+          inspectorName: user?.fullName || "",
+          reason: "scheduled_task",
+          results: {},
+          evidenceUrl: "",
+        });
+      }
     }
-  }, [open]);
+  }, [open, editingChecklist]);
 
-  useEffect(() => {
-    if (activeTemplate?.type) {
-      form.setValue("type", activeTemplate.type);
+  const resultsAll = useWatch({ name: "results", control: form.control }) as any;
+  const allAnswered = useMemo(() => {
+    let total = 0;
+    let marked = 0;
+    const list = Array.isArray(roleTemplates) ? roleTemplates : [];
+    for (const tpl of list) {
+      const secs = Array.isArray(tpl?.sections) ? tpl.sections : [];
+      for (const sec of secs) {
+        const title = String(sec?.title || "").trim() || "Sección";
+        const items = Array.isArray(sec?.items) ? sec.items : [];
+        for (const it of items) {
+          total += 1;
+          const state = resultsAll?.[title]?.[String(it)]?.state;
+          if (state) marked += 1;
+        }
+      }
     }
-  }, [activeTemplate]);
+    return total === 0 || marked === total;
+  }, [roleTemplates, resultsAll]);
+
+  
 
   const vehicleIdWatch = form.watch("vehicleId");
   useEffect(() => {
@@ -207,32 +244,73 @@ const Section = memo(function Section({ title, items }: { title: string; items: 
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/checklists"] });
-      toast({ title: "Checklist creado", description: "Se registró la revisión del vehículo." });
+      toast({ title: "Revisión creada", description: "Se registró la revisión del vehículo." });
       if (onOpenChange) onOpenChange(false); else setInternalOpen(false);
     },
     onError: (error: Error) => {
-      toast({ title: "Error", description: error.message || "No se pudo crear el checklist", variant: "destructive" });
+      toast({ title: "Error", description: error.message || "No se pudo crear la revisión", variant: "destructive" });
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async (data: InsertChecklist) => {
+      if (!editingChecklist) throw new Error("Sin revisión a editar");
+      const res = await apiRequest("PUT", `/api/checklists/${editingChecklist.id}` as any, data);
+      return await res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/checklists"] });
+      toast({ title: "Revisión actualizada", description: "Se guardaron los cambios." });
+      if (onOpenChange) onOpenChange(false); else setInternalOpen(false);
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message || "No se pudo actualizar la revisión", variant: "destructive" });
     },
   });
 
   function onSubmit(data: InsertChecklist) {
-    createMutation.mutate(data);
+    const list = Array.isArray(roleTemplates) ? roleTemplates : [];
+    let total = 0;
+    let marked = 0;
+    const results = form.getValues("results") as any;
+    for (const tpl of list) {
+      const secs = Array.isArray(tpl?.sections) ? tpl.sections : [];
+      for (const sec of secs) {
+        const title = String(sec?.title || "").trim() || "Sección";
+        const items = Array.isArray(sec?.items) ? sec.items : [];
+        for (const it of items) {
+          total += 1;
+          const state = results?.[title]?.[String(it)]?.state;
+          if (state) marked += 1;
+        }
+      }
+    }
+    if (!editingChecklist && total > 0 && marked < total) {
+      toast({ title: "Faltan respuestas", description: "Debes marcar todas las respuestas antes de guardar." });
+      return;
+    }
+    const payload = { ...data, results } as InsertChecklist;
+    if (editingChecklist) {
+      updateMutation.mutate(payload);
+    } else {
+      createMutation.mutate(payload);
+    }
   }
 
   return (
     <Dialog open={open} onOpenChange={(o) => (onOpenChange ? onOpenChange(o) : setInternalOpen(o))}>
-      {controlledOpen === undefined && (
+      {controlledOpen === undefined && !editingChecklist && (
         <DialogTrigger asChild>
           <Button data-testid="button-add-checklist">
             <ClipboardPlus className="h-4 w-4 mr-2" />
-            Nuevo Checklist
+            Nueva revisión
           </Button>
         </DialogTrigger>
       )}
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Registro de Checklist</DialogTitle>
-          <DialogDescription>Completa la revisión del vehículo.</DialogDescription>
+          <DialogTitle>{editingChecklist ? "Editar revisión" : "Nueva revisión"}</DialogTitle>
+          <DialogDescription>{editingChecklist ? "Actualiza la revisión del vehículo." : "Completa la revisión del vehículo."}</DialogDescription>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
@@ -257,7 +335,7 @@ const Section = memo(function Section({ title, items }: { title: string; items: 
                   name="type"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Tipo de checklist</FormLabel>
+                      <FormLabel>Tipo de revisión</FormLabel>
                       <FormControl>
                         <Select onValueChange={field.onChange} value={field.value}>
                           <SelectTrigger>
@@ -291,7 +369,7 @@ const Section = memo(function Section({ title, items }: { title: string; items: 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField control={form.control} name="reason" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Checklist por</FormLabel>
+                  <FormLabel>Revisión por</FormLabel>
                   <FormControl>
                     <Select onValueChange={field.onChange} value={field.value as any}>
                       <SelectTrigger>
@@ -331,12 +409,55 @@ const Section = memo(function Section({ title, items }: { title: string; items: 
               )}
             </div>
 
-            {activeTemplate?.sections && activeTemplate.sections.length > 0 ? (
-              activeTemplate.sections.map((sec: any) => (
-                <Section key={sec.title} title={sec.title} items={sec.items} />
-              ))
+            {Array.isArray(roleTemplates) && roleTemplates.length > 0 ? (
+              <Accordion type="multiple" className="w-full">
+                {roleTemplates.map((tpl: any) => (
+                  <AccordionItem key={tpl.id ?? tpl.name} value={String(tpl.id ?? tpl.name)}>
+                    <AccordionTrigger>
+                      {(() => {
+                        let total = 0;
+                        let marked = 0;
+                        const secs = Array.isArray(tpl?.sections) ? tpl.sections : [];
+                        for (const sec of secs) {
+                          const title = String(sec?.title || "").trim() || "Sección";
+                          const items = Array.isArray(sec?.items) ? sec.items : [];
+                          for (const it of items) {
+                            total += 1;
+                            const state = resultsAll?.[title]?.[String(it)]?.state;
+                            if (state) marked += 1;
+                          }
+                        }
+                        const remaining = Math.max(total - marked, 0);
+                        return (
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold">{tpl.name || "Plantilla"}</span>
+                            {total > 0 && (
+                              <span className="text-xs text-muted-foreground">{remaining}/{total} por marcar</span>
+                            )}
+                          </div>
+                        );
+                      })()}
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      {Array.isArray(tpl.sections) && tpl.sections.length > 0 ? (
+                        <div className="space-y-6">
+                          {tpl.sections.map((sec: any, idx: number) => (
+                            <Section
+                              key={`${tpl.id ?? tpl.name}-${idx}-${String(sec?.title || "Sección")}`}
+                              title={String(sec?.title || "Sección")}
+                              items={(Array.isArray(sec?.items) ? sec.items : []).map(String)}
+                            />
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-sm text-muted-foreground">Plantilla sin secciones</div>
+                      )}
+                    </AccordionContent>
+                  </AccordionItem>
+                ))}
+              </Accordion>
             ) : (
-              <div className="text-sm text-muted-foreground">Selecciona una plantilla para cargar las secciones del checklist.</div>
+              <div className="text-sm text-muted-foreground">No tienes plantillas asignadas. Contacta al administrador.</div>
             )}
 
             <div className="space-y-4">
@@ -349,33 +470,66 @@ const Section = memo(function Section({ title, items }: { title: string; items: 
                   </FormControl>
                 </FormItem>
               )} />
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <FormField control={form.control} name="priority" render={({ field }) => (
+              <div className="space-y-2">
+                <FormField control={form.control} name="evidenceUrl" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Prioridad</FormLabel>
+                    <FormLabel>Subir evidencia (obligatorio)</FormLabel>
                     <FormControl>
-                      <Select onValueChange={field.onChange} value={field.value as any}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleccionar" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="high">Alta</SelectItem>
-                          <SelectItem value="medium">Media</SelectItem>
-                          <SelectItem value="low">Baja</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="file"
+                          accept="image/png,image/jpeg,image/jpg,image/webp,image/svg+xml,application/pdf"
+                          ref={fileInputRef as any}
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            try {
+                              const fd = new FormData();
+                              fd.append("file", file);
+                              const res = await fetch("/api/checklists/upload", { method: "POST", body: fd, credentials: "include" });
+                              const ct = res.headers.get("content-type") || "";
+                              if (!res.ok) {
+                                if (ct.includes("application/json")) {
+                                  const j = await res.json();
+                                  throw new Error(j?.error || "Error al subir archivo");
+                                }
+                                const t = await res.text();
+                                throw new Error(t || "Error al subir archivo");
+                              }
+                              const data = ct.includes("application/json") ? await res.json() : JSON.parse(await res.text());
+                              const url = data?.url as string | undefined;
+                              if (!url) throw new Error("Respuesta inválida");
+                              field.onChange(url);
+                              toast({ title: "Evidencia subida", description: "Archivo cargado correctamente" });
+                            } catch (err: any) {
+                              toast({ title: "Error", description: err?.message || "No se pudo subir el archivo", variant: "destructive" });
+                            } finally {
+                              e.currentTarget.value = "";
+                            }
+                          }}
+                        />
+                        <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()}>
+                          <Upload className="h-4 w-4 mr-2" />
+                          Subir archivo
+                        </Button>
+                        {field.value && (
+                          <a href={field.value as any} target="_blank" rel="noreferrer" className="text-sm text-blue-600 underline">Ver evidencia</a>
+                        )}
+                      </div>
                     </FormControl>
                   </FormItem>
                 )} />
-                
               </div>
             </div>
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => (onOpenChange ? onOpenChange(false) : setInternalOpen(false))}>Cancelar</Button>
-              <Button type="submit" disabled={createMutation.isPending} data-testid="button-submit-checklist">
-                {createMutation.isPending ? "Guardando..." : "Guardar Checklist"}
+              <Button
+                type="submit"
+                disabled={(editingChecklist ? updateMutation.isPending : createMutation.isPending) || (!allAnswered && !editingChecklist) || !form.watch("evidenceUrl")}
+                data-testid={editingChecklist ? "button-submit-edit-checklist" : "button-submit-checklist"}
+              >
+                {editingChecklist ? (updateMutation.isPending ? "Guardando..." : "Guardar cambios") : (createMutation.isPending ? "Guardando..." : "Guardar revisión")}
               </Button>
             </DialogFooter>
           </form>

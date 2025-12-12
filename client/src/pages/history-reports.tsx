@@ -199,6 +199,8 @@ export default function HistoryReportsPage() {
     win.print();
   };
 
+  const fmt = (n: number) => Number(n).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
   const reportData = useMemo(() => {
     const toDate = (s: string) => (s ? new Date(s) : undefined);
     const sD = toDate(repStart);
@@ -282,7 +284,7 @@ export default function HistoryReportsPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="text-sm text-muted-foreground">Total: ${reportData.grand.toLocaleString()}</div>
+            <div className="text-sm text-muted-foreground">Total: ${fmt(reportData.grand as number)}</div>
           </div>
 
           {error ? (
@@ -305,8 +307,8 @@ export default function HistoryReportsPage() {
                     <BarChart data={reportData.barData}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="name" />
-                      <YAxis />
-                      <Tooltip />
+                      <YAxis tickFormatter={(v) => fmt(v as number)} />
+                      <Tooltip formatter={(value, name) => [fmt(value as number), name as string]} />
                       <Legend />
                       <Bar dataKey="total" name={reportData.barName} fill="#3b82f6" />
                     </BarChart>
@@ -325,8 +327,8 @@ export default function HistoryReportsPage() {
                     <LineChart data={reportData.byDay}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="date" />
-                      <YAxis />
-                      <Tooltip />
+                      <YAxis tickFormatter={(v) => fmt(v as number)} />
+                      <Tooltip formatter={(value, name) => [fmt(value as number), name as string]} />
                       <Legend />
                       <Line type="monotone" dataKey="total" name="Total por día" stroke="#10b981" strokeWidth={2} dot={false} />
                     </LineChart>
@@ -345,9 +347,9 @@ export default function HistoryReportsPage() {
                 </Button>
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
-                    <Tooltip />
+                    <Tooltip formatter={(value, name) => [fmt(value as number), name as string]} />
                     <Legend />
-                    <Pie data={reportData.barData} dataKey="total" nameKey="name" outerRadius={110} label>
+                    <Pie data={reportData.barData} dataKey="total" nameKey="name" outerRadius={110} label={(entry) => fmt((entry as any).value)}>
                       {reportData.barData.map((_, i) => (
                         <Cell key={i} fill={["#3b82f6", "#f59e0b", "#ef4444", "#10b981", "#8b5cf6", "#22c55e", "#06b6d4", "#fb7185"][i % 8]} />
                       ))}

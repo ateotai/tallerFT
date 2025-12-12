@@ -55,7 +55,7 @@ const mainMenuItems = [
   { title: "Vehículos", url: "/vehiculos", icon: Car },
   { title: "Proveedores", url: "/proveedores", icon: Users },
   { title: "Cotización de compras", url: "/cotizaciones", icon: ShoppingCart },
-  { title: "Reportes", url: "/reportes", icon: BarChart3 },
+  { title: "Informes", url: "/reportes", icon: BarChart3 },
   { title: "Consulta de historial", url: "/consulta-historial", icon: History },
   
 ];
@@ -80,7 +80,7 @@ const maintenanceMenuItems = [
 
 const checklistsMenuItems = [
   {
-    title: "Checklists",
+    title: "Tareas de Revision",
     url: "/checklists",
     icon: ClipboardCheck,
   },
@@ -88,7 +88,7 @@ const checklistsMenuItems = [
 
 const checklistsSubMenuItems = [
   {
-    title: "Historial de Checklists",
+    title: "Historial de Tareas de Revision",
     url: "/checklists/historial",
     icon: History,
   },
@@ -172,6 +172,7 @@ export function AppSidebar() {
     "Clientes": "Clientes",
     "Inventario": "Inventario",
     "Reportes": "Reportes",
+    "Informes": "Reportes",
     "Consulta de historial": "Consulta de historial",
     "Reportes de historial": "Reportes",
     "Vehículos": "Vehículos",
@@ -179,8 +180,8 @@ export function AppSidebar() {
     "Evaluación y Diagnóstico": "Evaluación y Diagnóstico",
     "Órdenes de Trabajo": "Órdenes de Trabajo",
     "Prueba y Validación": "Prueba y Validación",
-    "Checklists": "Checklists",
-    "Historial de Checklists": "Checklists",
+    "Tareas de Revision": "Checklists",
+    "Historial de Tareas de Revision": "Checklists",
     "Plantillas": "Checklists",
     // Empresa
     "Talleres": "Talleres",
@@ -214,11 +215,12 @@ export function AppSidebar() {
   }
 
   const requiredPermByTitle: Record<string, { name: string; module: string }> = {
-    "Historial de Checklists": { name: "Ver historial de checklists", module: "Checklists" },
+    "Historial de Tareas de Revision": { name: "Ver historial de checklists", module: "Checklists" },
     "Plantillas": { name: "Administrar plantillas", module: "Checklists" },
-    "Checklists": { name: "Ver checklists", module: "Checklists" },
+    "Tareas de Revision": { name: "Ver checklists", module: "Checklists" },
     // Reportes
     "Reportes": { name: "Ver reportes", module: "Reportes" },
+    "Informes": { name: "Ver reportes", module: "Reportes" },
     "Consulta de historial": { name: "Ver consulta de historial", module: "Consulta de historial" },
     "Reportes de historial": { name: "Ver reportes", module: "Reportes" },
   };
@@ -292,7 +294,7 @@ export function AppSidebar() {
                     >
                       <Link href={item.url}>
                         <item.icon className="h-5 w-5" />
-                        <span>{item.title}</span>
+                        <span>{item.title === "Clientes" ? "Razones Sociales" : item.title}</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -356,7 +358,7 @@ export function AppSidebar() {
         {/* Checklists debe ir antes de Gestión de servicios según el orden requerido */}
         {filteredChecklistsSub.length > 0 && (
         <SidebarGroup>
-          <SidebarGroupLabel>Checklists</SidebarGroupLabel>
+          <SidebarGroupLabel>Tareas de Revision</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               <Collapsible
@@ -371,7 +373,7 @@ export function AppSidebar() {
                       isActive={isChecklistsActive}
                     >
                       <ClipboardCheck className="h-5 w-5" />
-                      <span>Checklists</span>
+                      <span>Tareas de Revision</span>
                       <ChevronDown className="ml-auto h-4 w-4 transition-transform group-data-[state=open]/collapsible:rotate-180" />
                     </SidebarMenuButton>
                   </CollapsibleTrigger>
