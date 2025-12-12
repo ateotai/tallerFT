@@ -15,8 +15,8 @@ export default function IssueReportsPage() {
     refetchOnMount: "always",
   });
 
-  const pendingCount = reports.filter((r) => r.status === "pending").length;
-  const inProgressCount = reports.filter((r) => r.status === "in_progress").length;
+  const pendingCount = reports.filter((r) => r.status === "nuevo" || r.status === "pending").length;
+  const inProgressCount = reports.filter((r) => r.status === "preliminares" || r.status === "in_progress").length;
   const resolvedCount = reports.filter((r) => r.status === "resolved").length;
 
   const filteredReports = reports.filter((report) =>
@@ -52,7 +52,7 @@ export default function IssueReportsPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Pendientes
+              Nuevos
             </CardTitle>
             <Clock className="h-5 w-5 text-muted-foreground" />
           </CardHeader>
@@ -67,7 +67,7 @@ export default function IssueReportsPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              En Proceso
+              Preliminares
             </CardTitle>
             <AlertCircle className="h-5 w-5 text-muted-foreground" />
           </CardHeader>

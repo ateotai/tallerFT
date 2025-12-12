@@ -36,6 +36,9 @@ interface IssueReportsTableProps {
 }
 
 const statusColors = {
+  nuevo: "bg-orange-500/10 text-orange-700 dark:text-orange-400",
+  preliminares: "bg-yellow-500/10 text-yellow-700 dark:text-yellow-400",
+  "en_transito/rescate": "bg-blue-500/10 text-blue-700 dark:text-blue-400",
   pending: "bg-orange-500/10 text-orange-700 dark:text-orange-400",
   in_progress: "bg-blue-500/10 text-blue-700 dark:text-blue-400",
   asignado: "bg-indigo-500/10 text-indigo-700 dark:text-indigo-400",
@@ -44,7 +47,10 @@ const statusColors = {
 };
 
 const statusLabels = {
-  pending: "Pendiente",
+  nuevo: "Nuevo",
+  preliminares: "Preliminares",
+  "en_transito/rescate": "En tránsito/Rescate",
+  pending: "Nuevo",
   in_progress: "En Proceso",
   asignado: "Asignado",
   diagnostico: "En Diagnóstico",
@@ -134,7 +140,7 @@ export function IssueReportsTable({ reports }: IssueReportsTableProps) {
       // Actualizar optimistamente y forzar refetch
       queryClient.setQueryData<Report[] | undefined>(["/api/reports"], (old) => {
         if (!old) return old;
-        return old.map(r => r.id === id ? { ...r, status: "pending", assignedToEmployeeId: null, assignedAt: null } as any : r);
+        return old.map(r => r.id === id ? { ...r, status: "nuevo", assignedToEmployeeId: null, assignedAt: null } as any : r);
       });
       queryClient.invalidateQueries({ queryKey: ["/api/reports"] });
       queryClient.refetchQueries({ queryKey: ["/api/reports"] });
@@ -190,8 +196,9 @@ export function IssueReportsTable({ reports }: IssueReportsTableProps) {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos</SelectItem>
-              <SelectItem value="pending">Pendiente</SelectItem>
-              <SelectItem value="in_progress">En Proceso</SelectItem>
+              <SelectItem value="nuevo">Nuevo</SelectItem>
+              <SelectItem value="preliminares">Preliminares</SelectItem>
+              <SelectItem value="en_transito/rescate">En tránsito/Rescate</SelectItem>
               <SelectItem value="asignado">Asignado</SelectItem>
               <SelectItem value="diagnostico">En Diagnóstico</SelectItem>
               <SelectItem value="resolved">Resuelto</SelectItem>
@@ -304,7 +311,7 @@ export function IssueReportsTable({ reports }: IssueReportsTableProps) {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
-                      {(currentUserRole === "admin" || currentUserRole === "administrador") && report.status === "pending" && (
+                      {(currentUserRole === "admin" || currentUserRole === "administrador") && report.status === "nuevo" && (
                         <Button
                           variant="ghost"
                           size="icon"

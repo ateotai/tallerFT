@@ -218,7 +218,7 @@ export const scheduledMaintenance = pgTable("scheduled_maintenance", {
   nextDueDate: timestamp("next_due_date").notNull(),
   nextDueMileage: integer("next_due_mileage"),
   estimatedCost: real("estimated_cost"),
-  status: text("status").notNull().default("pending"),
+  status: text("status").notNull().default("nuevo"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -252,6 +252,7 @@ export const inventory = pgTable("inventory", {
   name: text("name").notNull(),
   categoryId: integer("category_id").references(() => inventoryCategories.id),
   partNumber: text("part_number").unique(),
+  sku: text("sku").unique(),
   quantity: integer("quantity").notNull().default(0),
   minQuantity: integer("min_quantity").notNull().default(0),
   maxQuantity: integer("max_quantity").notNull().default(0),
@@ -259,6 +260,8 @@ export const inventory = pgTable("inventory", {
   location: text("location"),
   providerId: integer("provider_id").references(() => providers.id),
   partCondition: text("part_condition").notNull().default("Nuevo"),
+  borrowedFromVehicleId: integer("borrowed_from_vehicle_id").references(() => vehicles.id),
+  borrowedEconomicNumber: text("borrowed_economic_number"),
   notes: text("notes"),
   workshopId: integer("workshop_id").references(() => workshops.id),
   createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -270,7 +273,10 @@ export const insertInventorySchema = createInsertSchema(inventory)
     createdAt: true,
   })
   .extend({
-    partCondition: z.enum(["Nuevo", "En uso", "Remanofacturado"]),
+    partCondition: z.enum(["Nuevo", "Prestado", "Remanofacturado"]),
+    borrowedFromVehicleId: z.number().int().nullable(),
+    borrowedEconomicNumber: z.string().nullable(),
+    sku: z.string().nullable(),
   });
 export type InsertInventory = z.infer<typeof insertInventorySchema>;
 export type Inventory = typeof inventory.$inferSelect;
@@ -664,17 +670,20 @@ export const checklists = pgTable("checklists", {
   inspectorEmployeeId: integer("inspector_employee_id").references(() => employees.id),
   reason: text("reason").notNull().default("scheduled_task"),
   handoverUserId: integer("handover_user_id").references(() => users.id),
+  createdByUserId: integer("created_by_user_id").references(() => users.id),
   results: jsonb("results").$type<Record<string, any>>().default({}),
   generalObservations: text("general_observations"),
   recommendations: text("recommendations"),
   priority: text("priority"),
+  evidenceUrl: text("evidence_url"),
+  status: text("status").notNull().default("operando"),
   nextMaintenanceDate: timestamp("next_maintenance_date"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
 export const insertChecklistSchema = createInsertSchema(checklists)
-  .omit({ id: true, createdAt: true })
-  .extend({ inspectedAt: z.coerce.date().optional(), nextMaintenanceDate: z.coerce.date().optional() });
+  .omit({ id: true, createdAt: true, status: true, createdByUserId: true })
+  .extend({ inspectedAt: z.coerce.date().optional(), nextMaintenanceDate: z.coerce.date().optional(), evidenceUrl: z.string().min(1, "Archivo obligatorio") });
 export type InsertChecklist = z.infer<typeof insertChecklistSchema>;
 export type Checklist = typeof checklists.$inferSelect;
 

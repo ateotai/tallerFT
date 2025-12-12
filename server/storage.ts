@@ -149,6 +149,7 @@ export interface IStorage {
   getInventoryItem(id: number): Promise<Inventory | undefined>;
   createInventoryItem(item: InsertInventory): Promise<Inventory>;
   updateInventoryItem(id: number, item: Partial<InsertInventory>): Promise<Inventory | undefined>;
+  getInventoryItemBySKU(sku: string): Promise<Inventory | undefined>;
   getInventoryItemByPartNumber(partNumber: string): Promise<Inventory | undefined>;
   deleteInventoryItem(id: number): Promise<boolean>;
   
@@ -684,6 +685,11 @@ export class DbStorage implements IStorage {
     return result[0];
   }
 
+  async getInventoryItemBySKU(sku: string): Promise<Inventory | undefined> {
+    const result = await db.select().from(schema.inventory).where(eq(schema.inventory.sku, sku)).limit(1);
+    return result[0];
+  }
+
   async getInventoryItemByPartNumber(partNumber: string): Promise<Inventory | undefined> {
     const result = await db.select().from(schema.inventory).where(eq(schema.inventory.partNumber, partNumber)).limit(1);
     return result[0];
@@ -757,10 +763,18 @@ export class DbStorage implements IStorage {
 
   async rejectReport(id: number): Promise<Report | undefined> {
     const result = await db.update(schema.reports)
-      .set({ status: "pending", assignedToEmployeeId: null, assignedAt: null })
+      .set({ status: "nuevo", assignedToEmployeeId: null, assignedAt: null })
       .where(eq(schema.reports.id, id))
       .returning();
     return result[0];
+  }
+
+  async migratePendingReportsToNuevo(): Promise<{ updated: number }> {
+    const result = await db.update(schema.reports)
+      .set({ status: "nuevo" })
+      .where(eq(schema.reports.status, "pending"))
+      .returning();
+    return { updated: result.length };
   }
 
   async clearReports(): Promise<void> {

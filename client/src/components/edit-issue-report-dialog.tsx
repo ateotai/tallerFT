@@ -36,7 +36,17 @@ import type { Report, InsertReport } from "@shared/schema";
 import { z } from "zod";
 
 const formSchema = insertReportSchema.extend({
-  status: z.enum(["pending", "in_progress", "resolved"]),
+  status: z.enum([
+    "nuevo",
+    "preliminares",
+    "en_transito/rescate",
+    "resolved",
+    "pending",
+    "in_progress",
+    "asignado",
+    "diagnostico",
+    "validated",
+  ]),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -64,7 +74,7 @@ export function EditIssueReportDialog({ report, open, onOpenChange }: EditIssueR
       userId: report.userId,
       description: report.description,
       notes: report.notes || "",
-      status: report.status,
+      status: report.status as any,
       images: Array.isArray(report.images) ? report.images : [],
       audioUrl: report.audioUrl || undefined,
     },
@@ -78,7 +88,7 @@ export function EditIssueReportDialog({ report, open, onOpenChange }: EditIssueR
         userId: report.userId,
         description: report.description,
         notes: report.notes || "",
-        status: report.status,
+        status: report.status as any,
         images: reportImages,
         audioUrl: report.audioUrl || undefined,
       });
@@ -254,8 +264,9 @@ export function EditIssueReportDialog({ report, open, onOpenChange }: EditIssueR
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="pending">Pendiente</SelectItem>
-                      <SelectItem value="in_progress">En Proceso</SelectItem>
+                      <SelectItem value="nuevo">Nuevo</SelectItem>
+                      <SelectItem value="preliminares">Preliminares</SelectItem>
+                      <SelectItem value="en_transito/rescate">En tránsito/Rescate</SelectItem>
                       <SelectItem value="resolved">Resuelto</SelectItem>
                     </SelectContent>
                   </Select>

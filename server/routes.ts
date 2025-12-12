@@ -85,6 +85,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (match) {
         const vid = match[1];
         cb(null, `vehicle-${vid}-${ts}${ext}`);
+      } else if (req.path.startsWith("/api/checklists/upload")) {
+        cb(null, `checklist-evidence-${ts}${ext}`);
       } else {
         cb(null, `company-logo-${ts}${ext}`);
       }
@@ -93,14 +95,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const upload = multer({
     storage: storageEngine,
     limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
-    fileFilter: (_req, file, cb) => {
-      const allowed = [
+    fileFilter: (req, file, cb) => {
+      const baseAllowed = [
         "image/png",
         "image/jpeg",
         "image/jpg",
         "image/webp",
         "image/svg+xml",
       ];
+      const extraAllowed = ["application/pdf"];
+      const allowed = req.path.startsWith("/api/checklists/upload") ? [...baseAllowed, ...extraAllowed] : baseAllowed;
       if (allowed.includes(file.mimetype)) cb(null, true);
       else cb(new Error("Tipo de archivo no permitido"));
     },
@@ -683,9 +687,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      const type = typeof req.query.type === "string" ? String(req.query.type).toLowerCase() : "";
-      if (type === "express" || type === "completo") {
-        filtered = filtered.filter((c) => (c.type || "").toLowerCase() === type);
+      const status = typeof req.query.status === "string" ? String(req.query.status).toLowerCase() : "";
+      if (status === "operando" || status === "operando_con_falla") {
+        filtered = filtered.filter((c) => (String((c as any).status || "").toLowerCase()) === status);
       }
 
       const vehicleIdParam = typeof req.query.vehicleId === "string" ? Number(req.query.vehicleId) : undefined;
@@ -720,6 +724,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/checklists/upload", upload.single("file"), async (req, res) => {
+    try {
+      const file = req.file as Express.Multer.File | undefined;
+      if (!file) {
+        return res.status(400).json({ error: "Archivo requerido" });
+      }
+      const publicUrl = `/uploads/${file.filename}`;
+      res.status(201).json({ url: publicUrl });
+    } catch (error) {
+      console.error("Error uploading checklist evidence:", error);
+      res.status(500).json({ error: "Error al subir archivo" });
+    }
+  });
+
   app.get("/api/checklists/:id", async (req, res) => {
     try {
       const id = validateId(req.params.id);
@@ -746,7 +764,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (validatedData.type === "completo" && user.role !== "admin") {
         return res.status(403).json({ error: "Solo administradores pueden crear checklist completo" });
       }
-      const checklist = await storage.createChecklist(validatedData);
+      // Crear con estado base; recalcular usando resultados guardados para máxima confiabilidad
+      const payload = { ...validatedData, status: "operando", createdByUserId: user.id } as any;
+      let checklist = await storage.createChecklist(payload);
+      const savedResults = (checklist as any).results || {};
+      const hasFailure = (() => {
+        const hasNoDeep = (node: any): boolean => {
+          if (node == null) return false;
+          if (typeof node !== "object") {
+            const v = String(node).toLowerCase();
+            return v === "no";
+          }
+          if (Array.isArray(node)) {
+            for (const it of node) { if (hasNoDeep(it)) return true; }
+            return false;
+          }
+          if (typeof node === "object") {
+            for (const [k, v] of Object.entries(node)) {
+              if (String(k).toLowerCase() === "state" && String(v).toLowerCase() === "no") return true;
+              if (hasNoDeep(v)) return true;
+            }
+            return false;
+          }
+          return false;
+        };
+        // Preferir resultados guardados; si están vacíos, usar los del payload
+        return hasNoDeep(savedResults) || hasNoDeep((validatedData as any).results || {});
+      })();
+      const desiredStatus = hasFailure ? "operando_con_falla" : "operando";
+      if ((checklist as any).status !== desiredStatus) {
+        const updated = await storage.updateChecklist(checklist.id, { status: desiredStatus } as any);
+        if (updated) checklist = updated;
+      }
       // Asignar folio si no viene
       if (!checklist.folio) {
         const withFolio = await storage.updateChecklist(checklist.id, { folio: `CL-${checklist.id}` });
@@ -773,14 +822,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.session.userId;
       const user = userId ? await storage.getUser(userId) : undefined;
       if (!user) return res.status(401).json({ error: "No autenticado" });
+      const existing = await storage.getChecklist(id);
+      if (!existing) return res.status(404).json({ error: "Checklist no encontrado" });
+      const roleText = (user.role || '').toLowerCase();
+      const isAdmin = roleText === 'admin' || roleText === 'administrador';
+      const creatorId = (existing as any).createdByUserId as number | undefined;
+      const isCreator = creatorId != null && creatorId === user.id;
+      if (!isAdmin && !isCreator) {
+        return res.status(403).json({ error: "No autorizado para editar esta revisión" });
+      }
       if (validatedData.type === "completo" && user.role !== "admin") {
         return res.status(403).json({ error: "Solo administradores pueden asignar checklist completo" });
       }
-      const checklist = await storage.updateChecklist(id, validatedData);
-      if (!checklist) {
+      // Determinar resultados efectivos (si el body trajo resultados, usar esos; si no, usar los actuales)
+      const nextResults = (validatedData.results ?? (existing as any).results ?? {}) as Record<string, any>;
+      const hasFailureBodyAware = (() => {
+        const hasNoDeep = (node: any): boolean => {
+          if (node == null) return false;
+          if (typeof node !== "object") {
+            const v = String(node).toLowerCase();
+            return v === "no";
+          }
+          if (Array.isArray(node)) {
+            for (const it of node) { if (hasNoDeep(it)) return true; }
+            return false;
+          }
+          if (typeof node === "object") {
+            for (const [k, v] of Object.entries(node)) {
+              if (String(k).toLowerCase() === "state" && String(v).toLowerCase() === "no") return true;
+              if (hasNoDeep(v)) return true;
+            }
+            return false;
+          }
+          return false;
+        };
+        return hasNoDeep(nextResults);
+      })();
+      // Aplicar actualización incluyendo status calculado
+      const updateData: any = { ...validatedData, status: hasFailureBodyAware ? "operando_con_falla" : "operando" };
+      const updatedChecklist = await storage.updateChecklist(id, updateData);
+      if (!updatedChecklist) {
         return res.status(404).json({ error: "Checklist no encontrado" });
       }
-      res.json(checklist);
+      res.json(updatedChecklist);
     } catch (error) {
       if (error instanceof ZodError) {
         return res.status(400).json({ error: "Datos inválidos", details: error.errors });
@@ -2088,6 +2172,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const isAdmin = roleText === 'admin' || roleText === 'administrador';
       if (!isAdmin) return res.status(403).json({ error: "No autorizado" });
       const header = [
+        "sku",
         "partNumber",
         "name",
         "partCondition",
@@ -2102,8 +2187,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       ];
       const explanation = [
         "SKU único (obligatorio)",
+        "Número de parte (opcional)",
         "Nombre del artículo (obligatorio)",
-        "Nuevo|En uso|Remanofacturado",
+        "Nuevo|Prestado|Remanofacturado",
         "Nombre de la categoría (opcional)",
         "Cantidad numérica (obligatorio)",
         "Stock mínimo (opcional)",
@@ -2168,7 +2254,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const header = parseCsvLine(lines[0]).map((h) => h.trim());
       const expected = [
-        "partNumber","name","partCondition","categoryName","quantity","minQuantity","maxQuantity","unitPrice","location","workshopName","notes"
+        "sku","partNumber","name","partCondition","categoryName","quantity","minQuantity","maxQuantity","unitPrice","location","workshopName","notes"
       ];
       const matchesHeader = expected.every((e, idx) => (header[idx] || "").toLowerCase() === e.toLowerCase());
       const startIdx = matchesHeader ? 1 : 0; // allow files without header if user removed it
@@ -2176,7 +2262,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let dataStart = startIdx;
       if (lines[dataStart]) {
         const cols = parseCsvLine(lines[dataStart]);
-        if (cols[4] && isNaN(Number(cols[4]))) dataStart++;
+        if (cols[5] && isNaN(Number(cols[5]))) dataStart++;
       }
 
       const categories = await storage.getInventoryCategories();
@@ -2187,9 +2273,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       for (let li = dataStart; li < lines.length; li++) {
         const row = parseCsvLine(lines[li]);
         if (row.length === 1 && row[0] === "") continue;
-        const [partNumber, name, partCondition, categoryName, quantityStr, minStr, maxStr, unitPriceStr, location, workshopName, notes] = row;
+        const [sku, partNumber, name, partCondition, categoryName, quantityStr, minStr, maxStr, unitPriceStr, location, workshopName, notes] = row;
         const rowNum = li + 1;
-        if (!partNumber) { summary.errors.push({ row: rowNum, error: "Falta partNumber" }); continue; }
+        if (!sku) { summary.errors.push({ row: rowNum, error: "Falta sku" }); continue; }
         if (!name) { summary.errors.push({ row: rowNum, error: "Falta nombre" }); continue; }
         const quantity = Number(quantityStr ?? "");
         const unitPrice = Number(unitPriceStr ?? "");
@@ -2200,9 +2286,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const categoryId = categoryName ? (categories.find(c => (c.name || '').toLowerCase() === (categoryName||'').toLowerCase())?.id ?? null) : null;
         const workshopId = workshopName ? (workshops.find(w => (w.name || '').toLowerCase() === (workshopName||'').toLowerCase())?.id ?? null) : null;
         const normalizedCondition = (partCondition || "Nuevo").trim();
-        const cond = ["Nuevo","En uso","Remanofacturado"].includes(normalizedCondition) ? normalizedCondition as any : "Nuevo";
+        const cond = ["Nuevo","Prestado","Remanofacturado"].includes(normalizedCondition) ? normalizedCondition as any : "Nuevo";
 
-        const existing = await storage.getInventoryItemByPartNumber(partNumber);
+        let existing = await storage.getInventoryItemBySKU(sku);
+        if (!existing && partNumber) {
+          existing = await storage.getInventoryItemByPartNumber(partNumber);
+        }
         if (existing) {
           // Only update quantities; keep other fields unless provided
           const updated = await storage.updateInventoryItem(existing.id, {
@@ -2218,6 +2307,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               name,
               categoryId,
               partNumber,
+              sku,
               quantity,
               minQuantity: Number.isFinite(minQuantity) ? minQuantity : 0,
               maxQuantity: Number.isFinite(maxQuantity) ? maxQuantity : 0,
@@ -2424,7 +2514,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/inventory", async (req, res) => {
     try {
-      const validatedData = insertInventorySchema.parse(req.body);
+      const rawSku = typeof req.body.sku === "string" ? req.body.sku.trim() : req.body.sku;
+      const normalizedSku = rawSku && typeof rawSku === "string" && rawSku.length ? rawSku : null;
+      const validatedData = insertInventorySchema.parse({ ...req.body, sku: normalizedSku });
+      if (validatedData.sku) {
+        const existing = await storage.getInventoryItemBySKU(validatedData.sku);
+        if (existing) {
+          return res.status(409).json({ error: "SKU ya existe" });
+        }
+      }
       const item = await storage.createInventoryItem(validatedData);
       res.status(201).json(item);
     } catch (error) {
@@ -2442,7 +2540,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (id === null) {
         return res.status(400).json({ error: "ID inválido" });
       }
-      const validatedData = insertInventorySchema.partial().parse(req.body);
+      const rawSku = typeof req.body.sku === "string" ? req.body.sku.trim() : req.body.sku;
+      const normalizedSku = rawSku && typeof rawSku === "string" && rawSku.length ? rawSku : null;
+      const validatedData = insertInventorySchema.partial().parse({ ...req.body, sku: normalizedSku });
+      if (validatedData.sku) {
+        const existing = await storage.getInventoryItemBySKU(validatedData.sku);
+        if (existing && existing.id !== id) {
+          return res.status(409).json({ error: "SKU ya existe" });
+        }
+      }
       const item = await storage.updateInventoryItem(id, validatedData);
       if (!item) {
         return res.status(404).json({ error: "Artículo no encontrado" });
@@ -2665,7 +2771,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "ID inválido" });
       }
       const updateSchema = insertReportSchema.partial().extend({
-        status: z.enum(["pending", "in_progress", "resolved"]).optional(),
+        status: z.enum(["nuevo", "preliminares", "en_transito/rescate", "resolved", "pending", "in_progress", "asignado", "diagnostico", "validated"]).optional(),
       });
       const validatedData = updateSchema.parse(req.body);
       const report = await storage.updateReport(id, validatedData);
@@ -3071,7 +3177,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.createNotification({
         type: "report",
         title: "Reporte rechazado",
-        message: `El reporte #${id} fue rechazado y regresó a pendiente`,
+        message: `El reporte #${id} fue rechazado y regresó a nuevo`,
         read: false,
       });
 
@@ -3103,6 +3209,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error clearing reports:", error);
       res.status(500).json({ error: "Error al eliminar reportes" });
+    }
+  });
+
+  app.post("/api/reports/migrate-pending-to-nuevo", async (req, res) => {
+    try {
+      const currentUserId = req.session.userId;
+      const currentUser = currentUserId ? await storage.getUser(currentUserId) : undefined;
+      const roleText = (currentUser?.role || '').toLowerCase();
+      if (!currentUser || (roleText !== 'admin' && roleText !== 'administrador')) {
+        return res.status(403).json({ error: "Solo el administrador puede ejecutar la migración" });
+      }
+      const result = await storage.migratePendingReportsToNuevo();
+      await storage.createNotification({
+        type: "report",
+        title: "Migración de estados",
+        message: `Se actualizaron ${result.updated} reportes de Pendiente a Nuevo`,
+        read: false,
+      });
+      res.json(result);
+    } catch (error) {
+      console.error("Error migrating report statuses:", error);
+      res.status(500).json({ error: "Error al migrar estados de reportes" });
     }
   });
 
