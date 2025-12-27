@@ -39,6 +39,7 @@ const editUserFormSchema = z.object({
   email: z.string().email("Email inválido"),
   role: z.string().min(1, "Selecciona un rol"),
   active: z.boolean().default(true),
+  canViewAllVehicles: z.boolean().default(false),
   password: z.string().min(6).optional(),
 });
 type EditUserForm = z.infer<typeof editUserFormSchema>;
@@ -61,6 +62,7 @@ export function EditUserDialog({ user, open, onOpenChange }: EditUserDialogProps
       email: user?.email ?? "",
       role: user?.role ?? roles[0]?.name ?? "user",
       active: user?.active ?? true,
+      canViewAllVehicles: user?.canViewAllVehicles ?? false,
       password: undefined,
     },
   });
@@ -72,6 +74,7 @@ export function EditUserDialog({ user, open, onOpenChange }: EditUserDialogProps
       email: user?.email ?? "",
       role: user?.role ?? roles[0]?.name ?? "user",
       active: user?.active ?? true,
+      canViewAllVehicles: user?.canViewAllVehicles ?? false,
       password: undefined,
     });
   }, [user, roles, form]);
@@ -165,6 +168,28 @@ export function EditUserDialog({ user, open, onOpenChange }: EditUserDialogProps
                             {r.name}
                           </SelectItem>
                         ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="canViewAllVehicles"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Permisos de Vehículo</FormLabel>
+                    <Select onValueChange={(value) => field.onChange(value === "true")} value={field.value ? "true" : "false"}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecciona permisos" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="false">Solo vehículos asignados</SelectItem>
+                        <SelectItem value="true">Todos los vehículos</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />

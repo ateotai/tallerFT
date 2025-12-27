@@ -70,6 +70,8 @@ import type {
   InsertChecklistTemplate,
   ExpenseHistory,
   InsertExpenseHistory,
+  VehicleBranchHistory,
+  InsertVehicleBranchHistory,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -93,6 +95,9 @@ export interface IStorage {
   deleteVehicle(id: number): Promise<boolean>;
   getVehicleByEconomicNumber(economicNumber: string): Promise<Vehicle | undefined>;
   getVehicleByVin(vin: string): Promise<Vehicle | undefined>;
+  transferVehicleBranch(vehicleId: number, toBranchId: number, reason: string, userId: number): Promise<Vehicle | undefined>;
+  getVehicleBranchHistory(vehicleId: number): Promise<VehicleBranchHistory[]>;
+  getAllVehicleBranchHistory(): Promise<VehicleBranchHistory[]>;
   
   getServices(): Promise<Service[]>;
   getService(id: number): Promise<Service | undefined>;
@@ -387,6 +392,51 @@ export class DbStorage implements IStorage {
       .where(eq(schema.vehicles.vin, vin))
       .limit(1);
     return result[0];
+  }
+
+  async transferVehicleBranch(vehicleId: number, toBranchId: number, reason: string, userId: number): Promise<Vehicle | undefined> {
+    return await db.transaction(async (tx) => {
+      const [vehicle] = await tx
+        .select()
+        .from(schema.vehicles)
+        .where(eq(schema.vehicles.id, vehicleId))
+        .limit(1);
+
+      if (!vehicle) return undefined;
+
+      // Update vehicle branch
+      const [updatedVehicle] = await tx
+        .update(schema.vehicles)
+        .set({ branchId: toBranchId })
+        .where(eq(schema.vehicles.id, vehicleId))
+        .returning();
+
+      // Record history
+      await tx.insert(schema.vehicleBranchHistory).values({
+        vehicleId,
+        fromBranchId: vehicle.branchId,
+        toBranchId,
+        reason,
+        changedBy: userId,
+      });
+
+      return updatedVehicle;
+    });
+  }
+
+  async getVehicleBranchHistory(vehicleId: number): Promise<VehicleBranchHistory[]> {
+    return await db
+      .select()
+      .from(schema.vehicleBranchHistory)
+      .where(eq(schema.vehicleBranchHistory.vehicleId, vehicleId))
+      .orderBy(desc(schema.vehicleBranchHistory.changedAt));
+  }
+
+  async getAllVehicleBranchHistory(): Promise<VehicleBranchHistory[]> {
+    return await db
+      .select()
+      .from(schema.vehicleBranchHistory)
+      .orderBy(desc(schema.vehicleBranchHistory.changedAt));
   }
 
   async getServices(): Promise<Service[]> {

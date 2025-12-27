@@ -162,6 +162,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             email: user.email,
             fullName: user.fullName,
             role: user.role,
+            canViewAllVehicles: user.canViewAllVehicles,
           });
         });
       });
@@ -213,6 +214,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         email: user.email,
         fullName: user.fullName,
         role: user.role,
+        canViewAllVehicles: user.canViewAllVehicles,
       });
     } catch (error) {
       console.error("Error fetching current user:", error);
@@ -554,6 +556,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/vehicles/transfer-history", async (req, res) => {
+    try {
+      if (!req.session.userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      const history = await storage.getAllVehicleBranchHistory();
+      res.json(history);
+    } catch (error) {
+      console.error("Error fetching vehicle branch history:", error);
+      res.status(500).json({ error: "Error al obtener historial de transferencias" });
+    }
+  });
+
   app.get("/api/vehicles/:id", async (req, res) => {
     try {
       const id = validateId(req.params.id);
@@ -621,6 +636,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       console.error("Error updating vehicle:", error);
       res.status(500).json({ error: "Error al actualizar vehículo" });
+    }
+  });
+
+  app.post("/api/vehicles/:id/transfer", async (req, res) => {
+    try {
+      const id = validateId(req.params.id);
+      if (id === null) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+
+      const userId = req.session.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const schema = z.object({
+        toBranchId: z.number(),
+        reason: z.string().min(1, "El motivo es requerido"),
+      });
+
+      const { toBranchId, reason } = schema.parse(req.body);
+
+      const vehicle = await storage.transferVehicleBranch(id, toBranchId, reason, userId);
+      
+      if (!vehicle) {
+        return res.status(404).json({ error: "Vehículo no encontrado" });
+      }
+
+      res.json(vehicle);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ error: "Datos inválidos", details: error.errors });
+      }
+      console.error("Error transferring vehicle:", error);
+      res.status(500).json({ error: "Error al transferir vehículo" });
+    }
+  });
+
+  app.get("/api/vehicles/:id/transfer-history", async (req, res) => {
+    try {
+      const id = validateId(req.params.id);
+      if (id === null) {
+        return res.status(400).json({ error: "ID inválido" });
+      }
+      if (!req.session.userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      const history = await storage.getVehicleBranchHistory(id);
+      res.json(history);
+    } catch (error) {
+      console.error("Error fetching vehicle branch history:", error);
+      res.status(500).json({ error: "Error al obtener historial de transferencias del vehículo" });
     }
   });
 
@@ -2734,12 +2801,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const isAdmin = roleText === 'admin' || roleText === 'administrador';
 
       if (!isAdmin) {
-        const assignedVehicle = await storage.getVehicleAssignedToUser(currentUser.id);
-        if (!assignedVehicle) {
-          return res.status(403).json({ error: "No puedes reportar fallas sin vehículo asignado" });
-        }
-        if (validatedData.vehicleId !== assignedVehicle.id) {
-          return res.status(403).json({ error: "Solo puedes reportar fallas para tu vehículo asignado" });
+        if (!currentUser.canViewAllVehicles) {
+          const assignedVehicle = await storage.getVehicleAssignedToUser(currentUser.id);
+          if (!assignedVehicle) {
+            return res.status(403).json({ error: "No puedes reportar fallas sin vehículo asignado" });
+          }
+          if (validatedData.vehicleId !== assignedVehicle.id) {
+            return res.status(403).json({ error: "Solo puedes reportar fallas para tu vehículo asignado" });
+          }
         }
         validatedData.userId = currentUser.id;
       }

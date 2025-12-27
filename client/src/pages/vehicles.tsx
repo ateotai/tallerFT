@@ -6,6 +6,7 @@ import { VehicleCard } from "@/components/vehicle-card";
 import { VehicleTable } from "@/components/vehicle-table";
 import { AddVehicleDialog } from "@/components/add-vehicle-dialog";
 import { VehicleTypesTable } from "@/components/vehicle-types-table";
+import VehicleBranchHistoryTable from "@/components/vehicle-branch-history-table";
 import { AddVehicleTypeDialog } from "@/components/add-vehicle-type-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -294,6 +295,7 @@ export default function VehiclesPage() {
           <TabsTrigger value="vehicles" data-testid="tab-vehicles">Vehículos</TabsTrigger>
           <TabsTrigger value="types" data-testid="tab-vehicle-types">Tipos de Vehículos</TabsTrigger>
           <TabsTrigger value="history" data-testid="tab-vehicle-history">Historial</TabsTrigger>
+          <TabsTrigger value="transfer-history" data-testid="tab-transfer-history">Transferencias</TabsTrigger>
         </TabsList>
 
         <TabsContent value="vehicles" className="space-y-6">
@@ -458,6 +460,18 @@ export default function VehiclesPage() {
               );
             })()
           )}
+        </TabsContent>
+
+        <TabsContent value="transfer-history" className="space-y-6">
+          <div className="flex justify-between items-center">
+            <div>
+              <h2 className="text-2xl font-semibold">Historial de Transferencias</h2>
+              <p className="text-muted-foreground mt-1">
+                Consulta los movimientos de vehículos entre sucursales
+              </p>
+            </div>
+          </div>
+          <VehicleBranchHistoryTable />
         </TabsContent>
 
         <TabsContent value="types" className="space-y-6">

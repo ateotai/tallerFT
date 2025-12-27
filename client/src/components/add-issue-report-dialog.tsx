@@ -61,9 +61,9 @@ export function AddIssueReportDialog() {
   });
 
   const canReport = useMemo(() => {
-    if (isAdmin) return true;
+    if (isAdmin || user?.canViewAllVehicles) return true;
     return !!assignedVehicle;
-  }, [isAdmin, assignedVehicle]);
+  }, [isAdmin, user?.canViewAllVehicles, assignedVehicle]);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -78,13 +78,19 @@ export function AddIssueReportDialog() {
   });
 
   useEffect(() => {
-    if (!isAdmin && assignedVehicle?.id) {
+    // If user is restricted, force their assigned vehicle
+    if (!isAdmin && !user?.canViewAllVehicles && assignedVehicle?.id) {
+      form.setValue("vehicleId", assignedVehicle.id);
+    } 
+    // If user has permission but has an assigned vehicle, set it as default if field is empty
+    else if (assignedVehicle?.id && !form.getValues("vehicleId")) {
       form.setValue("vehicleId", assignedVehicle.id);
     }
+    
     if (user?.id) {
       form.setValue("userId", user.id);
     }
-  }, [assignedVehicle?.id, isAdmin, user?.id]);
+  }, [assignedVehicle?.id, isAdmin, user?.canViewAllVehicles, user?.id]);
 
   const createMutation = useMutation({
     mutationFn: async (data: InsertReport) => {
@@ -208,12 +214,12 @@ export function AddIssueReportDialog() {
                     <VehicleSearchCombobox
                       value={field.value}
                       onValueChange={field.onChange}
-                      disabled={!isAdmin}
+                      disabled={!isAdmin && !user?.canViewAllVehicles}
                       selectedFallbackText={assignedVehicle ? `${assignedVehicle.economicNumber || assignedVehicle.plate} · ${assignedVehicle.brand} ${assignedVehicle.model}` : undefined}
-                      allowedVehicleIds={!isAdmin && assignedVehicle ? [assignedVehicle.id] : undefined}
+                      allowedVehicleIds={!isAdmin && !user?.canViewAllVehicles && assignedVehicle ? [assignedVehicle.id] : undefined}
                     />
                   </FormControl>
-                  {!isAdmin && assignedVehicle && (
+                  {!isAdmin && !user?.canViewAllVehicles && assignedVehicle && (
                     <p className="text-xs text-muted-foreground">Tu vehículo asignado: {(assignedVehicle.economicNumber || assignedVehicle.plate)} · {assignedVehicle.brand} {assignedVehicle.model}</p>
                   )}
                   <FormMessage />

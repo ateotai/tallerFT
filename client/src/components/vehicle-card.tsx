@@ -1,13 +1,14 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
-import { Calendar, Eye, Pencil, Trash2 } from "lucide-react";
+import { Calendar, Eye, Pencil, Trash2, ArrowRightLeft } from "lucide-react";
 import type { Vehicle, ClientBranch, Client, User } from "@shared/schema";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import vanImage from "@assets/generated_images/White_commercial_van_photo_54e80b21.png";
 import { Link, useLocation } from "wouter";
 import { useState } from "react";
 import { EditVehicleDialog } from "@/components/edit-vehicle-dialog";
+import { TransferVehicleDialog } from "@/components/transfer-vehicle-dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -36,6 +37,7 @@ export function VehicleCard({ vehicle }: VehicleCardProps) {
   const statusInfo = statusConfig[status] ?? { label: String(vehicle.status || "-"), className: "border-gray-600 text-gray-600" };
   const [, navigate] = useLocation();
   const [openEdit, setOpenEdit] = useState(false);
+  const [openTransfer, setOpenTransfer] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const { toast } = useToast();
   const { data: branches = [] } = useQuery<ClientBranch[]>({ queryKey: ["/api/client-branches"] });
@@ -157,6 +159,15 @@ export function VehicleCard({ vehicle }: VehicleCardProps) {
         <Button
           variant="outline"
           size="icon"
+          title="Transferir Sucursal"
+          data-testid={`button-transfer-${vehicle.id}`}
+          onClick={() => setOpenTransfer(true)}
+        >
+          <ArrowRightLeft className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="outline"
+          size="icon"
           title="Editar"
           data-testid={`button-edit-${vehicle.id}`}
           onClick={() => setOpenEdit(true)}
@@ -174,6 +185,7 @@ export function VehicleCard({ vehicle }: VehicleCardProps) {
         </Button>
       </CardFooter>
       <EditVehicleDialog vehicle={vehicle} open={openEdit} onOpenChange={setOpenEdit} />
+      <TransferVehicleDialog vehicle={vehicle} open={openTransfer} onOpenChange={setOpenTransfer} />
       <AlertDialog open={deleting} onOpenChange={setDeleting}>
         <AlertDialogContent>
           <AlertDialogHeader>

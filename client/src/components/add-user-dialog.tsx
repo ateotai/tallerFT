@@ -42,6 +42,7 @@ const createUserFormSchema = z.object({
   password: z.string().min(6, "Mínimo 6 caracteres"),
   role: z.string().min(1, "Selecciona un rol"),
   active: z.boolean().default(true),
+  canViewAllVehicles: z.boolean().default(false),
 });
 type CreateUserForm = z.infer<typeof createUserFormSchema>;
 
@@ -183,6 +184,28 @@ export function AddUserDialog() {
                             {r.name}
                           </SelectItem>
                         ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="canViewAllVehicles"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Permisos de Vehículo</FormLabel>
+                    <Select onValueChange={(value) => field.onChange(value === "true")} value={field.value ? "true" : "false"}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecciona permisos" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="false">Solo vehículos asignados</SelectItem>
+                        <SelectItem value="true">Todos los vehículos</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
